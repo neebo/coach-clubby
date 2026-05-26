@@ -212,6 +212,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 <script>
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -264,7 +266,12 @@ function sbSet(key, value, token, cb) {
     headers: Object.assign({}, sbHeaders(token), {
       'Prefer': 'resolution=merge-duplicates,return=minimal'
     }),
-    body: JSON.stringify({ key: key, value: value, updated_at: new Date().toISOString() })
+    body: JSON.stringify({
+        user_id:    SB_SESSION && SB_SESSION.user ? SB_SESSION.user.id : undefined,
+        key:        key,
+        value:      value,
+        updated_at: new Date().toISOString()
+      })
   })
   .then(function(r) { if (!r.ok) throw new Error(r.status); cb && cb(null); })
   .catch(function(e) { console.error('sbSet error:', e); cb && cb(e); });
@@ -487,6 +494,64 @@ function sbScheduleWrite(key, value) {
   }, 500);
 }
 
+/* ── Per-session stroke storage ──────────────────────────────
+   Full session data (including strokes) stored per-session under
+   key 'clubby_session_YYYYMMDD'. The session index ('clubby_sessions')
+   holds only scalar fields for fast overview loading.
+   Strokes are loaded on demand when a session is selected.
+────────────────────────────────────────────────────────────── */
+var SESSION_KEY_PREFIX = 'clubby_session_';
+
+function sessionDetailKey(date) {
+  return SESSION_KEY_PREFIX + date;
+}
+
+function saveSessionDetail(session) {
+  /* Save full session including strokes */
+  sbScheduleWrite(sessionDetailKey(session.date), session);
+}
+
+function loadSessionDetail(date, cb) {
+  /* Already have strokes in memory? */
+  var existing = SESSIONS.filter(function(s){ return s.date === date; })[0];
+  if (existing && existing.strokes && existing.strokes.length) {
+    cb(null, existing);
+    return;
+  }
+  /* Load from Supabase */
+  sbGet(sessionDetailKey(date), sbToken(), function(err, val) {
+    if (err || !val) { cb(err, null); return; }
+    /* Merge strokes into the in-memory session */
+    if (existing) {
+      existing.strokes  = val.strokes  || [];
+      existing.intervals = val.intervals || existing.intervals || [];
+      cb(null, existing);
+    } else {
+      cb(null, val);
+    }
+  });
+}
+
+function deleteSessionDetail(date) {
+  sbDel(sessionDetailKey(date), sbToken());
+}
+
+/* Load all session detail keys in _loadUserData */
+function loadAllSessionDetails(sessions, cb) {
+  if (!sessions || !sessions.length) { cb(); return; }
+  var pending = sessions.length;
+  sessions.forEach(function(s) {
+    sbGet(sessionDetailKey(s.date), sbToken(), function(err, val) {
+      if (!err && val && val.strokes) {
+        s.strokes   = val.strokes;
+        s.intervals = val.intervals || s.intervals || [];
+      }
+      if (!--pending) cb();
+    });
+  });
+}
+
+
 /* Override the storage functions used throughout the app */
 function loadPersistedData(cb) {
   /* First check if we're arriving from a verification/recovery email link */
@@ -513,7 +578,15 @@ function _loadUserData(cb) {
   keys.forEach(function(k) {
     sbGet(k, sbToken(), function(err2, val) {
       if (!err2 && val !== null) _store[k] = val;
-      if (++loaded === keys.length) cb();
+      if (++loaded === keys.length) {
+        /* Now load full stroke data for each session */
+        var sessions = _store[STORAGE_KEY] || [];
+        loadAllSessionDetails(sessions, function() {
+          /* Merge strokes back into _store */
+          _store[STORAGE_KEY] = sessions;
+          cb();
+        });
+      }
     });
   });
 }
@@ -524,16 +597,24 @@ function persistData() {
 }
 
 function saveToStorage() {
-  var TRANSIENT = ['_wx','_tide','strokes','splits','computed'];
-  var clean = SESSIONS.map(function(s) {
+  var TRANSIENT = ['_wx','_tide'];   /* keep strokes - save them too */
+  var SCALAR_ONLY = ['_wx','_tide','strokes','splits','intervals','computed'];
+  /* Index: scalar fields only, for fast overview */
+  var index = SESSIONS.map(function(s) {
     var out = {};
     Object.keys(s).forEach(function(k) {
-      if (TRANSIENT.indexOf(k) === -1) out[k] = s[k];
+      if (SCALAR_ONLY.indexOf(k) === -1) out[k] = s[k];
     });
     return out;
   });
-  _store[STORAGE_KEY] = clean;
-  sbScheduleWrite(STORAGE_KEY, clean);
+  _store[STORAGE_KEY] = index;
+  sbScheduleWrite(STORAGE_KEY, index);
+  /* Detail: full session per-date (includes strokes) */
+  SESSIONS.forEach(function(s) {
+    if (s.strokes && s.strokes.length) {
+      saveSessionDetail(s);
+    }
+  });
   updateStorageBadge();
 }
 
@@ -817,51 +898,21 @@ const DLABELS={};
 var STORAGE_KEY='clubby_sessions';
 
 function loadFromStorage(){
-  try{
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      var stored = JSON.parse(raw);
-      if(stored && stored.length){
-        /* Merge stored sessions with seeds.
-           Seeds carry the full stroke data; stored sessions carry
-           user-uploaded extras. Prefer stored for any date both have,
-           but always pull strokes/splits from the matching seed. */
-        var seedMap = {};
-        SEED_SESSIONS.forEach(function(s){ seedMap[s.date] = s; });
-        var storedDates = new Set(stored.map(function(s){ return s.date; }));
-
-        var merged = stored.map(function(s){
-          var seed = seedMap[s.date];
-          if(seed){
-            /* Always use seed as the base (has full strokes).
-               Stored version only contributes the session-level scalars
-               the user may have changed (nothing currently — tags/notes
-               are stored separately under their own keys). */
-            return JSON.parse(JSON.stringify(seed));
-          }
-          /* User-uploaded session not in seeds — strip transient fields */
-          var TRANSIENT = ['_wx','_tide','strokes','splits','computed'];
-          var clean = {};
-          Object.keys(s).forEach(function(k){
-            if(TRANSIENT.indexOf(k) === -1) clean[k] = s[k];
-          });
-          return clean;
-        });
-
-        /* Add any seed sessions not in stored */
-        SEED_SESSIONS.forEach(function(s){
-          if(!storedDates.has(s.date)) merged.push(s);
-        });
-
-        SESSIONS = merged;
-        SESSIONS.sort(function(a,b){ return a.date.localeCompare(b.date); });
-        return true;
-      }
+  /* _store was populated by _loadUserData from Supabase.
+     Read sessions from there, not from localStorage. */
+  try {
+    var stored = _store[STORAGE_KEY];
+    if (stored && stored.length) {
+      /* Sessions are stored as scalar-only objects (no strokes).
+         We keep them as-is — analysis functions that need strokes
+         (recompute, detectLegs etc.) skip sessions with no strokes. */
+      SESSIONS = stored.slice();
+      SESSIONS.sort(function(a,b){ return a.date.localeCompare(b.date); });
+      return true;
     }
-  }catch(e){
-    console.warn('localStorage load failed:', e);
+  } catch(e) {
+    console.warn('loadFromStorage failed:', e);
   }
-  saveToStorage();
   return false;
 }
 
@@ -869,6 +920,7 @@ function deleteSession(date){
   SESSIONS=SESSIONS.filter(function(s){return s.date!==date;});
   if(SEL===date)SEL=SESSIONS.length?SESSIONS[SESSIONS.length-1].date:null;
   saveToStorage();
+  deleteSessionDetail(date);
   PAGE=SEL?'session':'overview';
   refresh();
 }
@@ -1927,9 +1979,10 @@ var SESSION_TAGS={};
 
 function loadTags(){
   try{
-    var raw=localStorage.getItem(TAGS_KEY);
-    if(raw)SESSION_TAGS=JSON.parse(raw);
-  }catch(e){SESSION_TAGS={};}
+    var raw = _store[TAGS_KEY];
+    if(raw) SESSION_TAGS = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    else SESSION_TAGS = {};
+  }catch(e){ SESSION_TAGS={}; }
 }
 
 function setSessionTag(date, focusId){
@@ -2149,7 +2202,11 @@ var NOTES_KEY = 'clubby_notes';
 var SESSION_NOTES = {};
 
 function loadNotes() {
-  try { var r = localStorage.getItem(NOTES_KEY); if (r) SESSION_NOTES = JSON.parse(r); } catch(e) {}
+  try {
+    var raw = _store[NOTES_KEY];
+    if (raw) SESSION_NOTES = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    else SESSION_NOTES = {};
+  } catch(e) { SESSION_NOTES = {}; }
 }
 function setNote(date, text) {
   if (text && text.trim()) SESSION_NOTES[date] = text.trim();
@@ -2211,7 +2268,7 @@ function onNoteInput() {
 ═══════════════════════════════════════════ */
 
 function detectLegs(session) {
-  var strokes = session.strokes.filter(function(s) {
+  var strokes = (session.strokes||[]).filter(function(s) {
     return s.s != null && s.s > 0.3;
   });
   var n = strokes.length;
@@ -2430,7 +2487,7 @@ function renderLegsCard(session) {
 ═══════════════════════════════════════════ */
 
 function detectDownwindRuns(session) {
-  var strokes = session.strokes.filter(function(s) {
+  var strokes = (session.strokes||[]).filter(function(s) {
     return s.s != null && s.s > 0.3;
   });
   var n = strokes.length;
@@ -2957,9 +3014,9 @@ function weekMonday(isoKey) {
 
 function loadWeeklyPlans() {
   try {
-    var raw = _store[PLAN_KEY] || null;
-    if (!raw) { try { raw = window._ls.getItem(PLAN_KEY); } catch(e){} }
+    var raw = _store[PLAN_KEY];
     if (raw) WEEKLY_PLANS = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    else WEEKLY_PLANS = {};
   } catch(e) { WEEKLY_PLANS = {}; }
 }
 
@@ -3296,6 +3353,8 @@ selSess = function(date) {
   _selSessBase(date);
   updateMobNav();
 };
+
+
 
 
 
