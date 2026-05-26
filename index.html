@@ -380,6 +380,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -1604,13 +1605,15 @@ function renderOverview(el){
   var viewDiv = document.createElement('div');
   viewDiv.className = 'view';
   viewDiv.innerHTML = '<div class="pt">🦭 Training Overview</div>'
-    +'<div class="ps">Road 2 Worlds — sessions auto-tagged by day of week.</div>'
-    +renderDateFilter()
+    +'<div class="ps">Road 2 Worlds — sessions auto-tagged by day of week.</div>';
+
+  /* Week plan strip — fixed at top, not draggable */
+  viewDiv.innerHTML += renderWeekPlanWidget(ss);
 
   el.innerHTML = '';
   el.appendChild(viewDiv);
 
-  /* Render draggable widgets */
+  /* Render draggable widgets (stats, chart, sessions table) */
   renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist);
 }
 
@@ -4083,7 +4086,6 @@ function startDrag(srcWrap, container, s, startY) {
 ═══════════════════════════════════════════════════════ */
 
 var OV_WIDGET_DEFS = [
-  { id:'week-plan',      label:"This Week's Program" },
   { id:'stats',          label:'Summary Stats'        },
   { id:'speed-chart',    label:'Speed Chart'          },
   { id:'sessions-table', label:'Sessions Table'       },
@@ -4166,7 +4168,6 @@ function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, to
   container.id  = 'ov-widgets';
   function widgetHTML(id) {
     switch(id) {
-      case 'week-plan': return renderWeekPlanWidget(ss);
       case 'stats':
         return '<div class="sg g4">'
           +'<div class="sc"><div class="sl">Total Distance</div>'
@@ -4188,7 +4189,8 @@ function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, to
           +'<div class="ct-sub">\uD83D\uDD34 diamonds = bungee Thursdays</div>'
           +'<canvas id="ov-c" height="175"></canvas></div>';
       case 'sessions-table':
-        return '<div class="tw"><table>'
+        return renderDateFilter()
+          + '<div class="tw"><table>'
           +'<tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th>'
           +'<th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Conditions</th>'
           +'<th>Notes</th><th>Compare to</th><th style="width:32px"></th></tr>'
@@ -4866,6 +4868,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
