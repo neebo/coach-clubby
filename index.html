@@ -215,6 +215,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -588,7 +591,7 @@ function loadPersistedData(cb) {
 }
 
 function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY];
   var loaded = 0;
   _store = {};
   keys.forEach(function(k) {
@@ -1109,7 +1112,7 @@ function renderSidebar(){
     html+='<div class="si '+active+'" data-date="'+s.date+'">';
     html+='<span class="si-spd" style="color:'+fc+'">'+s.avgSpeed.toFixed(2)+'</span>';
     html+='<div class="si-date">'+dateLabel(s.date)+'</div>';
-    html+='<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+'</div>';
+    html+='<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+' · <b>'+getCraft(s)+'</b></div>';
     html+='<div class="si-meta">'+s.totalDist.toFixed(1)+' mi · '+s.elapsed.split('.')[0]+'</div>';
     if(f&&f.bungee)html+='<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:2px">🔴 lower speed by design</div>';
     html+='</div>';
@@ -1228,7 +1231,7 @@ function renderOverview(el){
     +'<div class="card"><div class="ct-title">Session speed — coloured by focus type</div>'
     +'<div class="ct-sub">🔴 diamonds = bungee Thursdays · dashed lines connect same focus type</div>'
     +'<canvas id="ov-c" height="175"></canvas></div>'
-    +'<div class="tw"><table><tr><th>Date</th><th>Focus</th><th>Dist</th><th>Elapsed</th><th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Wind</th><th>Notes</th><th>Compare to</th><th></th></tr>'
+    +'<div class="tw"><table><tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th><th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Wind</th><th>Notes</th><th>Compare to</th><th></th></tr>'
     +rows+'</table></div></div>';
   setTimeout(function(){drawOvSpeed(ss);},30);
 }
@@ -1567,7 +1570,7 @@ function renderSession(el){
     .replace('TAG_EDITOR_PLACEHOLDER', '<div id="__ts"></div>')
     .replace('WX_PLACEHOLDER', '<div id="__ws"></div>');
   var __ts = el.querySelector('#__ts');
-  if(__ts) __ts.outerHTML = renderTagEditor(s);
+  if(__ts) __ts.outerHTML = renderTagEditor(s) + renderCraftSelector(s);
   var __ws = el.querySelector('#__ws');
   if(__ws) {
     var __f = getFocus(s);
@@ -1850,6 +1853,8 @@ loadPersistedData(function(){
   loadTags();
   loadNotes();
   loadWeeklyPlans();
+  loadPrefs();
+  loadSessionCrafts();
   computeAllTides();
   SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
   addSignOutButton();
@@ -3045,8 +3050,8 @@ function buildFocusFromDay(day, dow) {
     label:      DOW_NAMES[dow] + ' · ' + (opt.label || day.id),
     shortLabel: opt.label || day.id,
     icon:       opt.icon  || base.icon  || '📅',
-    color:      base.color   || '#9b8bb8',
-    colorLt:    base.colorLt || '#f0eaf9',
+    color:      (FOCUS_STYLES[day.id]||{}).color   || base.color   || '#9b8bb8',
+    colorLt:    (FOCUS_STYLES[day.id]||{}).colorLt || base.colorLt || '#f0eaf9',
     bungee:     opt.bungee   || false,
     srTargets:  day.srTargets || null,
     desc:       day.desc || '',
@@ -3061,6 +3066,7 @@ function renderPlansPage(el) {
     + '<div class="ps">Set the workout schedule for each week. Sessions are automatically tagged by day — no manual tagging needed.</div>';
 
   /* Add new week button */
+  html += renderUserPrefs();
   html += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">';
   html += '<button onclick="openNewPlan()" style="font-family:var(--font);font-size:12px;font-weight:800;'
         + 'padding:10px 20px;border-radius:var(--r-pill);border:none;background:var(--lav);color:var(--plum);cursor:pointer">'
@@ -3375,6 +3381,124 @@ selSess = function(date) {
 
 
 
+
+
+
+
+
+/* ══════════════════════════════════════════════════
+   CRAFT TYPES + RACE FOCUS
+══════════════════════════════════════════════════ */
+var PREFS_KEY  = 'clubby_prefs';
+var CRAFTS_KEY = 'clubby_crafts';
+
+var CRAFT_OPTIONS = ['OC1','SS1','OC2','SS2','OC6'];
+
+var USER_PREFS     = { defaultCraft: 'OC1' };
+var SESSION_CRAFTS = {};
+
+/* Focus colour palette for non-PROGRAM types (race, gym, etc.) */
+var FOCUS_STYLES = {
+  'race':          { color:'#c0406a', colorLt:'#fce8ef', icon:'\U0001f3c6' },
+  'gym':           { color:'#7a6a50', colorLt:'#f5f0e8', icon:'\U0001f3cb\ufe0f' },
+  'easy':          { color:'#5cb87a', colorLt:'#d4eedf', icon:'\U0001f33f' },
+  'bungee':        { color:'#f5a623', colorLt:'#fef3dc', icon:'\U0001f534' },
+  'long-z2':       { color:'#9bbdd4', colorLt:'#daeef8', icon:'\U0001f30a' },
+  'intervals':     { color:'#7c6fa0', colorLt:'#ede8f7', icon:'\u26a1' },
+  'easy-benchmark':{ color:'#c08bc0', colorLt:'#f5e6f5', icon:'\U0001f60c' },
+};
+
+function loadPrefs() {
+  try {
+    var raw = _store[PREFS_KEY];
+    if (raw) USER_PREFS = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch(e) {}
+}
+
+function savePrefs() {
+  _store[PREFS_KEY] = USER_PREFS;
+  sbScheduleWrite(PREFS_KEY, USER_PREFS);
+}
+
+function loadSessionCrafts() {
+  try {
+    var raw = _store[CRAFTS_KEY];
+    if (raw) SESSION_CRAFTS = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch(e) {}
+}
+
+function saveSessionCrafts() {
+  _store[CRAFTS_KEY] = SESSION_CRAFTS;
+  sbScheduleWrite(CRAFTS_KEY, SESSION_CRAFTS);
+}
+
+function getCraft(session) {
+  return SESSION_CRAFTS[session.date] || USER_PREFS.defaultCraft || 'OC1';
+}
+
+function setSessionCraft(date, craft) {
+  if (!craft || craft === (USER_PREFS.defaultCraft || 'OC1')) {
+    delete SESSION_CRAFTS[date];
+  } else {
+    SESSION_CRAFTS[date] = craft;
+  }
+  saveSessionCrafts();
+  refresh();
+}
+
+function setDefaultCraft(craft) {
+  USER_PREFS.defaultCraft = craft;
+  savePrefs();
+  showToast('\U0001f6f6 Default craft set to ' + craft, 'success');
+}
+
+function renderCraftSelector(session) {
+  var current = getCraft(session);
+  var isOv = !!SESSION_CRAFTS[session.date];
+  var date = session.date;
+  var opts = CRAFT_OPTIONS.map(function(c){
+    return '<option value="'+c+'"'+(c===current?' selected':'')+'>'+c+'</option>';
+  }).join('');
+  var ovPart = isOv
+    ? '<span style="font-size:10px;font-weight:700;color:#f5a623">\u26a1 overridden</span>'
+      +'<button id="craft-rst-'+date+'" style="font-family:var(--font);font-size:10px;font-weight:700;'
+      +'padding:3px 8px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
+      +'color:var(--gm);cursor:pointer">Reset to default</button>'
+    : '<span style="font-size:10px;font-weight:600;color:var(--gm)">default</span>';
+  setTimeout(function(){
+    var sel=document.getElementById('craft-sel-'+date);
+    if(sel) sel.onchange=function(){ setSessionCraft(date,this.value); };
+    var rst=document.getElementById('craft-rst-'+date);
+    if(rst) rst.onclick=function(){ setSessionCraft(date,''); };
+  },0);
+  return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);'
+    +'border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">\U0001f6f6 Craft:</span>'
+    +'<select id="craft-sel-'+date+'" style="font-family:var(--font);font-size:12px;font-weight:700;'
+    +'padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
+    +opts+'</select>'+ovPart+'</div>';
+}
+
+function renderUserPrefs() {
+  var craft = USER_PREFS.defaultCraft || 'OC1';
+  var craftOpts = CRAFT_OPTIONS.map(function(c){
+    return '<option value="'+c+'"'+(c===craft?' selected':'')+'>'+c+'</option>';
+  }).join('');
+  setTimeout(function(){
+    var sel=document.getElementById('default-craft-sel');
+    if(sel) sel.onchange=function(){ setDefaultCraft(this.value); };
+  },0);
+  return '<div class="card">'
+    +'<div class="ct-title">\u2699\ufe0f Your Preferences</div>'
+    +'<div class="ct-sub">Defaults applied to all sessions unless overridden per-session.</div>'
+    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+    +'<span style="font-size:12px;font-weight:800;color:var(--plum)">\U0001f6f6 Default craft:</span>'
+    +'<select id="default-craft-sel" style="font-family:var(--font);font-size:12px;font-weight:700;'
+    +'padding:7px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
+    +craftOpts+'</select>'
+    +'<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
+    +'</div></div>';
+}
 
 
 </script>
