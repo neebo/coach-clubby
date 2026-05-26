@@ -221,6 +221,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -291,7 +292,7 @@ function sbSet(key, value, token, cb) {
     value:      value,
     updated_at: new Date().toISOString()
   };
-  console.log('[sbSet] key:', key, 'user_id:', userId, 'token present:', !!token);
+
   fetch(SUPABASE_URL + '/rest/v1/user_data', {
     method: 'POST',
     headers: Object.assign({}, sbHeaders(token), {
@@ -306,7 +307,6 @@ function sbSet(key, value, token, cb) {
         throw new Error(r.status + ': ' + txt);
       });
     }
-    console.log('[sbSet] saved key:', key);
     cb && cb(null);
   })
   .catch(function(e) { console.error('[sbSet] error:', e); cb && cb(e); });
@@ -353,7 +353,6 @@ function sbSignIn(email, password, cb) {
   .then(function(d) {
     if (d.error || d.error_description) { cb(d.error_description || d.error, null); return; }
     SB_SESSION = d;
-    console.log('[sbSignIn] session user:', d.user, 'has id:', d.user && d.user.id);
     try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
     cb(null, d);
   })
@@ -389,7 +388,6 @@ function sbRefresh(refreshToken, cb) {
   .then(function(d) {
     if (d.error) { cb(d.error, null); return; }
     SB_SESSION = d;
-    console.log('[sbSignIn] session user:', d.user, 'has id:', d.user && d.user.id);
     try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
     cb(null, d);
   })
@@ -501,7 +499,6 @@ function sbRestoreSession(cb) {
         var expiresAt = payload.exp * 1000;
         if (Date.now() < expiresAt - 60000) {
           SB_SESSION = sess;
-          console.log('[sbRestoreSession] restored, user:', sess.user, 'id:', sess.user && sess.user.id);
           cb(null, sess);
           return;
         }
@@ -629,13 +626,10 @@ function _loadUserData(cb) {
   });
 }
 
-function persistData() {
-  /* No-op: individual save functions (saveTags, saveNotes etc.)
-     call sbScheduleWrite directly */
-}
+/* persistData() removed — each save fn calls sbScheduleWrite directly */
 
 function saveToStorage() {
-  var TRANSIENT = ['_wx','_tide'];   /* keep strokes - save them too */
+  /* Strip only non-serialisable/transient computed props from the index */
   var SCALAR_ONLY = ['_wx','_tide','strokes','splits','intervals','computed'];
   /* Index: scalar fields only, for fast overview */
   var index = SESSIONS.map(function(s) {
@@ -672,12 +666,21 @@ function saveWeeklyPlans() {
 }
 
 function clearAllStorage() {
-  if (!confirm('Reset all your saved sessions back to the 5 pre-loaded ones?')) return;
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
-  keys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
-  SESSIONS = SEED_SESSIONS.map(function(s) { return JSON.parse(JSON.stringify(s)); });
-  SESSION_TAGS = {}; SESSION_NOTES = {}; WEEKLY_PLANS = {};
-  SEL = SESSIONS[SESSIONS.length-1].date;
+  if (!confirm('Delete all your saved data and start fresh?')) return;
+  /* Delete all known keys from Supabase */
+  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY];
+  allKeys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
+  /* Delete per-session detail rows */
+  SESSIONS.forEach(function(s) { deleteSessionDetail(s.date); });
+  /* Reset in-memory state */
+  SESSIONS      = [];
+  SESSION_TAGS  = {};
+  SESSION_NOTES = {};
+  WEEKLY_PLANS  = {};
+  USER_PREFS    = { defaultCraft: 'OC1' };
+  SESSION_CRAFTS= {};
+  SEL  = null;
+  PAGE = 'overview';
   refresh();
 }
 
@@ -936,8 +939,7 @@ const DLABELS={};
 
 
 function loadFromStorage(){
-  /* _store was populated by _loadUserData from Supabase.
-     Read sessions from there, not from localStorage. */
+  /* _store was populated by _loadUserData() from Supabase before this runs. */
   try {
     var stored = _store[STORAGE_KEY];
     if (stored && stored.length) {
@@ -967,7 +969,8 @@ function updateStorageBadge(){
   var el=document.getElementById('storage-badge');
   if(!el)return;
   var n=SESSIONS.length;
-  el.textContent=n+' session'+(n!==1?'s':'')+' saved';
+  var email=SB_SESSION&&SB_SESSION.user?SB_SESSION.user.email:'';
+  el.textContent=(email?email+' · ':'')+n+' session'+(n!==1?'s':'');
   el.style.display='inline-flex';
 }
 
@@ -2011,7 +2014,7 @@ function fetchWeather(session, callback){
         fetchedAt: Date.now(),
       };
       // Cache
-      try{localStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
+      try{sessionStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
       callback(null,wx);
     })
     .catch(function(err){callback(err,null);});
@@ -2168,7 +2171,7 @@ var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
 function fetchTides(session, callback) {
   var cacheKey = TIDE_CACHE_PREFIX + session.date;
   try {
-    var cached = localStorage.getItem(cacheKey);
+    var cached = sessionStorage.getItem(cacheKey);
     if (cached) { callback(null, JSON.parse(cached)); return; }
   } catch(e) {}
 
@@ -2269,7 +2272,7 @@ function fetchTides(session, callback) {
         fetchedAt: Date.now(),
       };
 
-      try { localStorage.setItem(cacheKey, JSON.stringify(result)); } catch(e) {}
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch(e) {}
       callback(null, result);
     })
     .catch(function(err) { callback(err, null); });
@@ -3573,6 +3576,7 @@ function renderUserPrefs() {
     +'<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
     +'</div></div>';
 }
+
 
 
 
