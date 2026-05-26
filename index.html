@@ -378,6 +378,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -1777,14 +1779,15 @@ function renderByFocus(el){
   });
 
   html+='</div>';
-  /* Render into a container so we can attach DnD */
+  /* Render: set the view shell, then append a draggable container for groups */
+  el.innerHTML = html;
   var bfContainer = document.createElement('div');
   bfContainer.id = 'bf-container';
-  bfContainer.innerHTML = html;
+  /* Move all focus-group-wrap divs from the html into bfContainer */
   var bfView = el.querySelector('.view') || el;
-  /* Remove old container if re-rendering */
-  var oldBf = el.querySelector('#bf-container');
-  if (oldBf) oldBf.remove();
+  Array.from(bfView.querySelectorAll('.focus-group-wrap')).forEach(function(w) {
+    bfContainer.appendChild(w);
+  });
   bfView.appendChild(bfContainer);
   attachFocusDrag(bfContainer);
   /* Draw charts — use IntersectionObserver so off-screen canvases
@@ -2453,9 +2456,9 @@ function renderTagEditor(session){
 
   var options='<option value="auto">'+(autoFocus?'Auto: '+autoFocus.shortLabel:'Auto: untagged')+'</option>';
   options+='<option value="">— No focus tag —</option>';
-  Object.keys(PROGRAM).forEach(function(dow){
-    var p=PROGRAM[dow];
-    options+='<option value="'+p.id+'">'+ p.icon+' '+p.shortLabel+'</option>';
+  FOCUS_OPTIONS.forEach(function(p){
+    if (!p.id) return;
+    options+='<option value="'+p.id+'">'+(p.icon?p.icon+' ':'')+p.label+'</option>';
   });
 
   var currentVal=hasOverride?(SESSION_TAGS[session.date]===null?'':SESSION_TAGS[session.date]):'auto';
@@ -4863,6 +4866,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
