@@ -218,6 +218,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -242,7 +244,23 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 ═══════════════════════════════════════════════════════════ */
 
 var SUPABASE_URL = 'https://uepsvomcafyjxsuzdhsx.supabase.co';
-var SITE_URL     = 'https://neebo.github.io/coach-clubby/';   // e.g. https://xyzxyz.supabase.co
+var SITE_URL     = 'https://neebo.github.io/coach-clubby/';
+
+/* ── Storage key constants (must be defined before any function uses them) ── */
+var STORAGE_KEY  = 'clubby_sessions';
+var TAGS_KEY     = 'clubby_tags';
+var NOTES_KEY    = 'clubby_notes';
+var PLAN_KEY     = 'clubby_weekly_plans';
+var PREFS_KEY    = 'clubby_prefs';
+var CRAFTS_KEY   = 'clubby_crafts';
+
+/* In-memory state */
+var SESSION_TAGS   = {};
+var SESSION_NOTES  = {};
+var WEEKLY_PLANS   = {};
+var USER_PREFS     = { defaultCraft: 'OC1' };
+var SESSION_CRAFTS = {};
+   // e.g. https://xyzxyz.supabase.co
 var SUPABASE_KEY = 'sb_publishable_uvX8awTNtVI86e9Q0xcORw_xjP4qIC5';
 
 /* ── Supabase REST helpers (no SDK needed — plain fetch) ── */
@@ -914,7 +932,7 @@ const DLABELS={};
    Embedded seed sessions (from CSV pre-parse)
    are saved on first load if storage is empty.
 ═══════════════════════════════════════════ */
-var STORAGE_KEY='clubby_sessions';
+
 
 function loadFromStorage(){
   /* _store was populated by _loadUserData from Supabase.
@@ -1995,8 +2013,8 @@ function wxExposureNote(session){
    null = remove the auto-detected tag entirely
    string = override with this focus id
 ═══════════════════════════════════════════ */
-var TAGS_KEY='clubby_tags';
-var SESSION_TAGS={};
+
+
 
 function loadTags(){
   try{
@@ -2026,9 +2044,17 @@ function renderTagEditor(session){
 
   var options='<option value="auto">'+(autoFocus?'Auto: '+autoFocus.shortLabel:'Auto: untagged')+'</option>';
   options+='<option value="">— No focus tag —</option>';
+  /* PROGRAM-based types (day-of-week defaults) */
   Object.keys(PROGRAM).forEach(function(dow){
     var p=PROGRAM[dow];
     options+='<option value="'+p.id+'">'+ p.icon+' '+p.shortLabel+'</option>';
+  });
+  /* Extra types from FOCUS_OPTIONS not already covered by PROGRAM */
+  var programIds=Object.keys(PROGRAM).map(function(d){return PROGRAM[d].id;});
+  FOCUS_OPTIONS.forEach(function(o){
+    if(o.id && programIds.indexOf(o.id)===-1){
+      options+='<option value="'+o.id+'">'+(o.icon?o.icon+' ':'')+o.label+'</option>';
+    }
   });
 
   var currentVal=hasOverride?(SESSION_TAGS[session.date]===null?'':SESSION_TAGS[session.date]):'auto';
@@ -2219,8 +2245,8 @@ function tideStateColor(state) {
    Stored in localStorage: clubby_notes
    { "20260509": "Exceptional upwind resistance returning to shore..." }
 ═══════════════════════════════════════════ */
-var NOTES_KEY = 'clubby_notes';
-var SESSION_NOTES = {};
+
+
 
 function loadNotes() {
   try {
@@ -2984,8 +3010,8 @@ function clearDateFilter() { FILTER_FROM = null; FILTER_TO = null; render(); }
    falls back to the base PROGRAM definition.
 ═══════════════════════════════════════════════════════════ */
 
-var PLAN_KEY    = 'clubby_weekly_plans';
-var WEEKLY_PLANS = {};
+
+
 var DOW_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var ACTIVE_PLAN_WEEK = null;  // which week is open in the editor
 
@@ -3389,23 +3415,23 @@ selSess = function(date) {
 /* ══════════════════════════════════════════════════
    CRAFT TYPES + RACE FOCUS
 ══════════════════════════════════════════════════ */
-var PREFS_KEY  = 'clubby_prefs';
-var CRAFTS_KEY = 'clubby_crafts';
+
+
 
 var CRAFT_OPTIONS = ['OC1','SS1','OC2','SS2','OC6'];
 
-var USER_PREFS     = { defaultCraft: 'OC1' };
-var SESSION_CRAFTS = {};
+
+
 
 /* Focus colour palette for non-PROGRAM types (race, gym, etc.) */
 var FOCUS_STYLES = {
-  'race':          { color:'#c0406a', colorLt:'#fce8ef', icon:'\U0001f3c6' },
-  'gym':           { color:'#7a6a50', colorLt:'#f5f0e8', icon:'\U0001f3cb\ufe0f' },
-  'easy':          { color:'#5cb87a', colorLt:'#d4eedf', icon:'\U0001f33f' },
-  'bungee':        { color:'#f5a623', colorLt:'#fef3dc', icon:'\U0001f534' },
-  'long-z2':       { color:'#9bbdd4', colorLt:'#daeef8', icon:'\U0001f30a' },
-  'intervals':     { color:'#7c6fa0', colorLt:'#ede8f7', icon:'\u26a1' },
-  'easy-benchmark':{ color:'#c08bc0', colorLt:'#f5e6f5', icon:'\U0001f60c' },
+  'race':          { color:'#c0406a', colorLt:'#fce8ef', icon:'🏆' },
+  'gym':           { color:'#7a6a50', colorLt:'#f5f0e8', icon:'🏋️' },
+  'easy':          { color:'#5cb87a', colorLt:'#d4eedf', icon:'🌿' },
+  'bungee':        { color:'#f5a623', colorLt:'#fef3dc', icon:'🔴' },
+  'long-z2':       { color:'#9bbdd4', colorLt:'#daeef8', icon:'🌊' },
+  'intervals':     { color:'#7c6fa0', colorLt:'#ede8f7', icon:'⚡' },
+  'easy-benchmark':{ color:'#c08bc0', colorLt:'#f5e6f5', icon:'😌' },
 };
 
 function loadPrefs() {
@@ -3449,7 +3475,7 @@ function setSessionCraft(date, craft) {
 function setDefaultCraft(craft) {
   USER_PREFS.defaultCraft = craft;
   savePrefs();
-  showToast('\U0001f6f6 Default craft set to ' + craft, 'success');
+  showToast('🛶 Default craft set to ' + craft, 'success');
 }
 
 function renderCraftSelector(session) {
@@ -3460,7 +3486,7 @@ function renderCraftSelector(session) {
     return '<option value="'+c+'"'+(c===current?' selected':'')+'>'+c+'</option>';
   }).join('');
   var ovPart = isOv
-    ? '<span style="font-size:10px;font-weight:700;color:#f5a623">\u26a1 overridden</span>'
+    ? '<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>'
       +'<button id="craft-rst-'+date+'" style="font-family:var(--font);font-size:10px;font-weight:700;'
       +'padding:3px 8px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
       +'color:var(--gm);cursor:pointer">Reset to default</button>'
@@ -3473,7 +3499,7 @@ function renderCraftSelector(session) {
   },0);
   return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);'
     +'border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">\U0001f6f6 Craft:</span>'
+    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🛶 Craft:</span>'
     +'<select id="craft-sel-'+date+'" style="font-family:var(--font);font-size:12px;font-weight:700;'
     +'padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
     +opts+'</select>'+ovPart+'</div>';
@@ -3489,16 +3515,18 @@ function renderUserPrefs() {
     if(sel) sel.onchange=function(){ setDefaultCraft(this.value); };
   },0);
   return '<div class="card">'
-    +'<div class="ct-title">\u2699\ufe0f Your Preferences</div>'
+    +'<div class="ct-title">⚙️ Your Preferences</div>'
     +'<div class="ct-sub">Defaults applied to all sessions unless overridden per-session.</div>'
     +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<span style="font-size:12px;font-weight:800;color:var(--plum)">\U0001f6f6 Default craft:</span>'
+    +'<span style="font-size:12px;font-weight:800;color:var(--plum)">🛶 Default craft:</span>'
     +'<select id="default-craft-sel" style="font-family:var(--font);font-size:12px;font-weight:700;'
     +'padding:7px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
     +craftOpts+'</select>'
     +'<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
     +'</div></div>';
 }
+
+
 
 
 </script>
