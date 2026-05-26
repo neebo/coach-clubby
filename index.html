@@ -12,7 +12,18 @@
 <!-- Clubby v2026-05-25-build-1779730695 -->
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
-:root{--lav:#c9b8e8;--lav-lt:#ede8f7;--lav-md:#b09dd4;--lilac:#f0eaf9;--lilac2:#faf7fe;--plum:#6b5c8c;--blush:#f5d6e0;--blush-dk:#e8a4bd;--mint:#d4eedf;--mint-dk:#5cb87a;--butter:#fdf0cc;--butter-dk:#c9973d;--cloud:#f7f4fb;--gt:#6e6080;--gm:#a898bb;--ink:#3d2f5a;--white:#ffffff;--sh:0 2px 12px rgba(140,110,180,.10);--r-pill:999px;--r-lg:18px;--r-md:12px;--font:'Nunito',sans-serif;}
+:root{
+  /* ── Type scale ── */
+  --fs-label: 9px;
+  --fs-caption: 10px;
+  --fs-small: 11px;
+  --fs-body: 12px;
+  --fs-ui: 13px;
+  --fs-card-title: 14px;
+  --fs-page-title: 21px;
+  --fs-stat: 24px;
+  --fs-insight: 19px;
+--lav:#c9b8e8;--lav-lt:#ede8f7;--lav-md:#b09dd4;--lilac:#f0eaf9;--lilac2:#faf7fe;--plum:#6b5c8c;--blush:#f5d6e0;--blush-dk:#e8a4bd;--mint:#d4eedf;--mint-dk:#5cb87a;--butter:#fdf0cc;--butter-dk:#c9973d;--cloud:#f7f4fb;--gt:#6e6080;--gm:#a898bb;--ink:#3d2f5a;--white:#ffffff;--sh:0 2px 12px rgba(140,110,180,.10);--r-pill:999px;--r-lg:18px;--r-md:12px;--font:'Nunito',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;}body{font-family:var(--font);background:var(--cloud);color:var(--ink);min-height:100vh;}
 .hdr{background:var(--white);border-bottom:2px solid var(--lav-lt);padding:0 28px;display:flex;align-items:center;gap:14px;height:62px;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(140,110,180,.08);}
 .logo{font-weight:900;font-size:18px;color:var(--plum);}.logo-sub{font-size:10px;font-weight:700;color:var(--gm);letter-spacing:1px;text-transform:uppercase;}
@@ -22,9 +33,9 @@
 .storage-badge{display:none;align-items:center;font-size:10px;font-weight:800;padding:4px 10px;border-radius:var(--r-pill);background:var(--mint);color:#2e7a4a;}
 
 .ic{flex:1;padding:12px 18px;border-right:1.5px solid var(--lav-lt);}.ic:last-child{border-right:none;}
-.il{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:3px;}
-.iv{font-size:19px;font-weight:900;color:var(--plum);line-height:1.1;}.is{font-size:10px;font-weight:600;color:var(--gm);margin-top:2px;}
-.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:800;padding:2px 8px;border-radius:var(--r-pill);margin-top:3px;}
+.il{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:3px;}
+.iv{font-size:var(--fs-insight);font-weight:900;color:var(--plum);line-height:1.1;}.is{font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:2px;}
+.badge{display:inline-flex;align-items:center;font-size:var(--fs-caption);font-weight:800;padding:2px 8px;border-radius:var(--r-pill);margin-top:3px;}
 .b-up{background:var(--mint);color:#2e7a4a;}.b-dn{background:var(--blush);color:#a03060;}.b-neu{background:var(--butter);color:var(--butter-dk);}.b-warn{background:#fef3dc;color:#b07000;}
 .body{display:flex;min-height:calc(100vh - 106px);}
 .sb{width:228px;flex-shrink:0;background:var(--white);border-right:2px solid var(--lav-lt);padding:14px 0;overflow-y:auto;}
@@ -35,28 +46,28 @@
 .nb-icon{font-size:15px;flex-shrink:0;}.nb-label{font-size:12px;font-weight:700;color:var(--ink);text-align:left;}.nb-meta{font-size:10px;font-weight:600;color:var(--gm);}
 .si{padding:9px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
 .si:hover{background:var(--lilac);}.si.active{border-left-color:#b09dd4;background:var(--lilac2);}
-.si-date{font-size:12px;font-weight:800;color:var(--ink);}.si-spd{font-size:14px;font-weight:900;float:right;}.si-meta{font-size:10px;font-weight:600;color:var(--gm);}
+.si-date{font-size:var(--fs-body);font-weight:800;color:var(--ink);}.si-spd{font-size:var(--fs-card-title);font-weight:900;float:right;}.si-meta{font-size:var(--fs-caption);font-weight:600;color:var(--gm);}
 .add-sess{margin:10px 12px 0;border:2px dashed var(--lav);border-radius:var(--r-md);padding:9px;text-align:center;font-size:11px;font-weight:700;color:#b09dd4;cursor:pointer;transition:all .15s;}
 .add-sess:hover{border-color:#9b8bb8;color:var(--plum);background:var(--lilac);}
 .clear-btn{margin:8px 12px 0;padding:8px;text-align:center;font-size:10px;font-weight:700;color:var(--gm);cursor:pointer;border-radius:var(--r-md);transition:all .15s;}
 .clear-btn:hover{background:var(--blush);color:#8a3055;}
 .ct{flex:1;padding:26px 30px;overflow-y:auto;min-width:0;}
 .view{animation:su .22s ease;}@keyframes su{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
-.pt{font-size:21px;font-weight:900;color:var(--plum);margin-bottom:3px;}.ps{font-size:13px;font-weight:600;color:var(--gm);margin-bottom:18px;line-height:1.6;}
-.notice{border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;font-size:12px;font-weight:600;line-height:1.7;margin-bottom:16px;border-left:4px solid;}
+.pt{font-size:var(--fs-page-title);font-weight:900;color:var(--plum);margin-bottom:3px;}.ps{font-size:var(--fs-body);font-weight:600;color:var(--gm);margin-bottom:18px;line-height:1.6;}
+.notice{font-size:var(--fs-body);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;font-size:12px;font-weight:600;line-height:1.7;margin-bottom:16px;border-left:4px solid;}
 .n-purple{background:var(--lav-lt);color:var(--plum);border-color:#b09dd4;}.n-mint{background:var(--mint);color:#2e6e45;border-color:var(--mint-dk);}.n-blush{background:var(--blush);color:#8a3055;border-color:var(--blush-dk);}.n-butter{background:var(--butter);color:#7a5a1a;border-color:var(--butter-dk);}.n-orange{background:#fef3dc;color:#7a4a00;border-color:#f5a623;}
 .card{background:var(--white);border-radius:var(--r-lg);border:2px solid var(--lav-lt);padding:18px 20px;margin-bottom:16px;box-shadow:var(--sh);}
-.ct-title{font-size:14px;font-weight:800;color:var(--plum);margin-bottom:2px;}.ct-sub{font-size:11px;font-weight:600;color:var(--gm);margin-bottom:14px;}
+.ct-title{font-size:var(--fs-card-title);font-weight:800;color:var(--plum);margin-bottom:2px;}.ct-sub{font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-bottom:14px;}
 canvas{display:block;width:100%;}
-.focus-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-pill);font-size:10px;font-weight:800;border:1.5px solid;}
+.focus-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-pill);font-size:var(--fs-caption);font-weight:800;border:1.5px solid;}
 .sg{display:grid;gap:11px;margin-bottom:16px;}.g4{grid-template-columns:repeat(4,1fr);}.g3{grid-template-columns:repeat(3,1fr);}.g2{grid-template-columns:repeat(2,1fr);}
 .sc{background:var(--lilac2);border-radius:var(--r-md);border:1.5px solid var(--lav-lt);padding:14px;}
-.sl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:5px;}
-.sv{font-size:24px;font-weight:900;color:var(--plum);line-height:1;}.su2{font-size:11px;font-weight:600;color:var(--gm);}.sn{font-size:10px;font-weight:600;color:var(--gm);margin-top:3px;}
+.sl{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:5px;}
+.sv{font-size:var(--fs-stat);font-weight:900;color:var(--plum);line-height:1;}.su2{font-size:11px;font-weight:600;color:var(--gm);}.sn{font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:3px;}
 .tw{background:var(--white);border-radius:var(--r-lg);border:2px solid var(--lav-lt);overflow:hidden;margin-bottom:16px;}
 table{width:100%;border-collapse:collapse;}
-th{padding:9px 13px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);background:var(--lilac);border-bottom:2px solid var(--lav-lt);text-align:left;white-space:nowrap;}
-td{padding:9px 13px;font-size:12px;font-weight:600;border-bottom:1.5px solid var(--lav-lt);color:var(--ink);vertical-align:middle;}
+th{padding:9px 13px;font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);background:var(--lilac);border-bottom:2px solid var(--lav-lt);text-align:left;white-space:nowrap;}
+td{padding:9px 13px;font-size:var(--fs-body);font-weight:600;border-bottom:1.5px solid var(--lav-lt);color:var(--ink);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}tr:hover td{background:var(--lilac);}
 .td-spd{color:var(--plum);font-weight:900;}.td-hr{color:#c0406a;}
 .bb{height:5px;background:var(--lav-lt);border-radius:var(--r-pill);margin-top:4px;}.bf{height:100%;border-radius:var(--r-pill);transition:width .5s ease;}
@@ -127,7 +138,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   .ct{padding:16px 14px 80px;} /* 80px = bottom nav height */
 
   /* Typography */
-  .pt{font-size:18px;}
+  .pt{font-size:var(--fs-insight);}
   .ps{font-size:12px;margin-bottom:14px;}
 
   /* Cards */
@@ -146,7 +157,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   .sl{font-size:8px;}
 
   /* Notices */
-  .notice{font-size:11px;padding:9px 12px;}
+  .notice{font-size:var(--fs-body);font-size:11px;padding:9px 12px;}
 
   /* Tables: horizontal scroll */
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;}
@@ -228,11 +239,22 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 .strip-editor{position:fixed;top:62px;left:0;right:0;background:var(--white);border-bottom:2px solid var(--lav-lt);z-index:150;padding:14px 24px 18px;box-shadow:0 8px 32px rgba(140,110,180,.15);animation:su .18s ease;}
 .strip-editor-title{font-size:11px;font-weight:800;color:var(--plum);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
 .strip-chips{display:flex;flex-wrap:wrap;gap:8px;}
-.strip-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;border:1.5px solid var(--lav);background:var(--lilac2);color:var(--plum);cursor:pointer;transition:all .15s;}
+.strip-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:var(--fs-small);font-weight:700;border:1.5px solid var(--lav);background:var(--lilac2);color:var(--plum);cursor:pointer;transition:all .15s;}
 .strip-chip.on{background:var(--plum);color:var(--white);border-color:var(--plum);}
 .strip-chip:hover{transform:translateY(-1px);}
 @media(max-width:640px){.ic-handle,.ic-edit-end{display:none;}.strip-editor{padding:10px 14px 14px;}}
 @keyframes auth-shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
+
+/* Week plan day tiles */
+.week-plan-strip .wps-title{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.wpd{border-radius:10px;padding:8px 6px;text-align:center;border:1.5px solid transparent;transition:all .15s;}
+.wpd.today{border-color:currentColor;box-shadow:0 2px 10px rgba(0,0,0,.08);transform:translateY(-2px);}
+.wpd.has-session{cursor:pointer;}
+.wpd.has-session:hover{transform:translateY(-2px);box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.wpd-dow{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.wpd-icon{font-size:18px;line-height:1.2;margin-bottom:2px;}
+.wpd-label{font-size:var(--fs-caption);font-weight:700;line-height:1.3;}
+.wpd-speed{font-size:var(--fs-small);font-weight:900;margin-top:3px;}
 </style>
 </head>
 <body>
@@ -257,6 +279,11 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
+
 
 
 
@@ -521,21 +548,21 @@ function showUpdatePasswordScreen(sess) {
     'padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(140,110,180,.15)">',
     '<div style="text-align:center;margin-bottom:24px">',
     '<div style="font-size:40px">🦭</div>',
-    '<div style="font-size:20px;font-weight:900;color:var(--plum);margin-top:6px">Set new password</div>',
+    '<div style="font-size:var(--fs-stat);font-weight:900;color:var(--plum);margin-top:6px">Set new password</div>',
     '</div>',
     '<div id="auth-err" style="display:none;background:var(--blush);color:#8a3055;border-radius:8px;',
-    'padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:16px"></div>',
-    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">New password</label>',
+    'padding:10px 14px;font-size:var(--fs-body);font-weight:700;margin-bottom:16px"></div>',
+    '<label style="display:block;font-size:var(--fs-small);font-weight:800;color:var(--plum);margin-bottom:5px">New password</label>',
     '<input id="new-pw" type="password" placeholder="••••••••" autocomplete="new-password"',
     ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-    'font-family:var(--font);font-size:13px;font-weight:600;margin-bottom:12px;box-sizing:border-box">',
-    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
+    'font-family:var(--font);font-size:var(--fs-ui);font-weight:600;margin-bottom:12px;box-sizing:border-box">',
+    '<label style="display:block;font-size:var(--fs-small);font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
     '<input id="new-pw2" type="password" placeholder="••••••••" autocomplete="new-password"',
     ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-    'font-family:var(--font);font-size:13px;font-weight:600;margin-bottom:20px;box-sizing:border-box">',
+    'font-family:var(--font);font-size:var(--fs-ui);font-weight:600;margin-bottom:20px;box-sizing:border-box">',
     '<button onclick="submitNewPassword()" style="width:100%;padding:13px;border-radius:var(--r-pill);',
     'border:none;background:var(--plum);color:var(--white);font-family:var(--font);',
-    'font-size:14px;font-weight:900;cursor:pointer" id="new-pw-btn">Update password</button>',
+    'font-size:var(--fs-card-title);font-weight:900;cursor:pointer" id="new-pw-btn">Update password</button>',
     '</div></div>',
   ].join('');
 }
@@ -769,8 +796,8 @@ function showAuthScreen() {
     /* Logo */
     '<div style="text-align:center;margin-bottom:28px">',
     '<div style="font-size:40px">🦭</div>',
-    '<div style="font-size:22px;font-weight:900;color:var(--plum);margin-top:6px">Coach Clubby</div>',
-    '<div style="font-size:11px;font-weight:700;color:var(--gm);margin-top:2px;',
+    '<div style="font-size:var(--fs-page-title);font-weight:900;color:var(--plum);margin-top:6px">Coach Clubby</div>',
+    '<div style="font-size:var(--fs-small);font-weight:700;color:var(--gm);margin-top:2px;',
     'text-transform:uppercase;letter-spacing:1px">Road 2 Worlds</div>',
     '</div>',
 
@@ -795,26 +822,26 @@ function renderAuthForm(mode) {
   var isSignup = mode === 'signup';
   return [
     '<div id="auth-err" style="display:none;background:var(--blush);color:#8a3055;border-radius:8px;',
-    'padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:16px"></div>',
+    'padding:10px 14px;font-size:var(--fs-body);font-weight:700;margin-bottom:16px"></div>',
 
-    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Email</label>',
+    '<label style="display:block;font-size:var(--fs-small);font-weight:800;color:var(--plum);margin-bottom:5px">Email</label>',
     '<input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" oninput="authClearError()"',
     ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-    'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
+    'font-family:var(--font);font-size:var(--fs-ui);font-weight:600;color:var(--ink);',
     'background:var(--white);margin-bottom:12px;box-sizing:border-box">',
 
-    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Password</label>',
+    '<label style="display:block;font-size:var(--fs-small);font-weight:800;color:var(--plum);margin-bottom:5px">Password</label>',
     '<input id="auth-pw" type="password" placeholder="••••••••" autocomplete="'+(isSignup?'new-password':'current-password')+'"',
     ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-    'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
+    'font-family:var(--font);font-size:var(--fs-ui);font-weight:600;color:var(--ink);',
     'background:var(--white);margin-bottom:'+(isSignup?'12':'20')+'px;box-sizing:border-box"',
     ' onkeydown="if(event.key===\'Enter\')authSubmit(\''+mode+'\')">',
 
     isSignup ? [
-      '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
+      '<label style="display:block;font-size:var(--fs-small);font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
       '<input id="auth-pw2" type="password" placeholder="••••••••" autocomplete="new-password"',
       ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-      'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
+      'font-family:var(--font);font-size:var(--fs-ui);font-weight:600;color:var(--ink);',
       'background:var(--white);margin-bottom:20px;box-sizing:border-box"',
       ' onkeydown="if(event.key===\'Enter\')authSubmit(\'signup\')">',
     ].join('') : '',
@@ -822,14 +849,14 @@ function renderAuthForm(mode) {
     '<button onclick="authSubmit(\''+mode+'\')" id="auth-btn"',
     ' style="width:100%;padding:13px;border-radius:var(--r-pill);border:none;',
     'background:var(--plum);color:var(--white);font-family:var(--font);',
-    'font-size:14px;font-weight:900;cursor:pointer">',
+    'font-size:var(--fs-card-title);font-weight:900;cursor:pointer">',
     isSignup ? 'Create account' : 'Sign in',
     '</button>',
 
     !isSignup ? [
       '<div style="text-align:center;margin-top:14px">',
       '<button onclick="authForgot()" style="background:none;border:none;font-family:var(--font);',
-      'font-size:11px;font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline">',
+      'font-size:var(--fs-small);font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline">',
       'Forgot password?</button></div>',
     ].join('') : '',
   ].join('');
@@ -951,17 +978,17 @@ function showCheckEmailScreen(email) {
   icon.textContent = '📬';
 
   var title = document.createElement('div');
-  title.style.cssText = 'font-size:16px;font-weight:900;color:var(--plum);margin-bottom:8px';
+  title.style.cssText = 'font-size:var(--fs-card-title);font-weight:900;color:var(--plum);margin-bottom:8px';
   title.textContent = 'Check your email';
 
   var msg = document.createElement('div');
-  msg.style.cssText = 'font-size:13px;font-weight:600;color:var(--gt);line-height:1.6;margin-bottom:20px';
+  msg.style.cssText = 'font-size:var(--fs-body);font-weight:600;color:var(--gt);line-height:1.6;margin-bottom:20px';
   msg.innerHTML = 'We sent a verification link to<br><b style="color:var(--ink)">'
     + escHtml(email) + '</b><br><br>'
     + 'Click the link in that email to activate your account,<br>then come back here to sign in.';
 
   var goBtn = document.createElement('button');
-  goBtn.style.cssText = 'font-family:var(--font);font-size:13px;font-weight:800;'
+  goBtn.style.cssText = 'font-family:var(--font);font-size:var(--fs-ui);font-weight:800;'
     + 'padding:12px 32px;border-radius:var(--r-pill);border:none;background:var(--plum);'
     + 'color:var(--white);cursor:pointer;width:100%';
   goBtn.textContent = 'Go to sign in';
@@ -971,7 +998,7 @@ function showCheckEmailScreen(email) {
   resendWrap.style.marginTop = '12px';
   var resendBtn = document.createElement('button');
   resendBtn.style.cssText = 'background:none;border:none;font-family:var(--font);'
-    + 'font-size:11px;font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline';
+    + 'font-size:var(--fs-small);font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline';
   resendBtn.textContent = 'Resend verification email';
   resendBtn.onclick = function() { resendVerification(email, resendBtn); };
   resendWrap.appendChild(resendBtn);
@@ -1016,7 +1043,7 @@ function addSignOutButton() {
   var btn = document.createElement('button');
   btn.id = 'signout-btn';
   btn.textContent = SB_SESSION && SB_SESSION.user ? SB_SESSION.user.email : 'Sign out';
-  btn.style.cssText = 'font-family:var(--font);font-size:11px;font-weight:700;padding:6px 14px;'
+  btn.style.cssText = 'font-family:var(--font);font-size:var(--fs-small);font-weight:700;padding:6px 14px;'
     + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);'
     + 'color:var(--plum);cursor:pointer;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   btn.onclick = function() {
@@ -1109,7 +1136,7 @@ function showToast(msg,type){
   if(existing)existing.remove();
   var t=document.createElement('div');
   t.id='toast';
-  t.style.cssText='position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;border-radius:12px;font-family:Nunito,sans-serif;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.15);transition:opacity .3s;'
+  t.style.cssText='position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;border-radius:12px;font-family:Nunito,sans-serif;font-size:var(--fs-ui);font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.15);transition:opacity .3s;'
     +(type==='warn'?'background:#fef3dc;color:#7a4a00;border:1.5px solid #f5a623;'
     :type==='error'?'background:#f5d6e0;color:#8a3055;border:1.5px solid #e8a4bd;'
     :'background:#d4eedf;color:#2e6e45;border:1.5px solid #5cb87a;');
@@ -1285,7 +1312,7 @@ function renderSidebar(){
     html+='<div class="si-date">'+dateLabel(s.date)+'</div>';
     html+='<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+' · <b>'+getCraft(s)+'</b></div>';
     html+='<div class="si-meta">'+s.totalDist.toFixed(1)+' mi · '+s.elapsed.split('.')[0]+'</div>';
-    if(f&&f.bungee)html+='<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:2px">🔴 lower speed by design</div>';
+    if(f&&f.bungee)html+='<div style="font-size:var(--fs-label);font-weight:800;color:#f5a623;margin-top:2px">🔴 lower speed by design</div>';
     html+='</div>';
   });
   document.getElementById('sess-list').innerHTML=html;
@@ -1381,18 +1408,18 @@ function renderOverview(el){
     rows += '<tr class="sess-row" data-date="'+s.date+'" style="cursor:pointer">'
       +'<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>'
       +'<td>'+focusPill(s)+'</td>'
-      +'<td style="font-size:11px;font-weight:800;color:var(--plum)">'+getCraft(s)+'</td>'
+      +'<td style="font-size:var(--fs-small);font-weight:800;color:var(--plum)">'+getCraft(s)+'</td>'
       +'<td>'+s.totalDist.toFixed(2)+' mi</td>'
       +'<td>'+s.elapsed.split('.')[0]+'</td>'
       +'<td class="td-spd" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+' mph'+(f&&f.bungee?' 🔴':'')+'</td>'
       +'<td>'+s.avgStrokeRate.toFixed(0)+' spm</td>'
       +'<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>'
-      +'<td style="font-size:10px;color:var(--gm)">'+(s._tide?tideCell(s):'—')+'</td>'
-      +'<td style="font-size:10px;color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>'
-      +'<td style="font-size:10px;color:var(--gt);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      +'<td style="font-size:var(--fs-caption);color:var(--gm)">'+(s._tide?tideCell(s):'—')+'</td>'
+      +'<td style="font-size:var(--fs-caption);color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>'
+      +'<td style="font-size:var(--fs-caption);color:var(--gt);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
         +(noteSnip?'📝 '+escHtml(noteSnip.slice(0,50))+(noteSnip.length>50?'…':''):'')+'</td>'
-      +'<td style="font-size:10px;color:var(--gm)">'+(sameType.length?sameType.join(', '):'—')+'</td>'
-      +'<td><button class="del-sess" data-date="'+s.date+'" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:.35;font-family:Nunito,sans-serif;" title="Remove">🗑</button></td>'
+      +'<td style="font-size:var(--fs-caption);color:var(--gm)">'+(sameType.length?sameType.join(', '):'—')+'</td>'
+      +'<td><button class="del-sess" data-date="'+s.date+'" style="background:none;border:none;cursor:pointer;font-size:var(--fs-card-title);opacity:.35;font-family:Nunito,sans-serif;" title="Remove">🗑</button></td>'
       +'</tr>';
   });
 
@@ -1475,15 +1502,15 @@ function renderByFocus(el){
       html+='<div class="card">';
       html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
       html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-      html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:12px;padding:4px 12px">'+f.icon+' '+f.label+'</span>';
-      html+='</div><div style="font-size:11px;font-weight:600;color:var(--gm);max-width:580px;line-height:1.6">'+f.desc+'</div></div>';
+      html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:var(--fs-body);padding:4px 12px">'+f.icon+' '+f.label+'</span>';
+      html+='</div><div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);max-width:580px;line-height:1.6">'+f.desc+'</div></div>';
 
       if(effTrend!==null&&hasTrend){
         var effGood=+effTrend>=0;
         html+='<div style="text-align:right;flex-shrink:0">';
-        html+='<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">Efficiency trend</div>';
-        html+='<span class="badge '+(effGood?'b-up':'b-dn')+'" style="font-size:13px;padding:4px 12px">'+(effGood?'▲ ':'▼ ')+Math.abs(effTrend)+'%</span>';
-        html+='<div style="font-size:10px;color:var(--gm);margin-top:3px">'+dateLabel(ref.date)+' → '+dateLabel(sess[sess.length-1].date)+'</div>';
+        html+='<div style="font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">Efficiency trend</div>';
+        html+='<span class="badge '+(effGood?'b-up':'b-dn')+'" style="font-size:var(--fs-ui);padding:4px 12px">'+(effGood?'▲ ':'▼ ')+Math.abs(effTrend)+'%</span>';
+        html+='<div style="font-size:var(--fs-caption);color:var(--gm);margin-top:3px">'+dateLabel(ref.date)+' → '+dateLabel(sess[sess.length-1].date)+'</div>';
         html+='</div>';
       }
       html+='</div>';
@@ -1492,7 +1519,7 @@ function renderByFocus(el){
       if(hasTrend) html+='<canvas id="ft-'+f.id+'" height="140" style="margin:12px 0"></canvas>';
 
       /* Target callout */
-      html+='<div style="background:var(--lilac);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:700;color:var(--ink);line-height:1.7;margin-bottom:12px">';
+      html+='<div style="background:var(--lilac);border-radius:10px;padding:10px 14px;font-size:var(--fs-small);font-weight:700;color:var(--ink);line-height:1.7;margin-bottom:12px">';
       html+='🎯 <b>Goal:</b> efficiency (speed ÷ SR × 100) trending up week over week. '
            +'Above 12 = good wave connection. Higher speed at <em>lower</em> SR = connecting waves, not muscling.';
       html+='</div>';
@@ -1514,7 +1541,7 @@ function renderByFocus(el){
         html+='<td style="font-weight:900;color:'+f.color+'">'+(dw?dw.p95Spd.toFixed(2)+' mph':'—')+'</td>';
         html+='<td>'+(dw&&dw.avgSR?dw.avgSR.toFixed(0)+' spm':'—')+'</td>';
         html+='<td style="font-weight:900;color:'+effCol+'">'+(dw&&dw.eff?dw.eff.toFixed(2):'—')
-             +(effDelta!==null?' <span class="badge '+(+effDelta>=0?'b-up':'b-dn')+'" style="font-size:9px">'+(+effDelta>=0?'▲ ':'▼ ')+Math.abs(effDelta)+'%</span>':'')
+             +(effDelta!==null?' <span class="badge '+(+effDelta>=0?'b-up':'b-dn')+'" style="font-size:var(--fs-label)">'+(+effDelta>=0?'▲ ':'▼ ')+Math.abs(effDelta)+'%</span>':'')
              +'</td>';
         html+='</tr>';
       });
@@ -1527,16 +1554,16 @@ function renderByFocus(el){
     html+='<div class="card">';
     html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
     html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-    html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:12px;padding:4px 12px">'+f.icon+' '+f.label+'</span>';
+    html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:var(--fs-body);padding:4px 12px">'+f.icon+' '+f.label+'</span>';
     if(f.bungee) html+='<span class="badge b-warn">🔴 resistance — lower speed expected</span>';
-    html+='</div><div style="font-size:11px;font-weight:600;color:var(--gm);max-width:580px;line-height:1.6">'+f.desc+'</div>';
-    if(f.note) html+='<div style="font-size:11px;font-weight:700;color:'+f.color+';margin-top:4px">⚠ '+f.note+'</div>';
+    html+='</div><div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);max-width:580px;line-height:1.6">'+f.desc+'</div>';
+    if(f.note) html+='<div style="font-size:var(--fs-small);font-weight:700;color:'+f.color+';margin-top:4px">⚠ '+f.note+'</div>';
     html+='</div>';
     if(hasTrend){
       html+='<div style="text-align:right;flex-shrink:0">';
-      html+='<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">Trend</div>';
-      html+='<span class="badge '+(+trendPct>=0?'b-up':'b-dn')+'" style="font-size:13px;padding:4px 12px">'+(+trendPct>=0?'▲ ':'▼ ')+Math.abs(trendPct)+'%</span>';
-      html+='<div style="font-size:10px;color:var(--gm);margin-top:3px">'+dateLabel(ref.date)+' → '+dateLabel(sess[sess.length-1].date)+'</div>';
+      html+='<div style="font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">Trend</div>';
+      html+='<span class="badge '+(+trendPct>=0?'b-up':'b-dn')+'" style="font-size:var(--fs-ui);padding:4px 12px">'+(+trendPct>=0?'▲ ':'▼ ')+Math.abs(trendPct)+'%</span>';
+      html+='<div style="font-size:var(--fs-caption);color:var(--gm);margin-top:3px">'+dateLabel(ref.date)+' → '+dateLabel(sess[sess.length-1].date)+'</div>';
       html+='</div>';
     }
     html+='</div>';
@@ -1545,14 +1572,14 @@ function renderByFocus(el){
     html+='<tr><th>#</th><th>Date</th><th>Dist</th><th>Duration</th><th>Avg Speed</th><th>SR</th><th>HR</th>'+(hasTrend?'<th>vs first</th>':'')+'</tr>';
     sess.forEach(function(s,i){
       var p=hasTrend&&i>0?pct(s.avgSpeed,ref.avgSpeed):null;
-      var corrStr=COMPUTED.corridor[s.date]?' <span style="font-size:9px;color:var(--gm)">(corr. '+COMPUTED.corridor[s.date].avg.toFixed(2)+')</span>':'';
+      var corrStr=COMPUTED.corridor[s.date]?' <span style="font-size:var(--fs-label);color:var(--gm)">(corr. '+COMPUTED.corridor[s.date].avg.toFixed(2)+')</span>':'';
       html+='<tr class="sess-row" data-date="'+s.date+'" style="cursor:pointer">';
       html+='<td style="color:var(--gm)">'+(i+1)+'</td>';
       html+='<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>';
       html+='<td>'+s.totalDist.toFixed(2)+' mi</td>';
       html+='<td>'+s.elapsed.split('.')[0]+'</td>';
       html+='<td style="font-weight:900;color:'+f.color+'">'+s.avgSpeed.toFixed(2)+' mph'+corrStr+'</td>';
-      html+='<td>'+s.avgStrokeRate.toFixed(0)+' spm'+(f.srTargets?' <span style="font-size:9px;color:var(--gm)">tgt '+f.srTargets.easy+'/'+f.srTargets.hard+'</span>':'')+'</td>';
+      html+='<td>'+s.avgStrokeRate.toFixed(0)+' spm'+(f.srTargets?' <span style="font-size:var(--fs-label);color:var(--gm)">tgt '+f.srTargets.easy+'/'+f.srTargets.hard+'</span>':'')+'</td>';
       html+='<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>';
       if(hasTrend) html+='<td><span class="badge '+(i===0?'b-neu':+p>=0?'b-up':'b-dn')+'">'+(i===0?'baseline':(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%')+'</span></td>';
       html+='</tr>';
@@ -1695,21 +1722,21 @@ function renderSession(el){
   html+='<div><div class="pt">'+dateLabel(s.date)+'</div>';
   html+='<div class="ps" style="margin-bottom:8px">'+s.startTime+' · '+s.totalDist.toFixed(2)+' mi · '+s.elapsed.split('.')[0]+'</div></div>';
   html+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-  if(f)html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:12px;padding:5px 14px">'+f.icon+' '+f.label+'</span>';
-  html+='<button class="del-sess" data-date="'+s.date+'" style="background:var(--blush);border:1.5px solid var(--blush-dk);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:800;color:#8a3055;cursor:pointer;font-family:Nunito,sans-serif;">🗑 Remove session</button>';
+  if(f)html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:var(--fs-body);padding:5px 14px">'+f.icon+' '+f.label+'</span>';
+  html+='<button class="del-sess" data-date="'+s.date+'" style="background:var(--blush);border:1.5px solid var(--blush-dk);border-radius:999px;padding:5px 12px;font-size:var(--fs-small);font-weight:800;color:#8a3055;cursor:pointer;font-family:Nunito,sans-serif;">🗑 Remove session</button>';
   html+='</div></div>';
   if(f){html+='<div class="notice" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'"><b>'+f.icon+' Program focus:</b> '+f.desc+(f.bungee?'<br><b>🔴 Bungee session:</b> Speed is intentionally lower. Compare to other Thursday bungee sessions only.':'')+(f.note?'<br>⚠ '+f.note:'')+'</div>';}
   if(s.date==='20260507')html+='<div class="notice n-blush">⚠️ <b>Open water flag:</b> Interval 2 near 36.95°N/122.017°W — likely tide/wind affected.</div>';
   if(s.hasHR)html+='<div class="notice n-mint">♥ <b>HRM connected:</b> Avg '+s.avgHR.toFixed(0)+' bpm at '+s.avgSpeed.toFixed(2)+' mph.</div>';
   if(sameType.length&&f){
     html+='<div class="compare-banner" style="background:'+f.colorLt+';border-color:'+f.color+'40">';
-    html+='<div style="font-size:22px;color:'+f.color+'">'+f.icon+'</div><div>';
-    html+='<div style="font-size:12px;font-weight:800;color:'+f.color+';margin-bottom:4px">Same focus type comparison</div>';
+    html+='<div style="font-size:var(--fs-page-title);color:'+f.color+'">'+f.icon+'</div><div>';
+    html+='<div style="font-size:var(--fs-body);font-weight:800;color:'+f.color+';margin-bottom:4px">Same focus type comparison</div>';
     sameType.forEach(function(x){
       var p=pct(s.avgSpeed,x.avgSpeed);
-      html+='<span style="font-size:12px;font-weight:700;color:var(--gt)">vs '+dateLabel(x.date)+': </span>';
-      html+='<span class="badge '+(+p>=0?'b-up':'b-dn')+'" style="font-size:11px">'+(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span> ';
-      html+='<span style="font-size:11px;color:var(--gm)">('+x.avgSpeed.toFixed(2)+' → '+s.avgSpeed.toFixed(2)+' mph) </span>';
+      html+='<span style="font-size:var(--fs-body);font-weight:700;color:var(--gt)">vs '+dateLabel(x.date)+': </span>';
+      html+='<span class="badge '+(+p>=0?'b-up':'b-dn')+'" style="font-size:var(--fs-small)">'+(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span> ';
+      html+='<span style="font-size:var(--fs-small);color:var(--gm)">('+x.avgSpeed.toFixed(2)+' → '+s.avgSpeed.toFixed(2)+' mph) </span>';
     });
     html+='</div></div>';
   }
@@ -1793,10 +1820,10 @@ function renderSegCorridor(el){
     var c=corr[d],p=pct(c.avg,ref.avg),isRef=d===dates[0];
     var f=getFocus(SESSIONS.filter(function(s){return s.date===d;})[0]);
     cards+='<div class="sc" style="border-color:'+(f?f.color+'44':'var(--lav-lt)')+'"><div class="sl">'+dateLabel(d)+'</div>';
-    if(f)cards+='<div style="font-size:10px;font-weight:700;color:'+f.color+';margin-bottom:4px">'+f.icon+' '+f.shortLabel+'</div>';
+    if(f)cards+='<div style="font-size:var(--fs-caption);font-weight:700;color:'+f.color+';margin-bottom:4px">'+f.icon+' '+f.shortLabel+'</div>';
     cards+='<div class="sv" style="color:'+(f?f.color:'var(--plum)')+'">'+c.avg.toFixed(2)+'<span class="su2"> mph</span></div>';
     cards+='<span class="badge '+(isRef?'b-neu':c.avg>=ref.avg?'b-up':'b-dn')+'">'+(isRef?'baseline':(c.avg>=ref.avg?'▲ ':'▼ ')+Math.abs(p)+'%')+'</span>';
-    if(f&&f.bungee)cards+='<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:3px">🔴 bungee</div>';
+    if(f&&f.bungee)cards+='<div style="font-size:var(--fs-label);font-weight:800;color:#f5a623;margin-top:3px">🔴 bungee</div>';
     cards+='</div>';
   });
   el.innerHTML='<div class="card"><div class="ct-title">Shared corridor speed</div>'
@@ -1838,7 +1865,7 @@ function renderSegWeekly(el){
     sdates.forEach(function(d){
       var s=seg.sessions[d];var f=getFocus(SESSIONS.filter(function(x){return x.date===d;})[0]);
       var maxV=Math.max.apply(null,sdates.map(function(x){return seg.sessions[x].avg;}));
-      segCards+='<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">';
+      segCards+='<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:var(--fs-small);margin-bottom:3px">';
       segCards+='<span>'+datePill(d)+' '+(f?f.icon:'')+'</span>';
       segCards+='<span style="color:'+seg.color+';font-weight:900">'+s.avg.toFixed(2)+' mph '+(f&&f.bungee?'🔴':'')+'</span></div>';
       segCards+='<div class="bb"><div class="bf" style="width:'+(s.avg/maxV*100).toFixed(0)+'%;background:'+seg.color+'"></div></div></div>';
@@ -1898,11 +1925,11 @@ function renderSegDetail2(el){
       var maxV=Math.max.apply(null,sdates.map(function(x){return seg.sessions[x].avg;}));
       html+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline">';
       html+='<span>'+datePill(d)+' '+(f?f.icon:'')+'</span>';
-      html+='<span style="color:'+seg.color+';font-weight:900;font-size:13px">'+s.avg.toFixed(2)+' '+(f&&f.bungee?'🔴':'')+'</span></div>';
+      html+='<span style="color:'+seg.color+';font-weight:900;font-size:var(--fs-ui)">'+s.avg.toFixed(2)+' '+(f&&f.bungee?'🔴':'')+'</span></div>';
       html+='<div class="bb"><div class="bf" style="width:'+(s.avg/maxV*100).toFixed(0)+'%;background:'+seg.color+'"></div></div>';
       html+='<div style="display:flex;justify-content:space-between;margin-top:2px">';
-      html+='<span style="font-size:10px;font-weight:600;color:var(--gm)">'+(s.sr?s.sr.toFixed(0):'—')+' spm</span>';
-      html+='<span class="badge '+(isRef?'b-neu':+p>=0?'b-up':'b-dn')+'" style="font-size:9px;padding:1px 6px">'+(isRef?'base':(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%')+'</span></div></div>';
+      html+='<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm)">'+(s.sr?s.sr.toFixed(0):'—')+' spm</span>';
+      html+='<span class="badge '+(isRef?'b-neu':+p>=0?'b-up':'b-dn')+'" style="font-size:var(--fs-label);padding:1px 6px">'+(isRef?'base':(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%')+'</span></div></div>';
     });
     html+='</div>';
   });
@@ -2148,8 +2175,8 @@ function fetchAllWeather(callback){
 
 function wxBadge(session){
   var wx=session._wx;
-  if(!wx)return '<span style="font-size:10px;color:var(--gm)">loading…</span>';
-  var html='<span style="font-size:11px;font-weight:700;color:var(--ink)">';
+  if(!wx)return '<span style="font-size:var(--fs-caption);color:var(--gm)">loading…</span>';
+  var html='<span style="font-size:var(--fs-small);font-weight:700;color:var(--ink)">';
   html+='💨 '+wx.windSpeed.toFixed(1)+' mph '+windDirLabel(wx.windDir);
   if(wx.windGust&&wx.windGust>wx.windSpeed+3) html+=' (gusts '+wx.windGust.toFixed(0)+')';
   if(wx.waveHeight!=null&&wx.waveHeight>0.05) html+=' · 🌊 '+wx.waveHeight.toFixed(2)+'m';
@@ -2225,12 +2252,12 @@ function renderTagEditor(session){
   var currentVal=hasOverride?(SESSION_TAGS[session.date]===null?'':SESSION_TAGS[session.date]):'auto';
 
   return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🏷 Session tag:</span>'
+    +'<span style="font-size:var(--fs-small);font-weight:800;color:var(--plum)">🏷 Session tag:</span>'
     +'<select id="tag-select" onchange="setSessionTag(\''+session.date+'\',this.value)" '
-    +'style="font-family:Nunito,sans-serif;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
+    +'style="font-family:Nunito,sans-serif;font-size:var(--fs-small);font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
     +options
     +'</select>'
-    +(hasOverride?'<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>':'<span style="font-size:10px;font-weight:600;color:var(--gm)">auto-detected</span>')
+    +(hasOverride?'<span style="font-size:var(--fs-caption);font-weight:700;color:#f5a623">⚡ overridden</span>':'<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm)">auto-detected</span>')
     +'<script>document.getElementById("tag-select").value="'+currentVal+'";<\/script>'
     +'</div>';
 }
@@ -2244,7 +2271,7 @@ function renderWeatherCard(session){
   html+='<div class="ct-sub">Open-Meteo ERA5 reanalysis · hourly at session location · '+(isOpenWater?'<b style="color:#f5a623">⚠ Open water</b>':'Harbour — sheltered')+'</div>';
 
   if(!wx){
-    html+='<div style="font-size:12px;font-weight:600;color:var(--gm);padding:8px 0">Fetching weather data…</div>';
+    html+='<div style="font-size:var(--fs-body);font-weight:600;color:var(--gm);padding:8px 0">Fetching weather data…</div>';
   } else {
     var windColor=wx.windSpeed>12?'#a03060':wx.windSpeed>6?'#c9973d':'#2e7a4a';
     html+='<div class="sg g4" style="margin-bottom:0">';
@@ -2254,7 +2281,7 @@ function renderWeatherCard(session){
       html+='<div class="sc"><div class="sl">Wave Height</div><div class="sv">'+(wx.waveHeight>0.05?wx.waveHeight.toFixed(2):'—')+'<span class="su2">'+(wx.waveHeight>0.05?' m':'</span><div class="sn">sheltered / no data</div>')+'</span></div></div>';
     }
     var note=wxExposureNote(session);
-    if(note) html+='<div class="sc"><div class="sl">Conditions note</div><div style="font-size:11px;font-weight:700;color:var(--gt);margin-top:4px;line-height:1.6">'+note+'</div></div>';
+    if(note) html+='<div class="sc"><div class="sl">Conditions note</div><div style="font-size:var(--fs-small);font-weight:700;color:var(--gt);margin-top:4px;line-height:1.6">'+note+'</div></div>';
     html+='</div>';
   }
   html+='</div>';
@@ -2431,14 +2458,14 @@ function renderNotesEditor(session) {
   var note = getNote(session.date);
   var html = '<div style="background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:12px;padding:14px 16px;margin-bottom:14px">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-  html += '<span style="font-size:11px;font-weight:800;color:var(--plum)">📝 Session Notes</span>';
-  html += '<span style="font-size:10px;font-weight:600;color:var(--gm)">saved automatically</span>';
+  html += '<span style="font-size:var(--fs-small);font-weight:800;color:var(--plum)">📝 Session Notes</span>';
+  html += '<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm)">saved automatically</span>';
   html += '</div>';
   html += '<textarea id="sess-note-input" placeholder="e.g. Exceptional upwind resistance on the return leg. Wind felt stronger than forecast suggested…" '
-    + 'style="width:100%;min-height:72px;font-family:Nunito,sans-serif;font-size:12px;font-weight:600;color:var(--ink);'
+    + 'style="width:100%;min-height:72px;font-family:Nunito,sans-serif;font-size:var(--fs-body);font-weight:600;color:var(--ink);'
     + 'background:var(--white);border:1.5px solid var(--lav);border-radius:8px;padding:10px 12px;resize:vertical;'
     + 'line-height:1.6;outline:none;" oninput="onNoteInput()">' + escHtml(note) + '</textarea>';
-  html += '<div style="font-size:10px;font-weight:600;color:var(--gm);margin-top:4px" id="note-save-status">'
+  html += '<div style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:4px" id="note-save-status">'
     + (note ? '✓ Note saved' : '') + '</div>';
   html += '</div>';
   return html;
@@ -2667,8 +2694,8 @@ function renderLegsCard(session) {
     : 'Small gap — conditions were fairly balanced across legs.';
 
   html += '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--lilac);border-radius:10px;padding:10px 14px">';
-  html += '<span style="font-size:20px">' + gapIcon + '</span>';
-  html += '<div style="font-size:12px;font-weight:700;color:var(--ink);line-height:1.7">';
+  html += '<span style="font-size:var(--fs-stat)">' + gapIcon + '</span>';
+  html += '<div style="font-size:var(--fs-body);font-weight:700;color:var(--ink);line-height:1.7">';
   html += '<b>' + fasterLabel + '</b> was <b>' + legs.deltaAvg.toFixed(2) + ' mph faster on average</b> · ' + gapNote;
   html += '</div></div>';
 
@@ -2867,7 +2894,7 @@ function renderDownwindCard(session) {
   html += '</div>';
 
   /* ── Goal callout ── */
-  html += '<div style="background:var(--lilac);border-radius:10px;padding:11px 14px;font-size:12px;font-weight:700;color:var(--ink);line-height:1.7;margin-bottom:12px">';
+  html += '<div style="background:var(--lilac);border-radius:10px;padding:11px 14px;font-size:var(--fs-body);font-weight:700;color:var(--ink);line-height:1.7;margin-bottom:12px">';
   html += '🎯 <b>Goal:</b> increase efficiency score over time — higher speed at <em>lower</em> stroke rate means you\'re connecting waves and letting momentum carry you rather than muscling through. ';
   if (dw.eff && dw.eff > 12) {
     html += '<span style="color:var(--mint-dk)">✓ Good wave connection today — efficiency above 12.</span>';
@@ -2880,7 +2907,7 @@ function renderDownwindCard(session) {
 
   /* ── Top runs table ── */
   var topRuns = dw.runs.slice(0, Math.min(8, dw.runs.length));
-  html += '<div class="ct-title" style="font-size:12px;margin-bottom:8px">Top runs by wave-ride quality</div>';
+  html += '<div class="ct-title" style="font-size:var(--fs-body);margin-bottom:8px">Top runs by wave-ride quality</div>';
   html += '<div class="tw" style="margin-bottom:0"><table>';
   html += '<tr><th>#</th><th>Position</th><th>Length</th><th>Avg Speed</th><th>Peak (P95)</th><th>Avg SR</th><th>Efficiency</th></tr>';
   topRuns.forEach(function(r, i) {
@@ -3074,31 +3101,31 @@ function renderTideCard(session) {
   /* State */
   html += '<div class="sc" style="border-color:'+sc+'44">';
   html += '<div class="sl" style="color:'+sc+'">'+tideIcon(tide.state)+' Tide at session start</div>';
-  html += '<div style="font-size:18px;font-weight:900;color:'+sc+'">'+stateLabel+'</div>';
+  html += '<div style="font-size:var(--fs-insight);font-weight:900;color:'+sc+'">'+stateLabel+'</div>';
   if (tide.interpH !== null)
-    html += '<div class="sn" style="margin-top:4px;font-size:11px">~'+tide.interpH.toFixed(1)+' ft above MLLW</div>';
+    html += '<div class="sn" style="margin-top:4px;font-size:var(--fs-small)">~'+tide.interpH.toFixed(1)+' ft above MLLW</div>';
   html += '</div>';
 
   /* Highs */
   html += '<div class="sc">';
   html += '<div class="sl" style="color:var(--plum)">🔺 High tides</div>';
-  if (tide.prevHigh) html += '<div style="margin-bottom:5px"><span style="font-weight:900;color:var(--plum);font-size:16px">'+tide.prevHigh.h.toFixed(1)+' ft</span> <span style="font-size:11px;color:var(--gm)">'+tide.prevHigh.timeStr+' (before)</span></div>';
-  if (tide.nextHigh) html += '<div><span style="font-weight:900;color:var(--plum);font-size:16px">'+tide.nextHigh.h.toFixed(1)+' ft</span> <span style="font-size:11px;color:var(--gm)">'+tide.nextHigh.timeStr+' (next)</span></div>';
+  if (tide.prevHigh) html += '<div style="margin-bottom:5px"><span style="font-weight:900;color:var(--plum);font-size:var(--fs-card-title)">'+tide.prevHigh.h.toFixed(1)+' ft</span> <span style="font-size:var(--fs-small);color:var(--gm)">'+tide.prevHigh.timeStr+' (before)</span></div>';
+  if (tide.nextHigh) html += '<div><span style="font-weight:900;color:var(--plum);font-size:var(--fs-card-title)">'+tide.nextHigh.h.toFixed(1)+' ft</span> <span style="font-size:var(--fs-small);color:var(--gm)">'+tide.nextHigh.timeStr+' (next)</span></div>';
   if (!tide.prevHigh && !tide.nextHigh) html += '<div class="sn">No high tide on this day</div>';
   html += '</div>';
 
   /* Lows */
   html += '<div class="sc">';
   html += '<div class="sl" style="color:var(--gm)">🔻 Low tides</div>';
-  if (tide.prevLow) html += '<div style="margin-bottom:5px"><span style="font-weight:900;color:var(--gt);font-size:16px">'+tide.prevLow.h.toFixed(1)+' ft</span> <span style="font-size:11px;color:var(--gm)">'+tide.prevLow.timeStr+' (before)</span></div>';
-  if (tide.nextLow) html += '<div><span style="font-weight:900;color:var(--gt);font-size:16px">'+tide.nextLow.h.toFixed(1)+' ft</span> <span style="font-size:11px;color:var(--gm)">'+tide.nextLow.timeStr+' (next)</span></div>';
+  if (tide.prevLow) html += '<div style="margin-bottom:5px"><span style="font-weight:900;color:var(--gt);font-size:var(--fs-card-title)">'+tide.prevLow.h.toFixed(1)+' ft</span> <span style="font-size:var(--fs-small);color:var(--gm)">'+tide.prevLow.timeStr+' (before)</span></div>';
+  if (tide.nextLow) html += '<div><span style="font-weight:900;color:var(--gt);font-size:var(--fs-card-title)">'+tide.nextLow.h.toFixed(1)+' ft</span> <span style="font-size:var(--fs-small);color:var(--gm)">'+tide.nextLow.timeStr+' (next)</span></div>';
   if (!tide.prevLow && !tide.nextLow) html += '<div class="sn">No low tide on this day</div>';
   html += '</div>';
 
   html += '</div>';
 
   var noteBg = tide.state==='rising'?'var(--blush)':tide.state==='falling'?'var(--mint)':'var(--lilac)';
-  html += '<div style="background:'+noteBg+';border-radius:10px;padding:11px 14px;font-size:12px;font-weight:700;color:var(--ink);line-height:1.7">';
+  html += '<div style="background:'+noteBg+';border-radius:10px;padding:11px 14px;font-size:var(--fs-body);font-weight:700;color:var(--ink);line-height:1.7">';
   html += tideIcon(tide.state)+' <b>Current direction:</b> ';
   html += tideFlowNote(tide.state);
   html += '</div></div>';
@@ -3137,18 +3164,18 @@ function renderDateFilter() {
   var html = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;'
     +'background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:12px;'
     +'padding:10px 14px;margin-bottom:16px">';
-  html += '<span style="font-size:11px;font-weight:800;color:var(--plum);white-space:nowrap">📅 Filter by date</span>';
-  html += '<label style="font-size:10px;font-weight:700;color:var(--gm)">From</label>';
+  html += '<span style="font-size:var(--fs-small);font-weight:800;color:var(--plum);white-space:nowrap">📅 Filter by date</span>';
+  html += '<label style="font-size:var(--fs-caption);font-weight:700;color:var(--gm)">From</label>';
   html += '<input type="date" id="filter-from" value="'+(FILTER_FROM?toInput(FILTER_FROM):'')+'"'
     +' min="'+earliest+'" max="'+latest+'" onchange="applyDateFilter()"'
-    +' style="font-family:var(--font);font-size:11px;font-weight:700;padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">';
-  html += '<label style="font-size:10px;font-weight:700;color:var(--gm)">To</label>';
+    +' style="font-family:var(--font);font-size:var(--fs-small);font-weight:700;padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">';
+  html += '<label style="font-size:var(--fs-caption);font-weight:700;color:var(--gm)">To</label>';
   html += '<input type="date" id="filter-to" value="'+(FILTER_TO?toInput(FILTER_TO):'')+'"'
     +' min="'+earliest+'" max="'+latest+'" onchange="applyDateFilter()"'
-    +' style="font-family:var(--font);font-size:11px;font-weight:700;padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">';
-  html += '<span style="font-size:10px;font-weight:700;color:'+(active?'var(--plum)':'var(--gm)')+'">Showing '+showing+' of '+ss.length+' sessions</span>';
+    +' style="font-family:var(--font);font-size:var(--fs-small);font-weight:700;padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">';
+  html += '<span style="font-size:var(--fs-caption);font-weight:700;color:'+(active?'var(--plum)':'var(--gm)')+'">Showing '+showing+' of '+ss.length+' sessions</span>';
   if (active) {
-    html += '<button onclick="clearDateFilter()" style="font-family:var(--font);font-size:10px;font-weight:800;'
+    html += '<button onclick="clearDateFilter()" style="font-family:var(--font);font-size:var(--fs-caption);font-weight:800;'
       +'padding:4px 10px;border-radius:999px;border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">✕ Clear</button>';
   }
   html += '</div>';
@@ -3259,11 +3286,11 @@ function renderPlansPage(el) {
   /* Add new week button */
   html += renderUserPrefs();
   html += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">';
-  html += '<button onclick="openNewPlan()" style="font-family:var(--font);font-size:12px;font-weight:800;'
+  html += '<button onclick="openNewPlan()" style="font-family:var(--font);font-size:var(--fs-body);font-weight:800;'
         + 'padding:10px 20px;border-radius:var(--r-pill);border:none;background:var(--lav);color:var(--plum);cursor:pointer">'
         + '＋ Add week plan</button>';
   if (weeks.length) {
-    html += '<span style="font-size:11px;font-weight:600;color:var(--gm)">'
+    html += '<span style="font-size:var(--fs-small);font-weight:600;color:var(--gm)">'
           + weeks.length + ' week' + (weeks.length>1?'s':'') + ' saved</span>';
   }
   html += '</div>';
@@ -3293,12 +3320,12 @@ function renderPlanCard(wk, plan) {
   var html = '<div class="card" id="plan-card-'+wk+'">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
   html += '<div>';
-  html += '<div style="font-size:14px;font-weight:900;color:var(--plum)">Week of ' + weekMonday(wk) + '</div>';
-  html += '<div style="font-size:10px;font-weight:600;color:var(--gm)">' + wk + '</div>';
+  html += '<div style="font-size:var(--fs-card-title);font-weight:900;color:var(--plum)">Week of ' + weekMonday(wk) + '</div>';
+  html += '<div style="font-size:var(--fs-caption);font-weight:600;color:var(--gm)">' + wk + '</div>';
   html += '</div>';
   html += '<div style="display:flex;gap:8px">';
-  html += '<button onclick="openPlanEditor(\''+wk+'\')" style="font-family:var(--font);font-size:11px;font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--lav-md);background:var(--lav-lt);color:var(--plum);cursor:pointer">✏️ Edit</button>';
-  html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:11px;font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">Remove</button>';
+  html += '<button onclick="openPlanEditor(\''+wk+'\')" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--lav-md);background:var(--lav-lt);color:var(--plum);cursor:pointer">✏️ Edit</button>';
+  html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">Remove</button>';
   html += '</div></div>';
 
   /* Day tiles */
@@ -3308,8 +3335,8 @@ function renderPlanCard(wk, plan) {
     var dayName = DOW_NAMES[dow];
     if (!day || !day.id) {
       html += '<div style="background:var(--cloud);border:1.5px dashed var(--lav-lt);border-radius:8px;padding:10px 12px;opacity:.5">';
-      html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">' + dayName + '</div>';
-      html += '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-top:2px">Rest</div>';
+      html += '<div style="font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">' + dayName + '</div>';
+      html += '<div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-top:2px">Rest</div>';
       html += '</div>';
       return;
     }
@@ -3318,11 +3345,11 @@ function renderPlanCard(wk, plan) {
     var col  = base.color   || '#9b8bb8';
     var colLt = base.colorLt || '#f0eaf9';
     html += '<div style="background:'+colLt+';border:1.5px solid '+col+'44;border-radius:8px;padding:10px 12px">';
-    html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:'+col+'">' + dayName + '</div>';
-    html += '<div style="font-size:12px;font-weight:800;color:var(--ink);margin-top:2px">' + (opt.icon||'') + ' ' + escHtml(opt.label||day.id) + '</div>';
-    if (day.desc) html += '<div style="font-size:10px;font-weight:600;color:var(--gt);margin-top:3px;line-height:1.4">' + escHtml(day.desc.slice(0,80)) + (day.desc.length>80?'…':'') + '</div>';
-    if (opt.bungee) html += '<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:2px">🔴 bungee</div>';
-    if (day.srTargets) html += '<div style="font-size:9px;font-weight:700;color:var(--gm);margin-top:2px">SR: ' + day.srTargets.easy + '/' + day.srTargets.hard + ' spm</div>';
+    html += '<div style="font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1px;color:'+col+'">' + dayName + '</div>';
+    html += '<div style="font-size:var(--fs-body);font-weight:800;color:var(--ink);margin-top:2px">' + (opt.icon||'') + ' ' + escHtml(opt.label||day.id) + '</div>';
+    if (day.desc) html += '<div style="font-size:var(--fs-caption);font-weight:600;color:var(--gt);margin-top:3px;line-height:1.4">' + escHtml(day.desc.slice(0,80)) + (day.desc.length>80?'…':'') + '</div>';
+    if (opt.bungee) html += '<div style="font-size:var(--fs-label);font-weight:800;color:#f5a623;margin-top:2px">🔴 bungee</div>';
+    if (day.srTargets) html += '<div style="font-size:var(--fs-label);font-weight:700;color:var(--gm);margin-top:2px">SR: ' + day.srTargets.easy + '/' + day.srTargets.hard + ' spm</div>';
     html += '</div>';
   });
   html += '</div></div>';
@@ -3366,8 +3393,8 @@ function openPlanEditor(wk) {
 
   /* Week picker */
   html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
-  html += '<label style="font-size:11px;font-weight:800;color:var(--plum)">Week:</label>';
-  html += '<select id="plan-week-select" onchange="switchPlanWeek(this.value)" style="font-family:var(--font);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">';
+  html += '<label style="font-size:var(--fs-small);font-weight:800;color:var(--plum)">Week:</label>';
+  html += '<select id="plan-week-select" onchange="switchPlanWeek(this.value)" style="font-family:var(--font);font-size:var(--fs-small);font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">';
   html += weekOptions + '</select>';
   html += '</div>';
 
@@ -3380,12 +3407,12 @@ function openPlanEditor(wk) {
     }).join('');
 
     html += '<div style="display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:start;padding:10px 12px;background:var(--lilac2);border-radius:10px;border:1.5px solid var(--lav-lt)">';
-    html += '<div style="font-size:12px;font-weight:800;color:var(--ink);padding-top:6px">' + d.name + '</div>';
+    html += '<div style="font-size:var(--fs-body);font-weight:800;color:var(--ink);padding-top:6px">' + d.name + '</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px">';
 
     /* Focus type dropdown */
     html += '<select data-dow="'+d.dow+'" data-field="id" onchange="updatePlanDay(this)" '
-          + 'style="font-family:var(--font);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
+          + 'style="font-family:var(--font);font-size:var(--fs-small);font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
           + focusOpts + '</select>';
 
     /* Description textarea — only shown if not rest */
@@ -3393,21 +3420,21 @@ function openPlanEditor(wk) {
     html += '<textarea data-dow="'+d.dow+'" data-field="desc" onchange="updatePlanDay(this)" '
           + 'placeholder="Session description, e.g. 70 min · 3×10 min bungee sets · Z2–Z3" rows="2" '
           + (isRest ? 'style="display:none;' : 'style="')
-          + 'font-family:var(--font);font-size:11px;font-weight:600;padding:7px 10px;border-radius:8px;'
+          + 'font-family:var(--font);font-size:var(--fs-small);font-weight:600;padding:7px 10px;border-radius:8px;'
           + 'border:1.5px solid var(--lav);background:var(--white);color:var(--ink);resize:vertical;width:100%;box-sizing:border-box">'
           + escHtml(day.desc||'') + '</textarea>';
 
     /* SR targets (optional) — only for interval-type sessions */
     var showSR = (day.id==='intervals');
     html += '<div data-dow="'+d.dow+'" data-srrow="1" style="display:'+(showSR?'flex':'none')+';align-items:center;gap:6px;flex-wrap:wrap">';
-    html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">SR targets:</span>';
+    html += '<span style="font-size:var(--fs-caption);font-weight:700;color:var(--gm)">SR targets:</span>';
     html += '<input type="text" data-dow="'+d.dow+'" data-field="sr_easy" onchange="updatePlanDay(this)" '
           + 'placeholder="easy (e.g. 36)" value="'+escHtml(day.srTargets?String(day.srTargets.easy):'')+'" '
-          + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
-    html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">/</span>';
+          + 'style="font-family:var(--font);font-size:var(--fs-small);padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
+    html += '<span style="font-size:var(--fs-caption);font-weight:700;color:var(--gm)">/</span>';
     html += '<input type="text" data-dow="'+d.dow+'" data-field="sr_hard" onchange="updatePlanDay(this)" '
           + 'placeholder="hard (e.g. 40-42)" value="'+escHtml(day.srTargets?String(day.srTargets.hard):'')+'" '
-          + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
+          + 'style="font-family:var(--font);font-size:var(--fs-small);padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
     html += '</div>';
 
     html += '</div></div>';
@@ -3416,10 +3443,10 @@ function openPlanEditor(wk) {
 
   /* Save / Cancel buttons */
   html += '<div style="display:flex;gap:10px">';
-  html += '<button onclick="savePlanFromEditor()" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save plan</button>';
-  html += '<button onclick="closePlanEditor()" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Cancel</button>';
+  html += '<button onclick="savePlanFromEditor()" style="font-family:var(--font);font-size:var(--fs-body);font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save plan</button>';
+  html += '<button onclick="closePlanEditor()" style="font-family:var(--font);font-size:var(--fs-body);font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Cancel</button>';
   if (WEEKLY_PLANS[wk]) {
-    html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer;margin-left:auto">Remove this week</button>';
+    html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:var(--fs-body);font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer;margin-left:auto">Remove this week</button>';
   }
   html += '</div>';
   html += '</div>';
@@ -3651,11 +3678,11 @@ function renderCraftSelector(session) {
     return '<option value="'+c+'"'+(c===current?' selected':'')+'>'+c+'</option>';
   }).join('');
   var ovPart = isOv
-    ? '<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>'
-      +'<button id="craft-rst-'+date+'" style="font-family:var(--font);font-size:10px;font-weight:700;'
+    ? '<span style="font-size:var(--fs-caption);font-weight:700;color:#f5a623">⚡ overridden</span>'
+      +'<button id="craft-rst-'+date+'" style="font-family:var(--font);font-size:var(--fs-caption);font-weight:700;'
       +'padding:3px 8px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
       +'color:var(--gm);cursor:pointer">Reset to default</button>'
-    : '<span style="font-size:10px;font-weight:600;color:var(--gm)">default</span>';
+    : '<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm)">default</span>';
   setTimeout(function(){
     var sel=document.getElementById('craft-sel-'+date);
     if(sel) sel.onchange=function(){ setSessionCraft(date,this.value); };
@@ -3664,8 +3691,8 @@ function renderCraftSelector(session) {
   },0);
   return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);'
     +'border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🛶 Craft:</span>'
-    +'<select id="craft-sel-'+date+'" style="font-family:var(--font);font-size:12px;font-weight:700;'
+    +'<span style="font-size:var(--fs-small);font-weight:800;color:var(--plum)">🛶 Craft:</span>'
+    +'<select id="craft-sel-'+date+'" style="font-family:var(--font);font-size:var(--fs-body);font-weight:700;'
     +'padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
     +opts+'</select>'+ovPart+'</div>';
 }
@@ -3686,7 +3713,7 @@ function renderUserPrefs() {
     if(r3) r3.onclick=function(){ STRIP_CONFIG=null; saveStripConfig(); renderStrip(); showToast('Stats strip reset','success'); };
   }, 0);
 
-  var btnStyle = 'font-family:var(--font);font-size:11px;font-weight:800;padding:7px 16px;'
+  var btnStyle = 'font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:7px 16px;'
     + 'border-radius:999px;border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer';
 
   return '<div class="card">'
@@ -3695,17 +3722,17 @@ function renderUserPrefs() {
 
     /* ── Default craft ── */
     + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">'
-    + '<span style="font-size:12px;font-weight:800;color:var(--plum)">🛶 Default craft:</span>'
-    + '<select id="default-craft-sel" style="font-family:var(--font);font-size:12px;font-weight:700;'
+    + '<span style="font-size:var(--fs-body);font-weight:800;color:var(--plum)">🛶 Default craft:</span>'
+    + '<select id="default-craft-sel" style="font-family:var(--font);font-size:var(--fs-body);font-weight:700;'
     + 'padding:7px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
     + craftOpts + '</select>'
-    + '<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
+    + '<span style="font-size:var(--fs-small);font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
     + '</div>'
 
     /* ── Layout section ── */
     + '<div style="padding-top:16px;border-top:1.5px solid var(--lav-lt)">'
-    + '<div style="font-size:12px;font-weight:800;color:var(--plum);margin-bottom:6px">🃏 Dashboard layout</div>'
-    + '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-bottom:12px;line-height:1.6">'
+    + '<div style="font-size:var(--fs-body);font-weight:800;color:var(--plum);margin-bottom:6px">🃏 Dashboard layout</div>'
+    + '<div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-bottom:12px;line-height:1.6">'
     + 'Drag the <b>⠿</b> handle on any card in the session detail view to reorder. '
     + 'Drag the <b>⠿</b> handle on overview sections to reorder the overview. '
     + 'Your layouts save automatically.'
@@ -4245,14 +4272,14 @@ function renderWeekPlanWidget(ss) {
 
   var html = '<div class="week-plan-strip">'
     + '<div class="wps-title">📅 This Week\'s Program'
-    + '<span style="font-size:10px;font-weight:600;color:var(--gm);font-style:normal;'
+    + '<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);font-style:normal;'
     + 'text-transform:none;letter-spacing:0;margin-left:6px">'
     + weekMonday(weekKey) + '</span></div>';
 
   if (!plan || !plan.days || !Object.keys(plan.days).length) {
-    html += '<div style="font-size:12px;font-weight:600;color:var(--gm);text-align:center;padding:8px 0">'
+    html += '<div style="font-size:var(--fs-body);font-weight:600;color:var(--gm);text-align:center;padding:8px 0">'
       + 'No program set for this week. '
-      + '<button onclick="nav(\'plans\')" style="font-family:var(--font);font-size:11px;font-weight:800;'
+      + '<button onclick="nav(\'plans\')" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
       + 'padding:4px 12px;border-radius:999px;border:1.5px solid var(--lav);'
       + 'background:var(--lilac);color:var(--plum);cursor:pointer">Set up weekly plan →</button>'
       + '</div></div>';
@@ -4291,7 +4318,7 @@ function renderWeekPlanWidget(ss) {
       + '<div class="wpd-icon">'+icon+'</div>'
       + '<div class="wpd-label">'+escHtml(label)+'</div>'
       + (sess ? '<div class="wpd-speed">'+sess.avgSpeed.toFixed(2)+'</div>' : '')
-      + (sess ? '<div style="font-size:8px;font-weight:700;margin-top:1px;opacity:.7">✓ done</div>' : '')
+      + (sess ? '<div style="font-size:var(--fs-label);font-weight:700;margin-top:1px;opacity:.7">✓ done</div>' : '')
       + '</div>';
   });
   html += '</div></div>';
@@ -4601,10 +4628,10 @@ function openStripEditor() {
   var ed=document.createElement('div');
   ed.id='strip-editor';ed.className='strip-editor';
   ed.innerHTML='<div class="strip-editor-title"><span>✦ Customise stats strip</span>'
-    +'<button onclick="closeStripEditor()" style="font-family:var(--font);font-size:11px;font-weight:800;'
+    +'<button onclick="closeStripEditor()" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
     +'padding:5px 14px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
     +'color:var(--plum);cursor:pointer">Done</button></div>'
-    +'<div style="font-size:11px;font-weight:600;color:var(--gm);margin-bottom:10px">'
+    +'<div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-bottom:10px">'
     +'Tap to show/hide · drag ⠿ in the strip to reorder</div>'
     +'<div class="strip-chips">'+chips+'</div>';
   var hdr=document.querySelector('.hdr');
@@ -4636,6 +4663,11 @@ function toggleStripCell(id){
   var chip=document.getElementById('chip-'+id);
   if(chip){var on=cfg.order.indexOf(id)>=0;chip.className='strip-chip'+(on?' on':'');chip.textContent=(on?'✓':'＋')+' '+chip.textContent.slice(2);}
 }
+
+
+
+
+
 
 </script>
 </body>
