@@ -214,6 +214,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -261,20 +262,32 @@ function sbGet(key, token, cb) {
 }
 
 function sbSet(key, value, token, cb) {
+  var userId = SB_SESSION && SB_SESSION.user ? SB_SESSION.user.id : null;
+  var body = {
+    user_id:    userId,
+    key:        key,
+    value:      value,
+    updated_at: new Date().toISOString()
+  };
+  console.log('[sbSet] key:', key, 'user_id:', userId, 'token present:', !!token);
   fetch(SUPABASE_URL + '/rest/v1/user_data', {
     method: 'POST',
     headers: Object.assign({}, sbHeaders(token), {
       'Prefer': 'resolution=merge-duplicates,return=minimal'
     }),
-    body: JSON.stringify({
-        user_id:    SB_SESSION && SB_SESSION.user ? SB_SESSION.user.id : undefined,
-        key:        key,
-        value:      value,
-        updated_at: new Date().toISOString()
-      })
+    body: JSON.stringify(body)
   })
-  .then(function(r) { if (!r.ok) throw new Error(r.status); cb && cb(null); })
-  .catch(function(e) { console.error('sbSet error:', e); cb && cb(e); });
+  .then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(txt) {
+        console.error('[sbSet] HTTP', r.status, 'for key:', key, 'body:', txt);
+        throw new Error(r.status + ': ' + txt);
+      });
+    }
+    console.log('[sbSet] saved key:', key);
+    cb && cb(null);
+  })
+  .catch(function(e) { console.error('[sbSet] error:', e); cb && cb(e); });
 }
 
 function sbDel(key, token, cb) {
@@ -318,6 +331,7 @@ function sbSignIn(email, password, cb) {
   .then(function(d) {
     if (d.error || d.error_description) { cb(d.error_description || d.error, null); return; }
     SB_SESSION = d;
+    console.log('[sbSignIn] session user:', d.user, 'has id:', d.user && d.user.id);
     try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
     cb(null, d);
   })
@@ -353,6 +367,7 @@ function sbRefresh(refreshToken, cb) {
   .then(function(d) {
     if (d.error) { cb(d.error, null); return; }
     SB_SESSION = d;
+    console.log('[sbSignIn] session user:', d.user, 'has id:', d.user && d.user.id);
     try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
     cb(null, d);
   })
@@ -464,6 +479,7 @@ function sbRestoreSession(cb) {
         var expiresAt = payload.exp * 1000;
         if (Date.now() < expiresAt - 60000) {
           SB_SESSION = sess;
+          console.log('[sbRestoreSession] restored, user:', sess.user, 'id:', sess.user && sess.user.id);
           cb(null, sess);
           return;
         }
@@ -3353,6 +3369,7 @@ selSess = function(date) {
   _selSessBase(date);
   updateMobNav();
 };
+
 
 
 
