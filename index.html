@@ -246,7 +246,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 @keyframes auth-shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
 
 /* Week plan day tiles */
-.week-plan-strip .wps-title{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+
 .wpd{border-radius:10px;padding:8px 6px;text-align:center;border:1.5px solid transparent;transition:all .15s;}
 .wpd.today{border-color:currentColor;box-shadow:0 2px 10px rgba(0,0,0,.08);transform:translateY(-2px);}
 .wpd.has-session{cursor:pointer;}
@@ -296,6 +296,30 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 .focus-group-wrap:hover > .drag-handle { opacity: .6; }
 .focus-group-wrap > .drag-handle:hover { opacity: 1; color: var(--plum); }
 .focus-group-wrap.dnd-dragging > .card { opacity: .3; outline: 2px dashed var(--lav-md); border-radius: 14px; }
+
+/* ── Weekly program strip ── */
+.week-plan-strip {
+  background: linear-gradient(135deg, var(--lilac2) 0%, var(--white) 100%);
+  border: 2px solid var(--lav-lt);
+  border-radius: var(--r-lg);
+  padding: 14px 16px 12px;
+  margin-top: 4px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wps-title {
+  font-size: var(--fs-label);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--gm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -320,6 +344,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -4868,6 +4893,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
