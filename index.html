@@ -339,6 +339,17 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -795,27 +806,6 @@ function sessionDetailKey(date) {
 function saveSessionDetail(session) {
   /* Save full session including strokes */
   sbScheduleWrite(sessionDetailKey(session.date), session);
-}
-
-function loadSessionDetail(date, cb) {
-  /* Already have strokes in memory? */
-  var existing = SESSIONS.filter(function(s){ return s.date === date; })[0];
-  if (existing && existing.strokes && existing.strokes.length) {
-    cb(null, existing);
-    return;
-  }
-  /* Load from Supabase */
-  sbGet(sessionDetailKey(date), sbToken(), function(err, val) {
-    if (err || !val) { cb(err, null); return; }
-    /* Merge strokes into the in-memory session */
-    if (existing) {
-      existing.strokes  = val.strokes  || [];
-      existing.intervals = val.intervals || existing.intervals || [];
-      cb(null, existing);
-    } else {
-      cb(null, val);
-    }
-  });
 }
 
 function deleteSessionDetail(date) {
@@ -2277,7 +2267,7 @@ function windDirLabel(deg){
   var dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   return dirs[Math.round(deg/22.5)%16];
 }
-function mpsToMph(mps){return (mps*2.237).toFixed(1);}
+
 
 function fetchWeather(session, callback){
   var cacheKey=WX_CACHE_PREFIX+session.date;
@@ -2340,12 +2330,11 @@ function fetchWeather(session, callback){
         fetchedAt: Date.now(),
       };
       // Cache
-      try{sessionStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
+      try{localStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
       callback(null,wx);
     })
     .catch(function(err){callback(err,null);});
 }
-
 function fetchAllWeather(callback){
   var pending=SESSIONS.length;
   if(!pending){callback();return;}
@@ -2358,16 +2347,6 @@ function fetchAllWeather(callback){
   });
 }
 
-function wxBadge(session){
-  var wx=session._wx;
-  if(!wx)return '<span style="font-size:var(--fs-caption);color:var(--gm)">loading…</span>';
-  var html='<span style="font-size:var(--fs-small);font-weight:700;color:var(--ink)">';
-  html+='💨 '+wx.windSpeed.toFixed(1)+' mph '+windDirLabel(wx.windDir);
-  if(wx.windGust&&wx.windGust>wx.windSpeed+3) html+=' (gusts '+wx.windGust.toFixed(0)+')';
-  if(wx.waveHeight!=null&&wx.waveHeight>0.05) html+=' · 🌊 '+wx.waveHeight.toFixed(2)+'m';
-  html+='</span>';
-  return html;
-}
 
 function wxExposureNote(session){
   var wx=session._wx;
@@ -2414,6 +2393,7 @@ function setSessionTag(date, focusId){
 
 
 /* Tag editor UI — rendered inside session detail */
+
 function renderTagEditor(session){
   var currentFocus=getFocus(session);
   var hasOverride=SESSION_TAGS.hasOwnProperty(session.date);
@@ -2421,31 +2401,24 @@ function renderTagEditor(session){
 
   var options='<option value="auto">'+(autoFocus?'Auto: '+autoFocus.shortLabel:'Auto: untagged')+'</option>';
   options+='<option value="">— No focus tag —</option>';
-  /* PROGRAM-based types (day-of-week defaults) */
   Object.keys(PROGRAM).forEach(function(dow){
     var p=PROGRAM[dow];
     options+='<option value="'+p.id+'">'+ p.icon+' '+p.shortLabel+'</option>';
-  });
-  /* Extra types from FOCUS_OPTIONS not already covered by PROGRAM */
-  var programIds=Object.keys(PROGRAM).map(function(d){return PROGRAM[d].id;});
-  FOCUS_OPTIONS.forEach(function(o){
-    if(o.id && programIds.indexOf(o.id)===-1){
-      options+='<option value="'+o.id+'">'+(o.icon?o.icon+' ':'')+o.label+'</option>';
-    }
   });
 
   var currentVal=hasOverride?(SESSION_TAGS[session.date]===null?'':SESSION_TAGS[session.date]):'auto';
 
   return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<span style="font-size:var(--fs-small);font-weight:800;color:var(--plum)">🏷 Session tag:</span>'
+    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🏷 Session tag:</span>'
     +'<select id="tag-select" onchange="setSessionTag(\''+session.date+'\',this.value)" '
-    +'style="font-family:Nunito,sans-serif;font-size:var(--fs-small);font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
+    +'style="font-family:Nunito,sans-serif;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
     +options
     +'</select>'
-    +(hasOverride?'<span style="font-size:var(--fs-caption);font-weight:700;color:#f5a623">⚡ overridden</span>':'<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm)">auto-detected</span>')
+    +(hasOverride?'<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>':'<span style="font-size:10px;font-weight:600;color:var(--gm)">auto-detected</span>')
     +'<script>document.getElementById("tag-select").value="'+currentVal+'";<\/script>'
     +'</div>';
 }
+/* Tag editor UI — rendered inside session detail */
 
 /* Weather card for session detail */
 function renderWeatherCard(session){
@@ -2474,6 +2447,51 @@ function renderWeatherCard(session){
 }
 
 /* Compact weather for overview table cells */
+
+/* ═══════════════════════════════════════════
+   TIDES — NOAA CO-OPS API
+   Station 9413745: Santa Cruz, Monterey Bay
+   (~2.5 mi from session start coords)
+   Free, no API key, supports browser CORS,
+   historical predictions back many years.
+   
+   Fetches high/low tide times for the session
+   date and finds the tide state at session start.
+   Cached in localStorage under clubby_tide_<date>
+═══════════════════════════════════════════ */
+var TIDE_CACHE_PREFIX = 'clubby_tide_';
+var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
+
+/* ═══════════════════════════════════════════
+   TIDES — NOAA CO-OPS API
+   Station 9413745: Santa Cruz, Monterey Bay
+   (~2.5 mi from session start coords)
+   Free, no API key, supports browser CORS,
+   historical predictions back many years.
+   
+   Fetches high/low tide times for the session
+   date and finds the tide state at session start.
+   Cached in localStorage under clubby_tide_<date>
+═══════════════════════════════════════════ */
+var TIDE_CACHE_PREFIX = 'clubby_tide_';
+var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
+
+
+/* ═══════════════════════════════════════════
+   TIDES — NOAA CO-OPS API
+   Station 9413745: Santa Cruz, Monterey Bay
+   (~2.5 mi from session start coords)
+   Free, no API key, supports browser CORS,
+   historical predictions back many years.
+   
+   Fetches high/low tide times for the session
+   date and finds the tide state at session start.
+   Cached in localStorage under clubby_tide_<date>
+═══════════════════════════════════════════ */
+var TIDE_CACHE_PREFIX = 'clubby_tide_';
+var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
+
+
 function wxCell(session){
   var wx=session._wx;
   if(!wx)return '…';
@@ -2494,127 +2512,8 @@ function wxCell(session){
 var TIDE_CACHE_PREFIX = 'clubby_tide_';
 var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
 
-function fetchTides(session, callback) {
-  var cacheKey = TIDE_CACHE_PREFIX + session.date;
-  try {
-    var cached = sessionStorage.getItem(cacheKey);
-    if (cached) { callback(null, JSON.parse(cached)); return; }
-  } catch(e) {}
 
-  var y = session.date.slice(0,4);
-  var mo = session.date.slice(4,6);
-  var d = session.date.slice(6,8);
-  var dateStr = y + mo + d;
 
-  // Get high/low predictions for the day
-  var url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter'
-    + '?begin_date=' + dateStr
-    + '&end_date=' + dateStr
-    + '&station=' + NOAA_STATION
-    + '&product=predictions'
-    + '&datum=MLLW'
-    + '&time_zone=lst_ldt'
-    + '&interval=hilo'
-    + '&units=english'
-    + '&application=clubby_progress'
-    + '&format=json';
-
-  fetch(url)
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.predictions || !data.predictions.length) {
-        callback(new Error('No tide data'), null); return;
-      }
-
-      // Parse session start time to find tide state
-      var hourMatch = session.startTime.match(/(\d{2}):(\d{2}):\d{2}$/);
-      var startHour = hourMatch ? parseInt(hourMatch[1]) : 12;
-      var startMin  = hourMatch ? parseInt(hourMatch[2]) : 0;
-      var startMins = startHour * 60 + startMin;
-
-      // Parse each tide event into minutes-since-midnight
-      var events = data.predictions.map(function(p) {
-        var parts = p.t.split(' '); // "2026-04-30 14:23"
-        var timeParts = (parts[1] || '00:00').split(':');
-        var mins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
-        return {
-          time: p.t,
-          mins: mins,
-          height: parseFloat(p.v),
-          type: p.type, // "H" or "L"
-          label: p.type === 'H' ? 'High' : 'Low',
-          timeStr: parts[1] || '',
-        };
-      });
-
-      // Find the two events bracketing the session start
-      var before = null, after = null;
-      for (var i = 0; i < events.length; i++) {
-        if (events[i].mins <= startMins) before = events[i];
-        else if (!after) after = events[i];
-      }
-
-      // Determine tide state
-      var state = 'unknown';
-      var pctThrough = null;
-      var nextEvent = null;
-      var prevEvent = null;
-
-      if (before && after) {
-        var range = after.mins - before.mins;
-        pctThrough = Math.round((startMins - before.mins) / range * 100);
-        prevEvent = before;
-        nextEvent = after;
-        if (before.type === 'L' && after.type === 'H') {
-          state = 'rising';
-        } else if (before.type === 'H' && after.type === 'L') {
-          state = 'falling';
-        }
-      } else if (before) {
-        prevEvent = before;
-        state = before.type === 'H' ? 'falling' : 'rising';
-      } else if (after) {
-        nextEvent = after;
-        state = after.type === 'H' ? 'rising' : 'falling';
-      }
-
-      // Current interpolated height (linear approx between events)
-      var interpHeight = null;
-      if (before && after) {
-        var t = (startMins - before.mins) / (after.mins - before.mins);
-        interpHeight = before.height + t * (after.height - before.height);
-        interpHeight = Math.round(interpHeight * 10) / 10;
-      } else if (before) {
-        interpHeight = before.height;
-      }
-
-      var result = {
-        events: events,
-        state: state,           // 'rising' | 'falling' | 'unknown'
-        pctThrough: pctThrough, // % through current tide cycle
-        interpHeight: interpHeight, // interpolated ft above MLLW at session start
-        prevEvent: prevEvent,
-        nextEvent: nextEvent,
-        fetchedAt: Date.now(),
-      };
-
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch(e) {}
-      callback(null, result);
-    })
-    .catch(function(err) { callback(err, null); });
-}
-
-function tideStateIcon(state) {
-  if (state === 'rising')  return '📈';
-  if (state === 'falling') return '📉';
-  return '〰️';
-}
-
-function tideStateColor(state) {
-  if (state === 'rising')  return '#2e7a4a';
-  if (state === 'falling') return '#a03060';
-  return 'var(--gm)';
-}
 
 
 /* ═══════════════════════════════════════════
@@ -4505,109 +4404,182 @@ function toggleStripCell(id){
    FIT position is semicircles → converted to degrees
 ═══════════════════════════════════════════════════════════ */
 
-var _fitLibLoaded = false;
-var _fitLibLoading = false;
-var _fitLibCallbacks = [];
-
-var FIT_LIB_URL = 'https://cdn.jsdelivr.net/npm/fit-file-parser@1.21.0/dist/fit-file-parser.js';
-
-function loadFitLib(cb) {
-  if (_fitLibLoaded) { cb(); return; }
-  _fitLibCallbacks.push(cb);
-  if (_fitLibLoading) return;
-  _fitLibLoading = true;
-  var s = document.createElement('script');
-  s.src = FIT_LIB_URL;
-  s.onload = function() {
-    _fitLibLoaded = true;
-    _fitLibLoading = false;
-    _fitLibCallbacks.forEach(function(fn) { fn(); });
-    _fitLibCallbacks = [];
-  };
-  s.onerror = function() {
-    _fitLibLoading = false;
-    _fitLibCallbacks.forEach(function(fn) { fn(new Error('Failed to load FIT library')); });
-    _fitLibCallbacks = [];
-  };
-  document.head.appendChild(s);
-}
-
-/* Semicircles → degrees (Garmin FIT position encoding) */
-function semicirclesToDeg(sc) {
-  return sc * (180 / Math.pow(2, 31));
-}
-
-/* m/s → mph */
-function msToMph(ms) {
-  return ms * 2.23694;
-}
-
-/* metres → miles */
-function mToMi(m) {
-  return m / 1609.344;
-}
-
-/* Seconds elapsed → "H:MM:SS.0" string matching SpeedCoach format */
-function secsToElapsed(secs) {
-  var h = Math.floor(secs / 3600);
-  var m = Math.floor((secs % 3600) / 60);
-  var s = Math.floor(secs % 60);
-  return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + '.0';
-}
-
-/* Date → "MM/DD/YYYY HH:MM:SS" string matching SpeedCoach format */
-function fitDateToString(d) {
-  if (!d) return '';
-  var dt = (d instanceof Date) ? d : new Date(d);
-  return (dt.getMonth()+1).toString().padStart(2,'0') + '/'
-       + dt.getDate().toString().padStart(2,'0') + '/'
-       + dt.getFullYear() + ' '
-       + dt.getHours().toString().padStart(2,'0') + ':'
-       + dt.getMinutes().toString().padStart(2,'0') + ':'
-       + dt.getSeconds().toString().padStart(2,'0');
-}
-
-/* Date → YYYYMMDD key */
-function fitDateToKey(d) {
-  if (!d) return String(Date.now());
-  var dt = (d instanceof Date) ? d : new Date(d);
-  return dt.getFullYear()
-       + String(dt.getMonth()+1).padStart(2,'0')
-       + String(dt.getDate()).padStart(2,'0');
-}
-
+/* ── Native FIT parser — no external library, handles Garmin + Suunto ── */
 function parseFIT(arrayBuffer, filename, cb) {
-  loadFitLib(function(err) {
-    if (err) { cb(err, null); return; }
+  try {
+    var bytes  = new Uint8Array(arrayBuffer);
+    var view   = new DataView(arrayBuffer);
+    var result = _parseFITBuffer(view, bytes, filename);
+    cb(null, result);
+  } catch(e) {
+    console.error('FIT parse error:', e);
+    cb(e, null);
+  }
+}
 
-    var FitParser = window.FitParser;
-    if (!FitParser) {
-      /* Some versions export as module.exports.default */
-      cb(new Error('FitParser not found on window'), null);
-      return;
+function _parseFITBuffer(view, bytes, filename) {
+  /* ── Header ── */
+  var headerSize = bytes[0];
+  var dataSize   = view.getUint32(4, true);  /* always little-endian */
+  var pos = headerSize;
+  var end = headerSize + dataSize;
+
+  var definitions = {};  /* localMsgType -> { globalNum, bigEndian, fields } */
+  var sessions=[], records=[], laps=[];
+
+  /* ── Decode helpers ── */
+  function readVal(pos, size, base, be) {
+    var b = base & 0x9F;
+    if (size === 1) {
+      if (b===0x01) return view.getInt8(pos);
+      return bytes[pos];
     }
-
-    var parser = new FitParser({
-      force:             true,
-      speedUnit:         'm/s',    /* we convert manually */
-      lengthUnit:        'm',
-      elapsedRecordField: true,
-      mode:              'list',   /* flat lists easier to work with */
-    });
-
-    parser.parse(arrayBuffer, function(error, data) {
-      if (error) { cb(error, null); return; }
-      try {
-        var session = fitDataToSession(data, filename);
-        cb(null, session);
-      } catch(e) {
-        cb(e, null);
+    if (size === 2) {
+      if (b===0x83||b===0x8C||b===0x03) return view.getInt16(pos, !be);
+      return view.getUint16(pos, !be);
+    }
+    if (size === 4) {
+      if (b===0x83) {
+        var v=view.getInt32(pos,!be); return v===0x7FFFFFFF?null:v;
       }
-    });
-  });
+      if (b===0x84) {
+        var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
+      }
+      if (b===0x86) return view.getFloat32(pos,!be);
+      var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
+    }
+    if (size === 8) {
+      /* Read as two 32-bit values */
+      return null;
+    }
+    if (b===0x07) {
+      /* string */
+      var s='';
+      for(var i=0;i<size;i++) { var c=bytes[pos+i]; if(c===0)break; s+=String.fromCharCode(c); }
+      return s;
+    }
+    /* fallback: first 4 bytes as uint32 */
+    if (size>=4) { var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v; }
+    return bytes[pos];
+  }
+
+  /* FIT timestamp epoch: 1989-12-31 00:00:00 UTC in ms */
+  var FIT_EPOCH_MS = 631065600000;
+
+  /* ── Parse messages ── */
+  while (pos < end) {
+    if (pos >= bytes.length) break;
+    var hdr = bytes[pos];
+
+    /* Compressed timestamp */
+    if (hdr & 0x80) { pos += 1; continue; }
+
+    var isDef    = !!(hdr & 0x40);
+    var hasDevFi = !!(hdr & 0x20);
+    var localNum = hdr & 0x0F;
+    pos++;
+
+    if (isDef) {
+      pos++;  /* reserved */
+      var be = bytes[pos] === 1; pos++;
+      var globalNum = be ? view.getUint16(pos,false) : view.getUint16(pos,true); pos+=2;
+      var fieldCount = bytes[pos++];
+      var fields = [];
+      for (var fi=0; fi<fieldCount; fi++) {
+        fields.push({ num:bytes[pos], size:bytes[pos+1], base:bytes[pos+2] });
+        pos += 3;
+      }
+      if (hasDevFi) {
+        var devCount = bytes[pos++];
+        pos += devCount * 3;
+      }
+      definitions[localNum] = { globalNum:globalNum, be:be, fields:fields };
+
+    } else {
+      var def = definitions[localNum];
+      if (!def) { pos += 1; continue; }
+
+      var row = {};
+      for (var fi=0; fi<def.fields.length; fi++) {
+        var f = def.fields[fi];
+        row[f.num] = readVal(pos, f.size, f.base, def.be);
+        pos += f.size;
+      }
+
+      if (def.globalNum === 20) records.push(row);  /* record */
+      else if (def.globalNum === 18) sessions.push(row);  /* session */
+      else if (def.globalNum === 19) laps.push(row);      /* lap */
+    }
+  }
+
+  /* ── Convert raw data to session object ── */
+  return fitDataToSession({ sessions:sessions, records:records, laps:laps,
+                            _raw:true }, filename);
 }
 
 function fitDataToSession(data, filename) {
+  /* ── Normalize raw field-number records (native parser output) ── */
+  if (data._raw) {
+    if (data.records) {
+      data.records = data.records.map(function(r) {
+        var lat = r[0], lon = r[1];
+        /* Convert unsigned to signed for position fields */
+        if (lat != null && lat > 0x7FFFFFFF) lat = lat - 0x100000000;
+        if (lon != null && lon > 0x7FFFFFFF) lon = lon - 0x100000000;
+        var spd = r[6]; /* raw speed: already /1000 applied in _parseFITBuffer readVal */
+        return {
+          position_lat:  lat,
+          position_long: lon,
+          altitude:      r[2],
+          heart_rate:    r[3],
+          cadence:       r[4],
+          stroke_rate:   r[4],
+          distance:      r[5],
+          speed:         (spd != null && spd < 50) ? spd : null,
+          timestamp:     r[253] != null ? new Date(631065600000 + r[253]*1000) : null,
+        };
+      });
+    }
+    if (data.sessions && data.sessions[0]) {
+      var s0 = data.sessions[0];
+      data.sessions[0] = {
+        start_time:         s0[2]  != null ? new Date(631065600000 + s0[2]*1000) : null,
+        total_elapsed_time: s0[9]  != null ? s0[9]/1000  : null,
+        total_distance:     s0[11] != null ? s0[11]/100  : null,
+        avg_speed:          s0[14] != null ? s0[14]/1000 : null,
+        avg_heart_rate:     s0[16],
+        avg_cadence:        s0[20],
+        sport:              null,
+        sub_sport:          null,
+      };
+    }
+  }
+
+  /* ── Unit conversion helpers ── */
+  function semicirclesToDeg(sc) {
+    if (sc == null) return null;
+    if (sc > 0x7FFFFFFF) sc -= 0x100000000;
+    return sc * (180 / Math.pow(2, 31));
+  }
+  function msToMph(ms)  { return (ms || 0) * 2.23694; }
+  function mToMi(m)     { return (m  || 0) / 1609.344; }
+  function secsToElapsed(s) {
+    s = Math.round(s || 0);
+    var h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
+    return h+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0')+'.0';
+  }
+  function fitDateToKey(d) {
+    if (!d) return String(Date.now());
+    var dt = (d instanceof Date) ? d : new Date(631065600000 + d*1000);
+    return String(dt.getFullYear())+String(dt.getMonth()+1).padStart(2,'0')+String(dt.getDate()).padStart(2,'0');
+  }
+  function fitDateToString(d) {
+    if (!d) return '';
+    var dt = (d instanceof Date) ? d : new Date(631065600000 + d*1000);
+    return String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getDate()).padStart(2,'0')+'/'+dt.getFullYear()
+      +' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')+':'+String(dt.getSeconds()).padStart(2,'0');
+  }
+
   /* ── Summary from sessions[0] ── */
   var sum = (data.sessions && data.sessions[0]) || {};
   var startTime = sum.start_time || (data.activity && data.activity.timestamp) || null;
@@ -4738,6 +4710,17 @@ function fitDataToSession(data, filename) {
     _source:        'fit',
   };
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 </script>
