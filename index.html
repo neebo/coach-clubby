@@ -334,6 +334,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -370,6 +371,66 @@ var CRAFTS_KEY     = 'clubby_crafts';
 var LAYOUT_KEY     = 'clubby_layout';
 var OV_WIDGET_KEY  = 'clubby_ov_layout';
 var STRIP_KEY      = 'clubby_strip';
+
+/* ── DnD + Strip state vars (must be before boot) ── */
+var CARD_ORDER      = null;
+var OV_WIDGET_ORDER = null;
+var STRIP_CONFIG    = null;
+
+function loadLayout() {
+  try {
+    var raw = _store[LAYOUT_KEY];
+    if (!raw) return;
+    var stored  = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    var known   = ['legs','tide','weather','notes','speed','intervals'];
+    var valid   = (stored || []).filter(function(id){ return known.indexOf(id)>=0; });
+    var missing = known.filter(function(id){ return valid.indexOf(id)<0; });
+    CARD_ORDER  = valid.concat(missing);
+  } catch(e) { CARD_ORDER = null; }
+}
+
+function loadOvLayout() {
+  try {
+    var raw = _store[OV_WIDGET_KEY];
+    if (!raw) return;
+    var stored  = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    var known   = ['week-plan','stats','speed-chart','sessions-table'];
+    var valid   = (stored || []).filter(function(id){ return known.indexOf(id)>=0; });
+    var missing = known.filter(function(id){ return valid.indexOf(id)<0; });
+    OV_WIDGET_ORDER = valid.concat(missing);
+  } catch(e) { OV_WIDGET_ORDER = null; }
+}
+
+function loadStripConfig() {
+  try {
+    var raw = _store[STRIP_KEY];
+    if (!raw) return;
+    var s   = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    var all = ['sessions','bungee','intervals','long-z2','hrm','dist','race','best'];
+    var seen  = (s.order||[]).concat(s.hidden||[]);
+    var novel = all.filter(function(id){ return seen.indexOf(id)<0; });
+    STRIP_CONFIG = {
+      order:  (s.order||[]).filter(function(id){ return all.indexOf(id)>=0; }),
+      hidden: (s.hidden||[]).filter(function(id){ return all.indexOf(id)>=0; }).concat(novel),
+    };
+  } catch(e) { STRIP_CONFIG = null; }
+}
+
+function saveLayout() {
+  _store[LAYOUT_KEY] = CARD_ORDER;
+  sbScheduleWrite(LAYOUT_KEY, CARD_ORDER);
+}
+
+function saveOvLayout() {
+  _store[OV_WIDGET_KEY] = OV_WIDGET_ORDER;
+  sbScheduleWrite(OV_WIDGET_KEY, OV_WIDGET_ORDER);
+}
+
+function saveStripConfig() {
+  _store[STRIP_KEY] = STRIP_CONFIG;
+  sbScheduleWrite(STRIP_KEY, STRIP_CONFIG);
+}
+
 
 /* In-memory state */
 var SESSION_TAGS   = {};
@@ -2160,6 +2221,8 @@ loadPersistedData(function(){
   loadPrefs();
   loadSessionCrafts();
   loadLayout();
+  loadOvLayout();
+  loadStripConfig();
   computeAllTides();
   SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
   addSignOutButton();
@@ -4115,6 +4178,7 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
 
 
 
