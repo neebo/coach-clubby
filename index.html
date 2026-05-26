@@ -273,6 +273,29 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 @media(max-width:640px){
   .week-plan-days .wpd { min-width:64px; }
 }
+
+/* By Focus Type DnD */
+.focus-group-wrap {
+  position: relative;
+  margin-bottom: 0;
+}
+.focus-group-wrap > .drag-handle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  font-size: var(--fs-body);
+  color: var(--lav-md);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity .15s;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.focus-group-wrap:hover > .drag-handle { opacity: .6; }
+.focus-group-wrap > .drag-handle:hover { opacity: 1; color: var(--plum); }
+.focus-group-wrap.dnd-dragging > .card { opacity: .3; outline: 2px dashed var(--lav-md); border-radius: 14px; }
 </style>
 </head>
 <body>
@@ -297,6 +320,10 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
 
 
 
@@ -386,7 +413,8 @@ var PREFS_KEY      = 'clubby_prefs';
 var CRAFTS_KEY     = 'clubby_crafts';
 var LAYOUT_KEY     = 'clubby_layout';
 var OV_WIDGET_KEY  = 'clubby_ov_layout';
-var STRIP_KEY      = 'clubby_strip';
+var STRIP_KEY        = 'clubby_strip';
+var FOCUS_ORDER_KEY  = 'clubby_focus_order';
 
 /* ── DnD + Strip state vars (must be before boot) ── */
 var CARD_ORDER      = null;
@@ -849,7 +877,7 @@ function loadPersistedData(cb) {
 }
 
 function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY];
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY, FOCUS_ORDER_KEY];
   var loaded = 0;
   _store = {};
   console.log('[load] _loadUserData start, token:', sbToken() ? sbToken().slice(0,20)+'...' : 'NULL');
@@ -916,7 +944,7 @@ function saveWeeklyPlans() {
 function clearAllStorage() {
   if (!confirm('Delete all your saved data and start fresh?')) return;
   /* Delete all known keys from Supabase */
-  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY];
+  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY, FOCUS_ORDER_KEY];
   allKeys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
   /* Delete per-session detail rows */
   SESSIONS.forEach(function(s) { deleteSessionDetail(s.date); });
@@ -1576,8 +1604,6 @@ function renderOverview(el){
   viewDiv.innerHTML = '<div class="pt">🦭 Training Overview</div>'
     +'<div class="ps">Road 2 Worlds — sessions auto-tagged by day of week.</div>'
     +renderDateFilter()
-    +'<div class="notice n-orange"><b>🔴 Bungee Thursdays:</b> Speed is intentionally lower. '
-    +'Use <b>By Focus Type</b> for clean comparisons.</div>';
 
   el.innerHTML = '';
   el.appendChild(viewDiv);
@@ -1634,7 +1660,17 @@ function renderByFocus(el){
   var html='<div class="view"><div class="pt">🎯 Sessions by Focus Type</div>'
     +'<div class="ps">Only compare sessions of the same type. Bungee Thursdays are isolated — a speed dip there is <em>by design</em>.</div>';
 
+  /* Apply saved focus group order */
+  if (FOCUS_ORDER && FOCUS_ORDER.length) {
+    groupList.sort(function(a, b) {
+      var ai = FOCUS_ORDER.indexOf(a.focus.id);
+      var bi = FOCUS_ORDER.indexOf(b.focus.id);
+      if (ai < 0) ai = 999; if (bi < 0) bi = 999;
+      return ai - bi;
+    });
+  }
   groupList.forEach(function(g){
+
     var f=g.focus, sess=g.sessions, ref=sess[0];
     var hasTrend=sess.length>=2;
     var isDownwind=f.id==='long-z2';
@@ -1646,6 +1682,8 @@ function renderByFocus(el){
       var effLast=dwData[dwData.length-1].dw?dwData[dwData.length-1].dw.eff:null;
       var effTrend=effBase&&effLast?((effLast-effBase)/effBase*100).toFixed(1):null;
 
+      html+='<div class="focus-group-wrap" data-focus-id="'+f.id+'">';
+      html+='<div class="drag-handle" title="Drag to reorder">⠇</div>';
       html+='<div class="card">';
       html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
       html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
@@ -1693,11 +1731,14 @@ function renderByFocus(el){
         html+='</tr>';
       });
       html+='</table></div></div>';
+      html+='</div>'; /* close focus-group-wrap */
       return; /* skip normal group rendering */
     }
 
     /* ── All other focus types: existing speed trend ── */
     var trendPct=hasTrend?pct(sess[sess.length-1].avgSpeed,ref.avgSpeed):null;
+    html+='<div class="focus-group-wrap" data-focus-id="'+f.id+'">';
+    html+='<div class="drag-handle" title="Drag to reorder">⠇</div>';
     html+='<div class="card">';
     html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
     html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
@@ -1732,10 +1773,20 @@ function renderByFocus(el){
       html+='</tr>';
     });
     html+='</table></div></div>';
+    html+='</div>'; /* close focus-group-wrap */
   });
 
   html+='</div>';
-  el.innerHTML=html;
+  /* Render into a container so we can attach DnD */
+  var bfContainer = document.createElement('div');
+  bfContainer.id = 'bf-container';
+  bfContainer.innerHTML = html;
+  var bfView = el.querySelector('.view') || el;
+  /* Remove old container if re-rendering */
+  var oldBf = el.querySelector('#bf-container');
+  if (oldBf) oldBf.remove();
+  bfView.appendChild(bfContainer);
+  attachFocusDrag(bfContainer);
   /* Draw charts — use IntersectionObserver so off-screen canvases
      (Race, Tuesday etc.) draw when they scroll into view */
   groupList.forEach(function(g) {
@@ -1970,7 +2021,6 @@ function renderSegments(el){
   if(!COMPUTED||!SESSIONS.length){el.innerHTML='<div class="view"><div class="pt">🗺️ Segment Compare</div><div class="ps">Upload sessions to see segment analysis.</div></div>';return;}
   el.innerHTML='<div class="view"><div class="pt">🗺️ Segment Comparison</div>'
     +'<div class="ps">GPS grid cells (~50m) shared across sessions. Stats from strokes inside each zone only.</div>'
-    +'<div class="notice n-orange">🔴 Bungee Thursdays affect these charts. Use "By Focus Type" for clean fitness tracking.</div>'
     +'<div class="tabs">'
     +'<button class="tab seg-tab '+(SEG_TAB==='corridor'?'active':'')+'" data-tab="corridor">Full corridor</button>'
     +'<button class="tab seg-tab '+(SEG_TAB==='weekly'?'active':'')+'" data-tab="weekly">Week-over-week</button>'
@@ -2241,6 +2291,7 @@ loadPersistedData(function(){
   loadLayout();
   loadOvLayout();
   loadStripConfig();
+  loadFocusOrder();
   computeAllTides();
   SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
   addSignOutButton();
@@ -3796,6 +3847,8 @@ function renderUserPrefs() {
     if (r2) r2.onclick = function(){ OV_WIDGET_ORDER=null; saveOvLayout(); refresh(); showToast('Overview layout reset','success'); };
     var r3=document.getElementById('reset-strip-btn');
     if(r3) r3.onclick=function(){ STRIP_CONFIG=null; saveStripConfig(); renderStrip(); showToast('Stats strip reset','success'); };
+    var r4=document.getElementById('reset-focus-btn');
+    if(r4) r4.onclick=function(){ FOCUS_ORDER=null; saveFocusOrder(); refresh(); showToast('Focus order reset','success'); };
   }, 0);
 
   var btnStyle = 'font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:7px 16px;'
@@ -4724,6 +4777,92 @@ function fitDataToSession(data, filename) {
 
 
 
+
+
+
+
+
+
+/* ── By Focus Type drag-and-drop ── */
+var FOCUS_ORDER = null;  /* null = use natural order from sessions */
+
+function loadFocusOrder() {
+  try {
+    var raw = _store[FOCUS_ORDER_KEY];
+    if (!raw) return;
+    var stored = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(stored) && stored.length) FOCUS_ORDER = stored;
+  } catch(e) { FOCUS_ORDER = null; }
+}
+
+function saveFocusOrder() {
+  _store[FOCUS_ORDER_KEY] = FOCUS_ORDER;
+  sbScheduleWrite(FOCUS_ORDER_KEY, FOCUS_ORDER);
+}
+
+function attachFocusDrag(container) {
+  Array.from(container.querySelectorAll('.focus-group-wrap')).forEach(function(wrap) {
+    var handle = wrap.querySelector(':scope > .drag-handle');
+    if (!handle) return;
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      startFocusDrag(wrap, container, e.clientY);
+    });
+    handle.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      startFocusDrag(wrap, container, e.touches[0].clientY);
+    }, { passive: false });
+  });
+}
+
+function startFocusDrag(srcWrap, container, startY) {
+  var srcRect = srcWrap.getBoundingClientRect();
+  var offsetY = startY - srcRect.top;
+  srcWrap.classList.add('dnd-dragging');
+
+  var ghost = srcWrap.cloneNode(true);
+  ghost.id  = 'dnd-ghost';
+  ghost.style.cssText = 'position:fixed;z-index:9999;width:'+srcRect.width+'px;'
+    +'opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.2);'
+    +'border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;';
+  document.body.appendChild(ghost);
+
+  function onMove(y) {
+    ghost.style.top = (y - offsetY) + 'px';
+    var target = null;
+    Array.from(container.querySelectorAll('.focus-group-wrap:not(.dnd-dragging)')).forEach(function(w) {
+      var r = w.getBoundingClientRect();
+      if (y >= r.top && y <= r.bottom) target = w;
+    });
+    if (target) {
+      var ti = Array.from(container.children).indexOf(target);
+      var si = Array.from(container.children).indexOf(srcWrap);
+      if (ti > si) container.insertBefore(srcWrap, target.nextSibling);
+      else         container.insertBefore(srcWrap, target);
+    }
+  }
+
+  function onEnd() {
+    srcWrap.classList.remove('dnd-dragging');
+    var g = document.getElementById('dnd-ghost'); if (g) g.remove();
+    FOCUS_ORDER = Array.from(container.querySelectorAll('.focus-group-wrap'))
+      .map(function(w) { return w.dataset.focusId; }).filter(Boolean);
+    saveFocusOrder();
+    document.removeEventListener('mousemove', mm);
+    document.removeEventListener('mouseup',   mu);
+    document.removeEventListener('touchmove', tm);
+    document.removeEventListener('touchend',  tu);
+  }
+
+  function mm(e) { onMove(e.clientY); }
+  function mu()  { onEnd(); }
+  function tm(e) { e.preventDefault(); onMove(e.touches[0].clientY); }
+  function tu()  { onEnd(); }
+  document.addEventListener('mousemove', mm);
+  document.addEventListener('mouseup',   mu);
+  document.addEventListener('touchmove', tm, { passive: false });
+  document.addEventListener('touchend',  tu);
+}
 
 
 
