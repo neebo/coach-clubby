@@ -211,6 +211,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -352,6 +353,98 @@ function sbRefresh(refreshToken, cb) {
 }
 
 /* Restore session from localStorage on page load */
+function handleAuthRedirect(cb) {
+  /* Supabase email confirmation lands with hash params:
+     #access_token=...&refresh_token=...&type=signup  (or recovery) */
+  var hash = window.location.hash;
+  if (!hash) { cb(false); return; }
+
+  var params = {};
+  hash.slice(1).split('&').forEach(function(p) {
+    var kv = p.split('=');
+    params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+  });
+
+  if (params.access_token && (params.type === 'signup' || params.type === 'recovery' || params.type === 'magiclink')) {
+    /* Build a session object from the hash params */
+    var sess = {
+      access_token:  params.access_token,
+      refresh_token: params.refresh_token || '',
+      token_type:    params.token_type || 'bearer',
+    };
+    /* Decode user from JWT */
+    try {
+      var payload = JSON.parse(atob(params.access_token.split('.')[1]));
+      sess.user = { id: payload.sub, email: payload.email };
+    } catch(e) {}
+
+    SB_SESSION = sess;
+    try { localStorage.setItem('sb_session', JSON.stringify(sess)); } catch(e) {}
+
+    /* Clean the hash from the URL so it doesn't re-trigger on reload */
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+
+    if (params.type === 'recovery') {
+      /* Password reset flow — show update password form */
+      showUpdatePasswordScreen(sess);
+      cb(true);
+    } else {
+      /* Email verified — go straight into the app */
+      cb(true);
+    }
+    return;
+  }
+  cb(false);
+}
+
+function showUpdatePasswordScreen(sess) {
+  document.body.innerHTML = [
+    '<div style="min-height:100vh;background:var(--cloud);display:flex;align-items:center;',
+    'justify-content:center;font-family:var(--font);padding:20px">',
+    '<div style="background:var(--white);border-radius:24px;border:2px solid var(--lav-lt);',
+    'padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(140,110,180,.15)">',
+    '<div style="text-align:center;margin-bottom:24px">',
+    '<div style="font-size:40px">🦭</div>',
+    '<div style="font-size:20px;font-weight:900;color:var(--plum);margin-top:6px">Set new password</div>',
+    '</div>',
+    '<div id="auth-err" style="display:none;background:var(--blush);color:#8a3055;border-radius:8px;',
+    'padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:16px"></div>',
+    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">New password</label>',
+    '<input id="new-pw" type="password" placeholder="••••••••" autocomplete="new-password"',
+    ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
+    'font-family:var(--font);font-size:13px;font-weight:600;margin-bottom:12px;box-sizing:border-box">',
+    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
+    '<input id="new-pw2" type="password" placeholder="••••••••" autocomplete="new-password"',
+    ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
+    'font-family:var(--font);font-size:13px;font-weight:600;margin-bottom:20px;box-sizing:border-box">',
+    '<button onclick="submitNewPassword()" style="width:100%;padding:13px;border-radius:var(--r-pill);',
+    'border:none;background:var(--plum);color:var(--white);font-family:var(--font);',
+    'font-size:14px;font-weight:900;cursor:pointer" id="new-pw-btn">Update password</button>',
+    '</div></div>',
+  ].join('');
+}
+
+function submitNewPassword() {
+  var pw  = (document.getElementById('new-pw') ||{}).value  || '';
+  var pw2 = (document.getElementById('new-pw2')||{}).value || '';
+  var btn = document.getElementById('new-pw-btn');
+  var err = document.getElementById('auth-err');
+  if (pw !== pw2) { if(err){err.textContent='Passwords do not match.';err.style.display='block';} return; }
+  if (pw.length < 6) { if(err){err.textContent='Password must be at least 6 characters.';err.style.display='block';} return; }
+  if (btn) { btn.textContent='…'; btn.disabled=true; }
+  fetch(SUPABASE_URL + '/auth/v1/user', {
+    method: 'PUT',
+    headers: sbHeaders(sbToken()),
+    body: JSON.stringify({ password: pw })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { if(err){err.textContent=d.error.message;err.style.display='block';} if(btn){btn.textContent='Update password';btn.disabled=false;} return; }
+    bootApp();
+  })
+  .catch(function(e) { if(err){err.textContent=e.message;err.style.display='block';} if(btn){btn.textContent='Update password';btn.disabled=false;} });
+}
+
 function sbRestoreSession(cb) {
   try {
     var raw = localStorage.getItem('sb_session');
@@ -396,21 +489,31 @@ function sbScheduleWrite(key, value) {
 
 /* Override the storage functions used throughout the app */
 function loadPersistedData(cb) {
-  sbRestoreSession(function(err, sess) {
+  /* First check if we're arriving from a verification/recovery email link */
+  handleAuthRedirect(function(wasRedirect) {
+    if (wasRedirect && SB_SESSION) {
+      /* Came from email link and have a valid session — load data */
+      _loadUserData(cb);
+      return;
+    }
+    sbRestoreSession(function(err, sess) {
     if (err || !sess) {
-      /* Not logged in — show auth screen */
       showAuthScreen();
       return;
     }
-    /* Logged in — load all user data in parallel */
-    var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
-    var loaded = 0;
-    _store = {};
-    keys.forEach(function(k) {
-      sbGet(k, sbToken(), function(err2, val) {
-        if (!err2 && val !== null) _store[k] = val;
-        if (++loaded === keys.length) cb();
-      });
+    _loadUserData(cb);
+    });
+  });
+}
+
+function _loadUserData(cb) {
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
+  var loaded = 0;
+  _store = {};
+  keys.forEach(function(k) {
+    sbGet(k, sbToken(), function(err2, val) {
+      if (!err2 && val !== null) _store[k] = val;
+      if (++loaded === keys.length) cb();
     });
   });
 }
@@ -565,13 +668,17 @@ function authSubmit(mode) {
   if (btn) { btn.textContent = '…'; btn.disabled = true; }
 
   if (mode === 'signup') {
-    sbSignUp(email, pw, function(err) {
+    sbSignUp(email, pw, function(err, data) {
       if (err) { authError(err); if(btn){btn.textContent='Create account';btn.disabled=false;} return; }
-      /* Auto sign in after signup */
-      sbSignIn(email, pw, function(err2) {
-        if (err2) { authError(err2); if(btn){btn.textContent='Create account';btn.disabled=false;} return; }
+      /* If email confirmation is required, show a check-your-email screen.
+         If confirmation is disabled, data.session will be present — boot straight in. */
+      if (data && data.session && data.session.access_token) {
+        SB_SESSION = data.session;
+        try { localStorage.setItem('sb_session', JSON.stringify(data.session)); } catch(e) {}
         bootApp();
-      });
+      } else {
+        showCheckEmailScreen(email);
+      }
     });
   } else {
     sbSignIn(email, pw, function(err) {
@@ -579,6 +686,66 @@ function authSubmit(mode) {
       bootApp();
     });
   }
+}
+
+function showCheckEmailScreen(email) {
+  var form = document.getElementById('auth-form');
+  if (!form) return;
+  var tabs = document.querySelector('.tabs');
+  if (tabs) tabs.style.display = 'none';
+
+  var div = document.createElement('div');
+  div.style.cssText = 'text-align:center;padding:10px 0 4px';
+
+  var icon = document.createElement('div');
+  icon.style.cssText = 'font-size:44px;margin-bottom:12px';
+  icon.textContent = '📬';
+
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:16px;font-weight:900;color:var(--plum);margin-bottom:8px';
+  title.textContent = 'Check your email';
+
+  var msg = document.createElement('div');
+  msg.style.cssText = 'font-size:13px;font-weight:600;color:var(--gt);line-height:1.6;margin-bottom:20px';
+  msg.innerHTML = 'We sent a verification link to<br><b style="color:var(--ink)">'
+    + escHtml(email) + '</b><br><br>'
+    + 'Click the link in that email to activate your account,<br>then come back here to sign in.';
+
+  var goBtn = document.createElement('button');
+  goBtn.style.cssText = 'font-family:var(--font);font-size:13px;font-weight:800;'
+    + 'padding:12px 32px;border-radius:var(--r-pill);border:none;background:var(--plum);'
+    + 'color:var(--white);cursor:pointer;width:100%';
+  goBtn.textContent = 'Go to sign in';
+  goBtn.onclick = function() { authTab('signin'); };
+
+  var resendWrap = document.createElement('div');
+  resendWrap.style.marginTop = '12px';
+  var resendBtn = document.createElement('button');
+  resendBtn.style.cssText = 'background:none;border:none;font-family:var(--font);'
+    + 'font-size:11px;font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline';
+  resendBtn.textContent = 'Resend verification email';
+  resendBtn.onclick = function() { resendVerification(email, resendBtn); };
+  resendWrap.appendChild(resendBtn);
+
+  div.appendChild(icon);
+  div.appendChild(title);
+  div.appendChild(msg);
+  div.appendChild(goBtn);
+  div.appendChild(resendWrap);
+  form.innerHTML = '';
+  form.appendChild(div);
+}
+
+function resendVerification(email, btn) {
+
+  fetch(SUPABASE_URL + '/auth/v1/resend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    body: JSON.stringify({ type: 'signup', email: email })
+  }).then(function() {
+    var btn = event.target;
+    if (btn) { btn.textContent = '✓ Sent!'; btn.disabled = true; }
+  }).catch(function() {});
 }
 
 function authForgot() {
@@ -3129,6 +3296,7 @@ selSess = function(date) {
   _selSessBase(date);
   updateMobNav();
 };
+
 
 
 
