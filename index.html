@@ -333,6 +333,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -360,12 +361,15 @@ var SUPABASE_URL = 'https://uepsvomcafyjxsuzdhsx.supabase.co';
 var SITE_URL     = 'https://neebo.github.io/coach-clubby/';
 
 /* ── Storage key constants (must be defined before any function uses them) ── */
-var STORAGE_KEY  = 'clubby_sessions';
-var TAGS_KEY     = 'clubby_tags';
-var NOTES_KEY    = 'clubby_notes';
-var PLAN_KEY     = 'clubby_weekly_plans';
-var PREFS_KEY    = 'clubby_prefs';
-var CRAFTS_KEY   = 'clubby_crafts';
+var STORAGE_KEY    = 'clubby_sessions';
+var TAGS_KEY       = 'clubby_tags';
+var NOTES_KEY      = 'clubby_notes';
+var PLAN_KEY       = 'clubby_weekly_plans';
+var PREFS_KEY      = 'clubby_prefs';
+var CRAFTS_KEY     = 'clubby_crafts';
+var LAYOUT_KEY     = 'clubby_layout';
+var OV_WIDGET_KEY  = 'clubby_ov_layout';
+var STRIP_KEY      = 'clubby_strip';
 
 /* In-memory state */
 var SESSION_TAGS   = {};
@@ -4111,6 +4115,7 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
 
 
 
