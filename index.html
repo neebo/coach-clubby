@@ -6,9 +6,10 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Pawddle Progress 🐱</title>
+<title>Coach Clubby 🦭</title>
 <link rel="icon" href="data:,">
-<!-- Pawddle v2026-05-25-build-1779730695 -->
+<link rel="canonical" href="https://neebo.github.io/coach-clubby/">
+<!-- Clubby v2026-05-25-build-1779730695 -->
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{--lav:#c9b8e8;--lav-lt:#ede8f7;--lav-md:#b09dd4;--lilac:#f0eaf9;--lilac2:#faf7fe;--plum:#6b5c8c;--blush:#f5d6e0;--blush-dk:#e8a4bd;--mint:#d4eedf;--mint-dk:#5cb87a;--butter:#fdf0cc;--butter-dk:#c9973d;--cloud:#f7f4fb;--gt:#6e6080;--gm:#a898bb;--ink:#3d2f5a;--white:#ffffff;--sh:0 2px 12px rgba(140,110,180,.10);--r-pill:999px;--r-lg:18px;--r-md:12px;--font:'Nunito',sans-serif;}
@@ -66,46 +67,559 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:var(--lilac);}
 .pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--r-pill);font-size:10px;font-weight:800;}
 .compare-banner{border-radius:var(--r-md);padding:12px 16px;margin-bottom:16px;border:1.5px solid;display:flex;align-items:flex-start;gap:12px;}
 textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,212,.15);}
+
+/* ═══════════════════════
+   MOBILE / RESPONSIVE
+═══════════════════════ */
+
+/* Bottom nav bar (mobile only) */
+.mob-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--white);border-top:2px solid var(--lav-lt);
+  z-index:200;padding:0 4px env(safe-area-inset-bottom,0);
+  box-shadow:0 -2px 12px rgba(140,110,180,.10);
+}
+.mob-nav-inner{display:flex;height:56px;}
+.mob-nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;border:none;background:transparent;
+  font-family:var(--font);cursor:pointer;padding:6px 2px;
+  color:var(--gm);transition:color .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mob-nb.active{color:var(--plum);}
+.mob-nb-icon{font-size:20px;line-height:1;}
+.mob-nb-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;}
+
+/* Floating upload button (mobile) */
+.mob-fab{
+  display:none;
+  position:fixed;bottom:68px;right:16px;z-index:199;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--plum);border:none;font-size:22px;
+  box-shadow:0 4px 16px rgba(107,92,140,.4);
+  cursor:pointer;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+
+@media (max-width:640px){
+  /* Header */
+  .hdr{padding:0 14px;height:52px;gap:10px;}
+  .logo{font-size:15px;}
+  .logo-sub{display:none;}
+  .storage-badge{display:none !important;}
+  .btn-up{display:none;}          /* replaced by FAB */
+
+  /* Stats strip: scroll horizontally */
+  .istrip{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;}
+  .ic{min-width:100px;padding:10px 12px;flex-shrink:0;}
+  .il{font-size:8px;}
+  .iv{font-size:16px;}
+
+  /* Hide desktop sidebar, show bottom nav */
+  .sb{display:none;}
+  .mob-nav{display:block;}
+  .mob-fab{display:flex;}
+
+  /* Content area: full width, bottom padding for nav bar */
+  .body{min-height:0;}
+  .ct{padding:16px 14px 80px;} /* 80px = bottom nav height */
+
+  /* Typography */
+  .pt{font-size:18px;}
+  .ps{font-size:12px;margin-bottom:14px;}
+
+  /* Cards */
+  .card{padding:14px 14px;border-radius:14px;}
+  .ct-title{font-size:13px;}
+  .ct-sub{font-size:10px;margin-bottom:10px;}
+
+  /* Stat grids: collapse to 2-col max */
+  .g4{grid-template-columns:repeat(2,1fr);}
+  .g3{grid-template-columns:repeat(2,1fr);}
+  .g2{grid-template-columns:1fr;}      /* single col on phone */
+
+  /* Stat cards */
+  .sc{padding:10px 12px;}
+  .sv{font-size:20px;}
+  .sl{font-size:8px;}
+
+  /* Notices */
+  .notice{font-size:11px;padding:9px 12px;}
+
+  /* Tables: horizontal scroll */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;}
+  table{min-width:480px;}
+  th{padding:7px 10px;font-size:8px;}
+  td{padding:7px 10px;font-size:11px;}
+
+  /* Session list items */
+  .si{padding:11px 14px;}
+  .si-date{font-size:13px;}
+  .si-spd{font-size:15px;}
+
+  /* Segment tabs */
+  .tabs{width:100%;}
+  .tab{flex:1;text-align:center;padding:6px 8px;font-size:10px;}
+
+  /* Compare banner */
+  .compare-banner{padding:10px 12px;gap:8px;}
+
+  /* Focus tag */
+  .focus-tag{font-size:10px;}
+
+  /* Plan editor */
+  #plan-editor-slot .card{padding:12px;}
+
+  /* Canvas: shorter on mobile */
+  canvas{max-height:160px;}
+}
+
+@media (min-width:641px) and (max-width:900px){
+  /* Tablet: narrower sidebar */
+  .sb{width:64px;overflow:hidden;}
+  .nb{padding:10px;justify-content:center;}
+  .nb-icon{font-size:20px;}
+  .nb-label,.nb-meta,.sb-title,.si,.add-sess,.clear-btn,.sb-div{display:none;}
+  .ct{padding:20px 20px;}
+  .g4{grid-template-columns:repeat(2,1fr);}
+  .istrip{overflow-x:auto;flex-wrap:nowrap;}
+  .ic{min-width:110px;flex-shrink:0;}
+}
 </style>
 </head>
 <body>
-<div class="hdr"><div style="font-size:24px">🐱</div><div><div class="logo">Pawddle Progress</div><div class="logo-sub">Road 2 Worlds · Week 8</div></div><div class="hdr-r"><span class="storage-badge" id="storage-badge">💾 0 sessions saved</span><label class="btn-up" for="fi">＋ Upload Sessions</label><input type="file" id="fi" accept=".csv" multiple></div></div>
+<div class="hdr"><div style="font-size:24px">🦭</div><div><div class="logo">Coach Clubby</div><div class="logo-sub">Road 2 Worlds · Week 8</div></div><div class="hdr-r"><span class="storage-badge" id="storage-badge">💾 0 sessions saved</span><label class="btn-up" for="fi">＋ Upload Sessions</label><input type="file" id="fi" accept=".csv" multiple></div></div>
 <div class="istrip"><div class="ic"><div class="il">Sessions</div><div class="iv" id="i-sess">—</div><div class="is" id="i-range">—</div></div><div class="ic"><div class="il">Thu Bungee Trend</div><div class="iv" id="i-bungee">—</div><div class="is" id="i-bungee-sub">within-type</div><span class="badge" id="i-bungee-badge"></span></div><div class="ic"><div class="il">Tue Interval Speed</div><div class="iv" id="i-tue">—</div><div class="is" id="i-tue-sub">Z2 intervals</div></div><div class="ic"><div class="il">Sat Long Z2</div><div class="iv" id="i-sat">—</div><div class="is" id="i-sat-sub">endurance</div></div><div class="ic"><div class="il">HRM Sessions</div><div class="iv" id="i-hrm">—</div><div class="is" id="i-hrm-sub">—</div></div></div>
-<div class="body"><aside class="sb"><div class="sb-title">Views</div><button class="nb active" data-page="overview"><span class="nb-icon">🏠</span><div><div class="nb-label">Overview</div><div class="nb-meta">All sessions</div></div></button><button class="nb" data-page="by-focus"><span class="nb-icon">🎯</span><div><div class="nb-label">By Focus Type</div><div class="nb-meta">Compare like with like</div></div></button><button class="nb" data-page="segments"><span class="nb-icon">🗺️</span><div><div class="nb-label">Segment Compare</div><div class="nb-meta">Week over week</div></div></button><div class="sb-div"></div><div class="sb-title">Sessions</div><div id="sess-list"></div><label class="add-sess" for="fi">🐾 Add more sessions</label><div class="clear-btn" onclick="clearAllStorage()">🗑 Reset saved data</div></aside><main class="ct" id="ct"></main></div>
+<div class="body"><aside class="sb"><div class="sb-title">Views</div><button class="nb active" data-page="overview"><span class="nb-icon">🏠</span><div><div class="nb-label">Overview</div><div class="nb-meta">All sessions</div></div></button><button class="nb" data-page="by-focus"><span class="nb-icon">🎯</span><div><div class="nb-label">By Focus Type</div><div class="nb-meta">Compare like with like</div></div></button><button class="nb" data-page="segments"><span class="nb-icon">🗺️</span><div><div class="nb-label">Segment Compare</div><div class="nb-meta">Week over week</div></div></button>
+<button class="nb" data-page="plans"><span class="nb-icon">📋</span><div><div class="nb-label">Weekly Plans</div><div class="nb-meta">Upload workout schedules</div></div></button><div class="sb-div"></div><div class="sb-title">Sessions</div><div id="sess-list"></div><label class="add-sess" for="fi">🦭 Add more sessions</label><div class="clear-btn" onclick="clearAllStorage()">🗑 Reset saved data</div></aside><main class="ct" id="ct"></main></div>
+<nav class="mob-nav" id="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mob-nb active" data-page="overview"    onclick="nav(this.dataset.page)"><span class="mob-nb-icon">🏠</span><span class="mob-nb-label">Overview</span></button>
+    <button class="mob-nb"        data-page="by-focus"    onclick="nav(this.dataset.page)"><span class="mob-nb-icon">🎯</span><span class="mob-nb-label">Focus</span></button>
+    <button class="mob-nb"        data-page="segments"    onclick="nav(this.dataset.page)"><span class="mob-nb-icon">🗺️</span><span class="mob-nb-label">Segments</span></button>
+    <button class="mob-nb"        data-page="plans"       onclick="nav(this.dataset.page)"><span class="mob-nb-icon">📋</span><span class="mob-nb-label">Plans</span></button>
+    <button class="mob-nb"        data-page="__sessions"  onclick="toggleMobSessions()"><span class="mob-nb-icon">📅</span><span class="mob-nb-label">Sessions</span></button>
+  </div>
+</nav>
+<div id="mob-sess-drawer" style="display:none;position:fixed;bottom:56px;left:0;right:0;max-height:60vh;overflow-y:auto;background:var(--white);border-top:2px solid var(--lav-lt);z-index:198;box-shadow:0 -4px 20px rgba(140,110,180,.15);padding-bottom:env(safe-area-inset-bottom,0)">
+  <div class="sb-title" style="padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center">Sessions <span onclick="toggleMobSessions()" style="font-size:13px;cursor:pointer;color:var(--gm)">✕</span></div>
+  <div id="mob-sess-list"></div>
+  <div style="padding:10px 12px"><label style="display:block;border:2px dashed var(--lav);border-radius:var(--r-md);padding:10px;text-align:center;font-size:12px;font-weight:700;color:#b09dd4;cursor:pointer" for="fi">🦭 Upload session CSV</label></div>
+</div>
+<label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
 
+/* ═══════════════════════════════════════════════════════════
+   SUPABASE AUTH + STORAGE LAYER
+   
+   Replace your two config values below with the ones from
+   your Supabase project dashboard (Settings → API):
+     • SUPABASE_URL  → Project URL
+     • SUPABASE_KEY  → anon/public key (safe to expose)
+   
+   Database schema (run once in Supabase SQL editor):
+   
+   CREATE TABLE user_data (
+     user_id    uuid references auth.users NOT NULL,
+     key        text NOT NULL,
+     value      jsonb NOT NULL,
+     updated_at timestamptz DEFAULT now(),
+     PRIMARY KEY (user_id, key)
+   );
+   ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
+   CREATE POLICY "users own their data" ON user_data
+     FOR ALL USING (auth.uid() = user_id)
+     WITH CHECK (auth.uid() = user_id);
+═══════════════════════════════════════════════════════════ */
 
-/* Pawddle Progress v2026-05-25-build-1779730695 */
-/* ── Storage shim: file-backed with in-memory fallback ── */
-var _store={}, _fileMode=false, _pendingSave=null;
+var SUPABASE_URL = 'https://uepsvomcafyjxsuzdhsx.supabase.co';
+var SITE_URL     = 'https://neebo.github.io/coach-clubby/';   // e.g. https://xyzxyz.supabase.co
+var SUPABASE_KEY = 'sb_publishable_uvX8awTNtVI86e9Q0xcORw_xjP4qIC5';
 
-function loadPersistedData(cb){
-  fetch('pawddle_data.json?_='+Date.now())
-    .then(function(r){ if(!r.ok) throw new Error(); return r.json(); })
-    .then(function(d){ _fileMode=true; _store=d||{}; cb(); })
-    .catch(function(){ _fileMode=false; cb(); });
+/* ── Supabase REST helpers (no SDK needed — plain fetch) ── */
+function sbHeaders(token) {
+  var h = {
+    'Content-Type':  'application/json',
+    'apikey':        SUPABASE_KEY,
+    'Authorization': 'Bearer ' + (token || SUPABASE_KEY),
+  };
+  return h;
 }
-function persistData(){
-  if(!_fileMode) return;
-  clearTimeout(_pendingSave);
-  _pendingSave = setTimeout(function(){
-    fetch('save',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(_store)
-    }).catch(function(){});
-  }, 400);
+
+function sbGet(key, token, cb) {
+  fetch(SUPABASE_URL + '/rest/v1/user_data?key=eq.' + encodeURIComponent(key) + '&select=value', {
+    headers: sbHeaders(token)
+  })
+  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(function(rows) { cb(null, rows.length ? rows[0].value : null); })
+  .catch(function(e)  { cb(e, null); });
 }
-var safeStorage = {
-  getItem:    function(k){ return _store.hasOwnProperty(k)?_store[k]:null; },
-  setItem:    function(k,v){ _store[k]=v; persistData(); try{window._ls.setItem(k,v);}catch(e){} },
-  removeItem: function(k){ delete _store[k]; persistData(); try{window._ls.removeItem(k);}catch(e){} }
-};
-try{ window._ls=window.localStorage; }
-catch(e){ window._ls={setItem:function(){},removeItem:function(){}}; }
-var localStorage = safeStorage;
+
+function sbSet(key, value, token, cb) {
+  fetch(SUPABASE_URL + '/rest/v1/user_data', {
+    method: 'POST',
+    headers: Object.assign({}, sbHeaders(token), {
+      'Prefer': 'resolution=merge-duplicates,return=minimal'
+    }),
+    body: JSON.stringify({ key: key, value: value, updated_at: new Date().toISOString() })
+  })
+  .then(function(r) { if (!r.ok) throw new Error(r.status); cb && cb(null); })
+  .catch(function(e) { console.error('sbSet error:', e); cb && cb(e); });
+}
+
+function sbDel(key, token, cb) {
+  fetch(SUPABASE_URL + '/rest/v1/user_data?key=eq.' + encodeURIComponent(key), {
+    method: 'DELETE',
+    headers: sbHeaders(token)
+  })
+  .then(function(r) { if (!r.ok) throw new Error(r.status); cb && cb(null); })
+  .catch(function(e) { cb && cb(e); });
+}
+
+/* ── Auth state ── */
+var SB_SESSION = null;   // { access_token, refresh_token, user: { id, email } }
+var _sbSavePending = null;
+
+function sbToken() { return SB_SESSION ? SB_SESSION.access_token : null; }
+
+/* Sign up */
+function sbSignUp(email, password, cb) {
+  fetch(SUPABASE_URL + '/auth/v1/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    body: JSON.stringify({ email: email, password: password })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { cb(d.error.message || d.error, null); return; }
+    cb(null, d);
+  })
+  .catch(function(e) { cb(e.message, null); });
+}
+
+/* Sign in */
+function sbSignIn(email, password, cb) {
+  fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    body: JSON.stringify({ email: email, password: password })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error || d.error_description) { cb(d.error_description || d.error, null); return; }
+    SB_SESSION = d;
+    try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
+    cb(null, d);
+  })
+  .catch(function(e) { cb(e.message, null); });
+}
+
+/* Sign out */
+function sbSignOut(cb) {
+  fetch(SUPABASE_URL + '/auth/v1/logout', {
+    method: 'POST',
+    headers: sbHeaders(sbToken())
+  })
+  .then(function() {
+    SB_SESSION = null;
+    try { localStorage.removeItem('sb_session'); } catch(e) {}
+    cb && cb();
+  })
+  .catch(function() {
+    SB_SESSION = null;
+    try { localStorage.removeItem('sb_session'); } catch(e) {}
+    cb && cb();
+  });
+}
+
+/* Refresh token */
+function sbRefresh(refreshToken, cb) {
+  fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { cb(d.error, null); return; }
+    SB_SESSION = d;
+    try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
+    cb(null, d);
+  })
+  .catch(function(e) { cb(e.message, null); });
+}
+
+/* Restore session from localStorage on page load */
+function sbRestoreSession(cb) {
+  try {
+    var raw = localStorage.getItem('sb_session');
+    if (raw) {
+      var sess = JSON.parse(raw);
+      /* Check if access token is still fresh (JWT exp claim) */
+      var parts = (sess.access_token || '').split('.');
+      if (parts.length === 3) {
+        var payload = JSON.parse(atob(parts[1]));
+        var expiresAt = payload.exp * 1000;
+        if (Date.now() < expiresAt - 60000) {
+          SB_SESSION = sess;
+          cb(null, sess);
+          return;
+        }
+      }
+      /* Token expired — try refresh */
+      if (sess.refresh_token) {
+        sbRefresh(sess.refresh_token, cb);
+        return;
+      }
+    }
+  } catch(e) {}
+  cb(null, null);  /* no session */
+}
+
+/* ── Replace storage layer with Supabase ── */
+
+/* Debounced save: batch rapid changes into one write per key */
+var _sbPendingWrites = {};
+function sbScheduleWrite(key, value) {
+  _sbPendingWrites[key] = value;
+  clearTimeout(_sbSavePending);
+  _sbSavePending = setTimeout(function() {
+    var writes = _sbPendingWrites;
+    _sbPendingWrites = {};
+    Object.keys(writes).forEach(function(k) {
+      sbSet(k, writes[k], sbToken());
+    });
+  }, 500);
+}
+
+/* Override the storage functions used throughout the app */
+function loadPersistedData(cb) {
+  sbRestoreSession(function(err, sess) {
+    if (err || !sess) {
+      /* Not logged in — show auth screen */
+      showAuthScreen();
+      return;
+    }
+    /* Logged in — load all user data in parallel */
+    var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
+    var loaded = 0;
+    _store = {};
+    keys.forEach(function(k) {
+      sbGet(k, sbToken(), function(err2, val) {
+        if (!err2 && val !== null) _store[k] = val;
+        if (++loaded === keys.length) cb();
+      });
+    });
+  });
+}
+
+function persistData() {
+  /* No-op: individual save functions (saveTags, saveNotes etc.)
+     call sbScheduleWrite directly */
+}
+
+function saveToStorage() {
+  var TRANSIENT = ['_wx','_tide','strokes','splits','computed'];
+  var clean = SESSIONS.map(function(s) {
+    var out = {};
+    Object.keys(s).forEach(function(k) {
+      if (TRANSIENT.indexOf(k) === -1) out[k] = s[k];
+    });
+    return out;
+  });
+  _store[STORAGE_KEY] = clean;
+  sbScheduleWrite(STORAGE_KEY, clean);
+  updateStorageBadge();
+}
+
+function saveTags() {
+  _store[TAGS_KEY] = SESSION_TAGS;
+  sbScheduleWrite(TAGS_KEY, SESSION_TAGS);
+}
+
+function saveNotes() {
+  _store[NOTES_KEY] = SESSION_NOTES;
+  sbScheduleWrite(NOTES_KEY, SESSION_NOTES);
+}
+
+function saveWeeklyPlans() {
+  _store[PLAN_KEY] = WEEKLY_PLANS;
+  sbScheduleWrite(PLAN_KEY, WEEKLY_PLANS);
+}
+
+function clearAllStorage() {
+  if (!confirm('Reset all your saved sessions back to the 5 pre-loaded ones?')) return;
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
+  keys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
+  SESSIONS = SEED_SESSIONS.map(function(s) { return JSON.parse(JSON.stringify(s)); });
+  SESSION_TAGS = {}; SESSION_NOTES = {}; WEEKLY_PLANS = {};
+  SEL = SESSIONS[SESSIONS.length-1].date;
+  refresh();
+}
+
+/* ── Auth Screen ── */
+function showAuthScreen() {
+  document.body.innerHTML = [
+    '<div style="min-height:100vh;background:var(--cloud);display:flex;align-items:center;',
+    'justify-content:center;font-family:var(--font);padding:20px">',
+    '<div style="background:var(--white);border-radius:24px;border:2px solid var(--lav-lt);',
+    'padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(140,110,180,.15)">',
+
+    /* Logo */
+    '<div style="text-align:center;margin-bottom:28px">',
+    '<div style="font-size:40px">🦭</div>',
+    '<div style="font-size:22px;font-weight:900;color:var(--plum);margin-top:6px">Coach Clubby</div>',
+    '<div style="font-size:11px;font-weight:700;color:var(--gm);margin-top:2px;',
+    'text-transform:uppercase;letter-spacing:1px">Road 2 Worlds</div>',
+    '</div>',
+
+    /* Tabs */
+    '<div class="tabs" style="width:100%;margin-bottom:24px">',
+    '<button class="tab active" id="tab-signin" onclick="authTab(\'signin\')">Sign in</button>',
+    '<button class="tab"        id="tab-signup" onclick="authTab(\'signup\')">Create account</button>',
+    '</div>',
+
+    /* Form */
+    '<div id="auth-form">',
+    renderAuthForm('signin'),
+    '</div>',
+
+    '</div></div>',
+  ].join('');
+  /* Re-apply CSS variables (body was wiped) */
+  document.body.style.fontFamily = "var(--font)";
+}
+
+function renderAuthForm(mode) {
+  var isSignup = mode === 'signup';
+  return [
+    '<div id="auth-err" style="display:none;background:var(--blush);color:#8a3055;border-radius:8px;',
+    'padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:16px"></div>',
+
+    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Email</label>',
+    '<input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email"',
+    ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
+    'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
+    'background:var(--white);margin-bottom:12px;box-sizing:border-box">',
+
+    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Password</label>',
+    '<input id="auth-pw" type="password" placeholder="••••••••" autocomplete="'+(isSignup?'new-password':'current-password')+'"',
+    ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
+    'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
+    'background:var(--white);margin-bottom:'+(isSignup?'12':'20')+'px;box-sizing:border-box"',
+    ' onkeydown="if(event.key===\'Enter\')authSubmit(\''+mode+'\')">',
+
+    isSignup ? [
+      '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
+      '<input id="auth-pw2" type="password" placeholder="••••••••" autocomplete="new-password"',
+      ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
+      'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
+      'background:var(--white);margin-bottom:20px;box-sizing:border-box"',
+      ' onkeydown="if(event.key===\'Enter\')authSubmit(\'signup\')">',
+    ].join('') : '',
+
+    '<button onclick="authSubmit(\''+mode+'\')" id="auth-btn"',
+    ' style="width:100%;padding:13px;border-radius:var(--r-pill);border:none;',
+    'background:var(--plum);color:var(--white);font-family:var(--font);',
+    'font-size:14px;font-weight:900;cursor:pointer">',
+    isSignup ? 'Create account' : 'Sign in',
+    '</button>',
+
+    !isSignup ? [
+      '<div style="text-align:center;margin-top:14px">',
+      '<button onclick="authForgot()" style="background:none;border:none;font-family:var(--font);',
+      'font-size:11px;font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline">',
+      'Forgot password?</button></div>',
+    ].join('') : '',
+  ].join('');
+}
+
+var _authMode = 'signin';
+function authTab(mode) {
+  _authMode = mode;
+  ['signin','signup'].forEach(function(m) {
+    var tab = document.getElementById('tab-'+m);
+    if (tab) tab.classList.toggle('active', m === mode);
+  });
+  var form = document.getElementById('auth-form');
+  if (form) form.innerHTML = renderAuthForm(mode);
+}
+
+function authError(msg) {
+  var el = document.getElementById('auth-err');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+function authSubmit(mode) {
+  var email = (document.getElementById('auth-email')||{}).value || '';
+  var pw    = (document.getElementById('auth-pw')||{}).value || '';
+  var pw2   = (document.getElementById('auth-pw2')||{}).value || '';
+  var btn   = document.getElementById('auth-btn');
+
+  if (!email || !pw) { authError('Please enter your email and password.'); return; }
+  if (mode === 'signup' && pw !== pw2) { authError('Passwords do not match.'); return; }
+  if (pw.length < 6) { authError('Password must be at least 6 characters.'); return; }
+
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  if (mode === 'signup') {
+    sbSignUp(email, pw, function(err) {
+      if (err) { authError(err); if(btn){btn.textContent='Create account';btn.disabled=false;} return; }
+      /* Auto sign in after signup */
+      sbSignIn(email, pw, function(err2) {
+        if (err2) { authError(err2); if(btn){btn.textContent='Create account';btn.disabled=false;} return; }
+        bootApp();
+      });
+    });
+  } else {
+    sbSignIn(email, pw, function(err) {
+      if (err) { authError(err); if(btn){btn.textContent='Sign in';btn.disabled=false;} return; }
+      bootApp();
+    });
+  }
+}
+
+function authForgot() {
+  var email = (document.getElementById('auth-email')||{}).value || '';
+  if (!email) { authError('Enter your email address first.'); return; }
+  fetch(SUPABASE_URL + '/auth/v1/recover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    body: JSON.stringify({ email: email })
+  }).then(function() {
+    authError('✓ Check your email for a password reset link.');
+  });
+}
+
+/* Sign out button — injected into header */
+function addSignOutButton() {
+  var hdrR = document.querySelector('.hdr-r');
+  if (!hdrR || document.getElementById('signout-btn')) return;
+  var btn = document.createElement('button');
+  btn.id = 'signout-btn';
+  btn.textContent = SB_SESSION && SB_SESSION.user ? SB_SESSION.user.email : 'Sign out';
+  btn.style.cssText = 'font-family:var(--font);font-size:11px;font-weight:700;padding:6px 14px;'
+    + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);'
+    + 'color:var(--plum);cursor:pointer;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  btn.onclick = function() {
+    if (confirm('Sign out?')) {
+      sbSignOut(function() { location.reload(); });
+    }
+  };
+  hdrR.insertBefore(btn, hdrR.firstChild);
+}
+
+/* ── Boot ── */
+function bootApp() {
+  /* Reload the page properly — easier than trying to re-render after wiping body */
+  location.reload();
+}
+
 
 const HIST_BINS=[2.5,2.75,3.0,3.25,3.5,3.75,4.0,4.25,4.5,4.75,5.0,5.25,5.5,5.75,6.0,6.25,6.5,6.75,7.0,7.25,7.5,7.75,8.0];
-let SESSIONS=[{"date":"20260430","startTime":"04/30/2026 18:34:39","sessionType":"Interval","programName":"10:00/:15","avgSpeed":5.234,"totalDist":5.072,"elapsed":"00:57:56.0","avgStrokeRate":61.0,"avgHR":null,"startLat":36.9643319,"startLon":-122.0024275,"hasHR":false,"intervals":[{"n":"1","d":0.849,"el":"00:10:00.0","sp":"00:11:48.9","v":5.078,"sr":53.0,"hr":null,"lt":36.96433,"ln":-122.00243},{"n":"2","d":0.872,"el":"00:10:00.0","sp":"00:11:30.7","v":5.212,"sr":58.0,"hr":null,"lt":36.95436,"ln":-122.00925},{"n":"3","d":0.664,"el":"00:07:00.0","sp":"00:10:33.5","v":5.682,"sr":67.5,"hr":null,"lt":36.95857,"ln":-122.00454},{"n":"4","d":0.658,"el":"00:07:00.0","sp":"00:10:38.6","v":5.637,"sr":68.5,"hr":null,"lt":36.96735,"ln":-122.00264},{"n":"5","d":0.604,"el":"00:07:00.0","sp":"00:11:36.6","v":5.167,"sr":70.5,"hr":null,"lt":36.96937,"ln":-122.00222},{"n":"6","d":0.597,"el":"00:07:00.0","sp":"00:11:45.8","v":5.1,"sr":49.0,"hr":null,"lt":36.96063,"ln":-122.00151},{"n":"7","d":0.827,"el":"00:09:56.1","sp":"00:12:01.6","v":4.988,"sr":60.5,"hr":null,"lt":36.95753,"ln":-122.0052}],"strokes":[{"e":"00:00:00.8","s":3.98,"r":62.0,"h":null,"lt":36.96432,"ln":-122.00242,"i":1},{"e":"00:00:17.1","s":4.7,"r":48.0,"h":null,"lt":36.96403,"ln":-122.00233,"i":1},{"e":"00:00:32.1","s":4.76,"r":63.0,"h":null,"lt":36.96374,"ln":-122.00227,"i":1},{"e":"00:00:50.1","s":4.81,"r":66.0,"h":null,"lt":36.96341,"ln":-122.00222,"i":1},{"e":"00:01:09.7","s":4.94,"r":58.0,"h":null,"lt":36.96302,"ln":-122.00216,"i":1},{"e":"00:01:23.1","s":5.26,"r":68.0,"h":null,"lt":36.96274,"ln":-122.00211,"i":1},{"e":"00:01:36.4","s":5.19,"r":68.0,"h":null,"lt":36.96246,"ln":-122.00206,"i":1},{"e":"00:01:50.0","s":5.1,"r":58.0,"h":null,"lt":36.96218,"ln":-122.00202,"i":1},{"e":"00:02:04.2","s":5.03,"r":109.0,"h":null,"lt":36.9619,"ln":-122.00195,"i":1},{"e":"00:02:20.4","s":4.99,"r":74.0,"h":null,"lt":36.96158,"ln":-122.00183,"i":1},{"e":"00:02:34.2","s":5.19,"r":62.0,"h":null,"lt":36.96131,"ln":-122.00174,"i":1},{"e":"00:02:48.4","s":4.97,"r":74.0,"h":null,"lt":36.96103,"ln":-122.00171,"i":1},{"e":"00:03:03.1","s":5.1,"r":74.0,"h":null,"lt":36.96073,"ln":-122.00168,"i":1},{"e":"00:03:23.9","s":5.41,"r":27.0,"h":null,"lt":36.96035,"ln":-122.00174,"i":1},{"e":"00:03:46.7","s":5.01,"r":34.0,"h":null,"lt":36.95999,"ln":-122.00206,"i":1},{"e":"00:04:09.1","s":4.45,"r":62.0,"h":null,"lt":36.95966,"ln":-122.00241,"i":1},{"e":"00:04:35.9","s":4.18,"r":57.0,"h":null,"lt":36.9593,"ln":-122.00287,"i":1},{"e":"00:05:08.8","s":5.37,"r":12.0,"h":null,"lt":36.95879,"ln":-122.00343,"i":1},{"e":"00:05:32.6","s":5.21,"r":38.0,"h":null,"lt":36.95843,"ln":-122.00387,"i":1},{"e":"00:05:57.4","s":4.88,"r":24.0,"h":null,"lt":36.95804,"ln":-122.00429,"i":1},{"e":"00:06:22.2","s":5.05,"r":65.0,"h":null,"lt":36.95769,"ln":-122.00472,"i":1},{"e":"00:06:43.2","s":5.53,"r":26.0,"h":null,"lt":36.95739,"ln":-122.00513,"i":1},{"e":"00:07:07.4","s":5.3,"r":53.0,"h":null,"lt":36.95708,"ln":-122.00563,"i":1},{"e":"00:07:26.2","s":5.1,"r":36.0,"h":null,"lt":36.95681,"ln":-122.00598,"i":1},{"e":"00:07:52.7","s":4.59,"r":40.0,"h":null,"lt":36.95641,"ln":-122.00648,"i":1},{"e":"00:08:19.3","s":5.55,"r":37.0,"h":null,"lt":36.95604,"ln":-122.00698,"i":1},{"e":"00:08:40.9","s":5.57,"r":38.0,"h":null,"lt":36.95575,"ln":-122.00743,"i":1},{"e":"00:09:01.9","s":4.88,"r":67.0,"h":null,"lt":36.95543,"ln":-122.00784,"i":1},{"e":"00:09:30.0","s":5.44,"r":38.0,"h":null,"lt":36.955,"ln":-122.00839,"i":1},{"e":"00:09:50.3","s":5.3,"r":21.0,"h":null,"lt":36.9547,"ln":-122.0088,"i":1},{"e":"00:00:21.0","s":3.44,"r":43.0,"h":null,"lt":36.95411,"ln":-122.00958,"i":2},{"e":"00:00:49.7","s":4.76,"r":54.0,"h":null,"lt":36.95375,"ln":-122.01008,"i":2},{"e":"00:01:25.8","s":5.12,"r":22.0,"h":null,"lt":36.95322,"ln":-122.01078,"i":2},{"e":"00:01:58.3","s":5.01,"r":52.0,"h":null,"lt":36.95274,"ln":-122.01143,"i":2},{"e":"00:02:26.1","s":4.76,"r":41.0,"h":null,"lt":36.9524,"ln":-122.01198,"i":2},{"e":"00:02:53.4","s":4.76,"r":48.0,"h":null,"lt":36.95201,"ln":-122.01247,"i":2},{"e":"00:03:15.2","s":5.03,"r":67.0,"h":null,"lt":36.95188,"ln":-122.01224,"i":2},{"e":"00:03:28.3","s":5.32,"r":74.0,"h":null,"lt":36.95208,"ln":-122.01202,"i":2},{"e":"00:03:42.2","s":3.94,"r":82.0,"h":null,"lt":36.95229,"ln":-122.01175,"i":2},{"e":"00:03:55.5","s":5.73,"r":80.0,"h":null,"lt":36.95249,"ln":-122.01148,"i":2},{"e":"00:04:11.1","s":5.64,"r":66.0,"h":null,"lt":36.95275,"ln":-122.01118,"i":2},{"e":"00:04:24.2","s":5.46,"r":37.0,"h":null,"lt":36.95296,"ln":-122.01095,"i":2},{"e":"00:04:41.7","s":6.22,"r":70.0,"h":null,"lt":36.95325,"ln":-122.01061,"i":2},{"e":"00:05:04.9","s":6.55,"r":26.0,"h":null,"lt":36.95371,"ln":-122.01022,"i":2},{"e":"00:05:17.5","s":5.44,"r":73.0,"h":null,"lt":36.95388,"ln":-122.01,"i":2},{"e":"00:05:32.1","s":6.51,"r":54.0,"h":null,"lt":36.95412,"ln":-122.00974,"i":2},{"e":"00:05:53.1","s":5.5,"r":72.0,"h":null,"lt":36.95443,"ln":-122.00935,"i":2},{"e":"00:06:10.7","s":6.98,"r":42.0,"h":null,"lt":36.95475,"ln":-122.009,"i":2},{"e":"00:06:28.5","s":5.12,"r":76.0,"h":null,"lt":36.95504,"ln":-122.00868,"i":2},{"e":"00:06:50.5","s":5.62,"r":68.0,"h":null,"lt":36.95539,"ln":-122.00828,"i":2},{"e":"00:07:08.3","s":5.55,"r":24.0,"h":null,"lt":36.95567,"ln":-122.00792,"i":2},{"e":"00:07:25.9","s":4.94,"r":84.0,"h":null,"lt":36.95595,"ln":-122.00759,"i":2},{"e":"00:07:45.5","s":5.57,"r":74.0,"h":null,"lt":36.95624,"ln":-122.00722,"i":2},{"e":"00:08:01.5","s":6.35,"r":26.0,"h":null,"lt":36.95653,"ln":-122.00689,"i":2},{"e":"00:08:23.3","s":3.92,"r":69.0,"h":null,"lt":36.95682,"ln":-122.00649,"i":2},{"e":"00:08:45.7","s":4.83,"r":14.0,"h":null,"lt":36.95716,"ln":-122.00608,"i":2},{"e":"00:09:02.3","s":5.39,"r":68.0,"h":null,"lt":36.95741,"ln":-122.00578,"i":2},{"e":"00:09:16.5","s":7.52,"r":86.0,"h":null,"lt":36.95767,"ln":-122.00552,"i":2},{"e":"00:09:34.1","s":5.19,"r":70.0,"h":null,"lt":36.95797,"ln":-122.00523,"i":2},{"e":"00:09:55.1","s":5.32,"r":78.0,"h":null,"lt":36.95831,"ln":-122.00489,"i":2},{"e":"00:00:10.9","s":5.95,"r":40.0,"h":null,"lt":36.95872,"ln":-122.00431,"i":3},{"e":"00:00:31.9","s":6.58,"r":93.0,"h":null,"lt":36.95907,"ln":-122.00385,"i":3},{"e":"00:00:45.2","s":5.64,"r":84.0,"h":null,"lt":36.9593,"ln":-122.00363,"i":3},{"e":"00:01:00.7","s":4.79,"r":84.0,"h":null,"lt":36.95952,"ln":-122.0033,"i":3},{"e":"00:01:15.2","s":6.29,"r":82.0,"h":null,"lt":36.95977,"ln":-122.00293,"i":3},{"e":"00:01:33.1","s":5.21,"r":82.0,"h":null,"lt":36.96004,"ln":-122.00254,"i":3},{"e":"00:01:54.1","s":4.34,"r":37.0,"h":null,"lt":36.96028,"ln":-122.00205,"i":3},{"e":"00:02:09.9","s":5.46,"r":93.0,"h":null,"lt":36.96046,"ln":-122.00173,"i":3},{"e":"00:02:23.5","s":6.22,"r":75.0,"h":null,"lt":36.96073,"ln":-122.00163,"i":3},{"e":"00:02:34.9","s":5.32,"r":82.0,"h":null,"lt":36.96096,"ln":-122.00178,"i":3},{"e":"00:02:47.3","s":6.55,"r":74.0,"h":null,"lt":36.96124,"ln":-122.00193,"i":3},{"e":"00:02:58.9","s":5.86,"r":72.0,"h":null,"lt":36.9615,"ln":-122.00204,"i":3},{"e":"00:03:10.3","s":6.04,"r":84.0,"h":null,"lt":36.96177,"ln":-122.00212,"i":3},{"e":"00:03:22.5","s":6.11,"r":82.0,"h":null,"lt":36.96206,"ln":-122.00217,"i":3},{"e":"00:03:34.3","s":6.08,"r":77.0,"h":null,"lt":36.96234,"ln":-122.00223,"i":3},{"e":"00:03:45.7","s":6.06,"r":72.0,"h":null,"lt":36.96262,"ln":-122.00226,"i":3},{"e":"00:03:57.7","s":6.0,"r":74.0,"h":null,"lt":36.96291,"ln":-122.0023,"i":3},{"e":"00:04:10.5","s":5.62,"r":68.0,"h":null,"lt":36.96322,"ln":-122.0023,"i":3},{"e":"00:04:27.1","s":5.64,"r":67.0,"h":null,"lt":36.96359,"ln":-122.00226,"i":3},{"e":"00:04:43.3","s":5.55,"r":62.0,"h":null,"lt":36.96395,"ln":-122.00228,"i":3},{"e":"00:04:58.9","s":5.39,"r":68.0,"h":null,"lt":36.96429,"ln":-122.00231,"i":3},{"e":"00:05:17.7","s":5.57,"r":62.0,"h":null,"lt":36.96472,"ln":-122.00235,"i":3},{"e":"00:05:32.7","s":5.53,"r":66.0,"h":null,"lt":36.96502,"ln":-122.00239,"i":3},{"e":"00:05:50.5","s":5.75,"r":62.0,"h":null,"lt":36.96543,"ln":-122.00244,"i":3},{"e":"00:06:04.9","s":5.77,"r":62.0,"h":null,"lt":36.96575,"ln":-122.00247,"i":3},{"e":"00:06:23.7","s":5.68,"r":72.0,"h":null,"lt":36.96617,"ln":-122.00252,"i":3},{"e":"00:06:40.1","s":5.64,"r":34.0,"h":null,"lt":36.96654,"ln":-122.00257,"i":3},{"e":"00:06:56.1","s":5.7,"r":68.0,"h":null,"lt":36.9669,"ln":-122.0026,"i":3},{"e":"00:00:08.7","s":6.0,"r":80.0,"h":null,"lt":36.96756,"ln":-122.00267,"i":4},{"e":"00:00:21.5","s":6.04,"r":74.0,"h":null,"lt":36.96787,"ln":-122.00269,"i":4},{"e":"00:00:36.2","s":5.57,"r":82.0,"h":null,"lt":36.96821,"ln":-122.00271,"i":4},{"e":"00:00:48.9","s":6.13,"r":80.0,"h":null,"lt":36.96853,"ln":-122.00272,"i":4},{"e":"00:01:01.9","s":5.75,"r":68.0,"h":null,"lt":36.96883,"ln":-122.00265,"i":4},{"e":"00:01:13.9","s":6.08,"r":75.0,"h":null,"lt":36.96906,"ln":-122.00244,"i":4},{"e":"00:01:28.3","s":5.93,"r":74.0,"h":null,"lt":36.96931,"ln":-122.00214,"i":4},{"e":"00:01:41.3","s":5.93,"r":74.0,"h":null,"lt":36.96952,"ln":-122.00187,"i":4},{"e":"00:01:53.5","s":5.84,"r":68.0,"h":null,"lt":36.96973,"ln":-122.00162,"i":4},{"e":"00:02:06.5","s":5.68,"r":74.0,"h":null,"lt":36.96994,"ln":-122.00136,"i":4},{"e":"00:02:19.1","s":5.73,"r":73.0,"h":null,"lt":36.97014,"ln":-122.00111,"i":4},{"e":"00:02:32.7","s":5.82,"r":37.0,"h":null,"lt":36.97037,"ln":-122.00084,"i":4},{"e":"00:02:46.3","s":5.73,"r":74.0,"h":null,"lt":36.97063,"ln":-122.00061,"i":4},{"e":"00:03:01.3","s":5.7,"r":35.0,"h":null,"lt":36.97093,"ln":-122.0004,"i":4},{"e":"00:03:16.1","s":5.68,"r":35.0,"h":null,"lt":36.97122,"ln":-122.00019,"i":4},{"e":"00:03:29.3","s":5.84,"r":74.0,"h":null,"lt":36.9715,"ln":-122.00002,"i":4},{"e":"00:03:41.7","s":5.77,"r":72.0,"h":null,"lt":36.97176,"ln":-121.99984,"i":4},{"e":"00:03:55.1","s":6.2,"r":36.0,"h":null,"lt":36.97203,"ln":-121.99963,"i":4},{"e":"00:04:06.9","s":5.95,"r":82.0,"h":null,"lt":36.97227,"ln":-121.99943,"i":4},{"e":"00:04:19.7","s":4.07,"r":74.0,"h":null,"lt":36.97242,"ln":-121.99956,"i":4},{"e":"00:04:33.9","s":5.46,"r":67.0,"h":null,"lt":36.97219,"ln":-121.99975,"i":4},{"e":"00:04:47.3","s":5.68,"r":74.0,"h":null,"lt":36.97192,"ln":-121.99992,"i":4},{"e":"00:05:00.7","s":5.82,"r":37.0,"h":null,"lt":36.97163,"ln":-122.00009,"i":4},{"e":"00:05:13.9","s":5.41,"r":82.0,"h":null,"lt":36.97137,"ln":-122.00023,"i":4},{"e":"00:05:32.3","s":5.19,"r":34.0,"h":null,"lt":36.97101,"ln":-122.00045,"i":4},{"e":"00:05:47.5","s":5.32,"r":68.0,"h":null,"lt":36.97072,"ln":-122.00064,"i":4},{"e":"00:06:02.7","s":5.3,"r":74.0,"h":null,"lt":36.97045,"ln":-122.00088,"i":4},{"e":"00:06:18.4","s":4.99,"r":67.0,"h":null,"lt":36.97022,"ln":-122.00116,"i":4},{"e":"00:06:32.1","s":5.3,"r":74.0,"h":null,"lt":36.97001,"ln":-122.00142,"i":4},{"e":"00:06:48.1","s":5.39,"r":63.0,"h":null,"lt":36.96977,"ln":-122.00172,"i":4},{"e":"00:00:01.5","s":5.08,"r":68.0,"h":null,"lt":36.96935,"ln":-122.00225,"i":5},{"e":"00:00:13.7","s":5.68,"r":68.0,"h":null,"lt":36.96914,"ln":-122.00249,"i":5},{"e":"00:00:26.5","s":5.44,"r":74.0,"h":null,"lt":36.96889,"ln":-122.00266,"i":5},{"e":"00:00:38.5","s":5.46,"r":74.0,"h":null,"lt":36.96863,"ln":-122.00276,"i":5},{"e":"00:00:51.5","s":5.64,"r":72.0,"h":null,"lt":36.96834,"ln":-122.00285,"i":5},{"e":"00:01:03.7","s":4.94,"r":74.0,"h":null,"lt":36.96806,"ln":-122.00286,"i":5},{"e":"00:01:16.5","s":5.59,"r":74.0,"h":null,"lt":36.96778,"ln":-122.00286,"i":5},{"e":"00:01:28.3","s":5.48,"r":62.0,"h":null,"lt":36.96751,"ln":-122.00285,"i":5},{"e":"00:01:40.3","s":5.59,"r":76.0,"h":null,"lt":36.96724,"ln":-122.00284,"i":5},{"e":"00:01:52.3","s":5.5,"r":82.0,"h":null,"lt":36.96697,"ln":-122.00281,"i":5},{"e":"00:02:04.9","s":5.62,"r":82.0,"h":null,"lt":36.96669,"ln":-122.00278,"i":5},{"e":"00:02:16.5","s":5.35,"r":78.0,"h":null,"lt":36.96643,"ln":-122.00274,"i":5},{"e":"00:02:28.3","s":5.5,"r":78.0,"h":null,"lt":36.96617,"ln":-122.00271,"i":5},{"e":"00:02:39.9","s":5.21,"r":76.0,"h":null,"lt":36.96592,"ln":-122.00268,"i":5},{"e":"00:02:51.3","s":5.55,"r":82.0,"h":null,"lt":36.96567,"ln":-122.00266,"i":5},{"e":"00:03:05.1","s":5.39,"r":82.0,"h":null,"lt":36.96537,"ln":-122.00261,"i":5},{"e":"00:03:18.5","s":5.26,"r":74.0,"h":null,"lt":36.96508,"ln":-122.00257,"i":5},{"e":"00:03:30.5","s":5.23,"r":78.0,"h":null,"lt":36.96482,"ln":-122.00255,"i":5},{"e":"00:03:44.1","s":5.19,"r":74.0,"h":null,"lt":36.96453,"ln":-122.00252,"i":5},{"e":"00:03:56.5","s":5.23,"r":76.0,"h":null,"lt":36.96427,"ln":-122.00248,"i":5},{"e":"00:04:09.1","s":5.26,"r":75.0,"h":null,"lt":36.96401,"ln":-122.00246,"i":5},{"e":"00:04:21.9","s":5.14,"r":73.0,"h":null,"lt":36.96373,"ln":-122.00245,"i":5},{"e":"00:04:36.1","s":4.14,"r":50.0,"h":null,"lt":36.96345,"ln":-122.00243,"i":5},{"e":"00:04:52.9","s":4.59,"r":74.0,"h":null,"lt":36.96322,"ln":-122.00238,"i":5},{"e":"00:05:05.3","s":4.88,"r":74.0,"h":null,"lt":36.96297,"ln":-122.00232,"i":5},{"e":"00:05:26.7","s":4.85,"r":67.0,"h":null,"lt":36.96261,"ln":-122.00223,"i":5},{"e":"00:05:40.3","s":5.01,"r":35.0,"h":null,"lt":36.96235,"ln":-122.00215,"i":5},{"e":"00:05:54.2","s":4.74,"r":74.0,"h":null,"lt":36.96208,"ln":-122.00206,"i":5},{"e":"00:06:09.7","s":4.88,"r":34.0,"h":null,"lt":36.96179,"ln":-122.00196,"i":5},{"e":"00:06:26.3","s":4.79,"r":83.0,"h":null,"lt":36.96148,"ln":-122.00182,"i":5},{"e":"00:06:50.7","s":4.5,"r":56.0,"h":null,"lt":36.96105,"ln":-122.00163,"i":5},{"e":"00:00:08.1","s":5.39,"r":58.0,"h":null,"lt":36.96046,"ln":-122.00159,"i":6},{"e":"00:00:33.7","s":5.05,"r":42.0,"h":null,"lt":36.96005,"ln":-122.00203,"i":6},{"e":"00:00:52.3","s":5.12,"r":61.0,"h":null,"lt":36.95973,"ln":-122.00234,"i":6},{"e":"00:01:16.7","s":4.85,"r":28.0,"h":null,"lt":36.95932,"ln":-122.00272,"i":6},{"e":"00:01:37.3","s":5.23,"r":62.0,"h":null,"lt":36.95904,"ln":-122.00314,"i":6},{"e":"00:02:00.1","s":5.39,"r":66.0,"h":null,"lt":36.95883,"ln":-122.00371,"i":6},{"e":"00:02:16.7","s":5.68,"r":80.0,"h":null,"lt":36.95858,"ln":-122.00402,"i":6},{"e":"00:02:41.1","s":5.79,"r":59.0,"h":null,"lt":36.95818,"ln":-122.00444,"i":6},{"e":"00:03:04.3","s":5.64,"r":42.0,"h":null,"lt":36.95779,"ln":-122.00484,"i":6},{"e":"00:03:31.5","s":5.28,"r":42.0,"h":null,"lt":36.95736,"ln":-122.00533,"i":6},{"e":"00:03:54.4","s":5.35,"r":46.0,"h":null,"lt":36.95703,"ln":-122.00577,"i":6},{"e":"00:04:21.5","s":5.23,"r":82.0,"h":null,"lt":36.9566,"ln":-122.00627,"i":6},{"e":"00:04:43.1","s":4.88,"r":74.0,"h":null,"lt":36.95627,"ln":-122.00666,"i":6},{"e":"00:05:08.1","s":3.31,"r":49.0,"h":null,"lt":36.9559,"ln":-122.00697,"i":6},{"e":"00:05:31.5","s":4.52,"r":48.0,"h":null,"lt":36.95586,"ln":-122.0067,"i":6},{"e":"00:05:51.1","s":5.23,"r":62.0,"h":null,"lt":36.95612,"ln":-122.00637,"i":6},{"e":"00:06:11.7","s":4.65,"r":23.0,"h":null,"lt":36.95646,"ln":-122.00608,"i":6},{"e":"00:06:37.9","s":5.26,"r":46.0,"h":null,"lt":36.95692,"ln":-122.00571,"i":6},{"e":"00:00:04.1","s":4.76,"r":33.0,"h":null,"lt":36.95759,"ln":-122.00513,"i":7},{"e":"00:00:22.5","s":4.79,"r":35.0,"h":null,"lt":36.9579,"ln":-122.00491,"i":7},{"e":"00:00:45.4","s":4.23,"r":16.0,"h":null,"lt":36.95807,"ln":-122.00448,"i":7},{"e":"00:01:04.9","s":4.32,"r":62.0,"h":null,"lt":36.95819,"ln":-122.00411,"i":7},{"e":"00:01:25.7","s":4.97,"r":41.0,"h":null,"lt":36.95835,"ln":-122.0037,"i":7},{"e":"00:01:41.1","s":4.79,"r":66.0,"h":null,"lt":36.95855,"ln":-122.00342,"i":7},{"e":"00:01:57.4","s":5.5,"r":56.0,"h":null,"lt":36.9588,"ln":-122.00309,"i":7},{"e":"00:02:23.1","s":4.81,"r":39.0,"h":null,"lt":36.95917,"ln":-122.00271,"i":7},{"e":"00:02:37.9","s":4.34,"r":74.0,"h":null,"lt":36.95935,"ln":-122.00246,"i":7},{"e":"00:02:55.5","s":4.25,"r":62.0,"h":null,"lt":36.95957,"ln":-122.00215,"i":7},{"e":"00:03:13.5","s":4.32,"r":60.0,"h":null,"lt":36.95982,"ln":-122.00186,"i":7},{"e":"00:03:33.1","s":4.25,"r":74.0,"h":null,"lt":36.96016,"ln":-122.00166,"i":7},{"e":"00:03:53.7","s":4.72,"r":74.0,"h":null,"lt":36.96058,"ln":-122.00164,"i":7},{"e":"00:04:10.3","s":4.65,"r":35.0,"h":null,"lt":36.96087,"ln":-122.00178,"i":7},{"e":"00:04:28.3","s":5.21,"r":22.0,"h":null,"lt":36.9612,"ln":-122.00202,"i":7},{"e":"00:04:44.3","s":5.57,"r":74.0,"h":null,"lt":36.96153,"ln":-122.0021,"i":7},{"e":"00:05:01.3","s":5.48,"r":67.0,"h":null,"lt":36.9619,"ln":-122.00214,"i":7},{"e":"00:05:17.3","s":5.44,"r":33.0,"h":null,"lt":36.96225,"ln":-122.00221,"i":7},{"e":"00:05:33.5","s":4.97,"r":68.0,"h":null,"lt":36.96258,"ln":-122.00228,"i":7},{"e":"00:05:49.5","s":5.5,"r":67.0,"h":null,"lt":36.96292,"ln":-122.00236,"i":7},{"e":"00:06:06.9","s":5.5,"r":35.0,"h":null,"lt":36.9633,"ln":-122.00239,"i":7},{"e":"00:06:24.5","s":5.46,"r":14.0,"h":null,"lt":36.9637,"ln":-122.00241,"i":7},{"e":"00:06:39.5","s":5.82,"r":72.0,"h":null,"lt":36.96403,"ln":-122.00239,"i":7},{"e":"00:06:54.2","s":5.68,"r":35.0,"h":null,"lt":36.96436,"ln":-122.00234,"i":7},{"e":"00:07:08.3","s":5.7,"r":74.0,"h":null,"lt":36.96468,"ln":-122.00228,"i":7},{"e":"00:07:25.9","s":5.48,"r":62.0,"h":null,"lt":36.96508,"ln":-122.00228,"i":7},{"e":"00:07:39.1","s":5.53,"r":82.0,"h":null,"lt":36.96537,"ln":-122.00232,"i":7},{"e":"00:07:54.9","s":5.59,"r":68.0,"h":null,"lt":36.96573,"ln":-122.00238,"i":7},{"e":"00:08:11.7","s":3.74,"r":62.0,"h":null,"lt":36.96595,"ln":-122.00256,"i":7},{"e":"00:08:30.7","s":4.63,"r":56.0,"h":null,"lt":36.96566,"ln":-122.00264,"i":7},{"e":"00:08:45.2","s":4.92,"r":84.0,"h":null,"lt":36.96538,"ln":-122.0026,"i":7},{"e":"00:09:00.1","s":4.97,"r":82.0,"h":null,"lt":36.96508,"ln":-122.00257,"i":7},{"e":"00:09:14.1","s":4.85,"r":62.0,"h":null,"lt":36.9648,"ln":-122.00254,"i":7},{"e":"00:09:29.7","s":4.79,"r":67.0,"h":null,"lt":36.9645,"ln":-122.00252,"i":7},{"e":"00:09:45.7","s":5.3,"r":67.0,"h":null,"lt":36.96438,"ln":-122.00283,"i":7}],"midLat":36.9708,"midLon":-122.0005},{"date":"20260505","startTime":"05/05/2026 18:13:10","sessionType":"Interval","programName":"10:00/:15","avgSpeed":5.055,"totalDist":5.069,"elapsed":"01:00:00.0","avgStrokeRate":50.5,"avgHR":null,"startLat":36.9644089,"startLon":-122.003037,"hasHR":false,"intervals":[{"n":"1","d":0.8,"el":"00:10:00.0","sp":"00:12:32.0","v":4.787,"sr":56.0,"hr":null,"lt":36.96441,"ln":-122.00304},{"n":"2","d":1.311,"el":"00:15:00.0","sp":"00:11:27.7","v":5.234,"sr":51.5,"hr":null,"lt":36.96299,"ln":-122.00188},{"n":"3","d":1.292,"el":"00:15:00.0","sp":"00:11:36.6","v":5.167,"sr":51.5,"hr":null,"lt":36.96364,"ln":-122.0023},{"n":"4","d":1.335,"el":"00:15:00.0","sp":"00:11:16.1","v":5.324,"sr":50.0,"hr":null,"lt":36.963,"ln":-122.00207},{"n":"5","d":0.331,"el":"00:05:00.0","sp":"00:15:09.2","v":3.959,"sr":44.0,"hr":null,"lt":36.96103,"ln":-122.00174}],"strokes":[{"e":"00:00:00.7","s":1.32,"r":16.0,"h":null,"lt":36.96441,"ln":-122.00303,"i":1},{"e":"00:00:17.0","s":4.09,"r":106.0,"h":null,"lt":36.96439,"ln":-122.00275,"i":1},{"e":"00:00:40.5","s":4.05,"r":53.0,"h":null,"lt":36.9642,"ln":-122.00247,"i":1},{"e":"00:00:56.0","s":4.56,"r":62.0,"h":null,"lt":36.96393,"ln":-122.00242,"i":1},{"e":"00:01:11.0","s":4.81,"r":62.0,"h":null,"lt":36.96364,"ln":-122.00238,"i":1},{"e":"00:01:26.2","s":5.03,"r":49.0,"h":null,"lt":36.96333,"ln":-122.00232,"i":1},{"e":"00:01:43.0","s":4.83,"r":68.0,"h":null,"lt":36.96301,"ln":-122.00224,"i":1},{"e":"00:01:59.3","s":5.21,"r":57.0,"h":null,"lt":36.96268,"ln":-122.00213,"i":1},{"e":"00:02:14.3","s":4.97,"r":62.0,"h":null,"lt":36.96238,"ln":-122.00204,"i":1},{"e":"00:02:29.0","s":4.99,"r":72.0,"h":null,"lt":36.9621,"ln":-122.00197,"i":1},{"e":"00:02:42.5","s":5.03,"r":67.0,"h":null,"lt":36.96182,"ln":-122.00188,"i":1},{"e":"00:02:56.4","s":5.01,"r":67.0,"h":null,"lt":36.96155,"ln":-122.00184,"i":1},{"e":"00:03:10.0","s":5.01,"r":67.0,"h":null,"lt":36.96127,"ln":-122.00175,"i":1},{"e":"00:03:24.1","s":4.88,"r":66.0,"h":null,"lt":36.96098,"ln":-122.00173,"i":1},{"e":"00:03:38.1","s":4.88,"r":67.0,"h":null,"lt":36.96072,"ln":-122.00165,"i":1},{"e":"00:03:56.5","s":4.29,"r":72.0,"h":null,"lt":36.96036,"ln":-122.00158,"i":1},{"e":"00:04:18.7","s":3.8,"r":68.0,"h":null,"lt":36.96003,"ln":-122.00169,"i":1},{"e":"00:04:39.3","s":4.12,"r":67.0,"h":null,"lt":36.95975,"ln":-122.00198,"i":1},{"e":"00:05:05.5","s":4.81,"r":40.0,"h":null,"lt":36.95937,"ln":-122.00229,"i":1},{"e":"00:05:28.3","s":4.67,"r":40.0,"h":null,"lt":36.95894,"ln":-122.00217,"i":1},{"e":"00:05:47.5","s":4.74,"r":40.0,"h":null,"lt":36.95859,"ln":-122.00218,"i":1},{"e":"00:06:11.0","s":4.65,"r":34.0,"h":null,"lt":36.95846,"ln":-122.00188,"i":1},{"e":"00:06:37.0","s":4.92,"r":43.0,"h":null,"lt":36.95897,"ln":-122.00173,"i":1},{"e":"00:06:50.0","s":5.84,"r":65.0,"h":null,"lt":36.95927,"ln":-122.00168,"i":1},{"e":"00:07:02.2","s":4.76,"r":56.0,"h":null,"lt":36.95951,"ln":-122.0016,"i":1},{"e":"00:07:21.1","s":5.14,"r":62.0,"h":null,"lt":36.95989,"ln":-122.00143,"i":1},{"e":"00:07:38.2","s":6.96,"r":74.0,"h":null,"lt":36.96021,"ln":-122.00132,"i":1},{"e":"00:07:58.1","s":7.87,"r":72.0,"h":null,"lt":36.96061,"ln":-122.001,"i":1},{"e":"00:08:26.5","s":4.59,"r":13.0,"h":null,"lt":36.96105,"ln":-122.00127,"i":1},{"e":"00:08:54.0","s":4.65,"r":80.0,"h":null,"lt":36.9615,"ln":-122.00154,"i":1},{"e":"00:09:12.5","s":4.09,"r":34.0,"h":null,"lt":36.96188,"ln":-122.00162,"i":1},{"e":"00:09:31.0","s":5.12,"r":31.0,"h":null,"lt":36.96223,"ln":-122.00169,"i":1},{"e":"00:09:55.5","s":4.72,"r":24.0,"h":null,"lt":36.96269,"ln":-122.00179,"i":1},{"e":"00:00:18.1","s":4.97,"r":52.0,"h":null,"lt":36.9633,"ln":-122.00196,"i":2},{"e":"00:00:37.0","s":5.21,"r":94.0,"h":null,"lt":36.96368,"ln":-122.00203,"i":2},{"e":"00:00:57.9","s":5.05,"r":75.0,"h":null,"lt":36.96411,"ln":-122.0021,"i":2},{"e":"00:01:16.5","s":4.9,"r":40.0,"h":null,"lt":36.96448,"ln":-122.00214,"i":2},{"e":"00:01:36.1","s":5.05,"r":67.0,"h":null,"lt":36.96487,"ln":-122.0022,"i":2},{"e":"00:01:55.5","s":5.14,"r":38.0,"h":null,"lt":36.96528,"ln":-122.00226,"i":2},{"e":"00:02:29.4","s":5.05,"r":40.0,"h":null,"lt":36.96612,"ln":-122.00241,"i":2},{"e":"00:02:53.8","s":5.05,"r":26.0,"h":null,"lt":36.96662,"ln":-122.00252,"i":2},{"e":"00:03:16.5","s":5.3,"r":54.0,"h":null,"lt":36.96707,"ln":-122.00262,"i":2},{"e":"00:03:37.5","s":5.48,"r":31.0,"h":null,"lt":36.96753,"ln":-122.00264,"i":2},{"e":"00:03:58.6","s":5.32,"r":30.0,"h":null,"lt":36.96798,"ln":-122.00266,"i":2},{"e":"00:04:20.6","s":5.41,"r":58.0,"h":null,"lt":36.96845,"ln":-122.00265,"i":2},{"e":"00:04:41.0","s":4.9,"r":32.0,"h":null,"lt":36.96887,"ln":-122.00258,"i":2},{"e":"00:05:02.0","s":5.1,"r":30.0,"h":null,"lt":36.9692,"ln":-122.00222,"i":2},{"e":"00:05:26.4","s":5.1,"r":42.0,"h":null,"lt":36.96956,"ln":-122.0018,"i":2},{"e":"00:05:49.7","s":5.05,"r":27.0,"h":null,"lt":36.96989,"ln":-122.00139,"i":2},{"e":"00:06:12.0","s":5.03,"r":62.0,"h":null,"lt":36.97023,"ln":-122.00101,"i":2},{"e":"00:06:31.7","s":4.97,"r":46.0,"h":null,"lt":36.97051,"ln":-122.00067,"i":2},{"e":"00:06:53.2","s":5.35,"r":52.0,"h":null,"lt":36.97089,"ln":-122.00038,"i":2},{"e":"00:07:10.7","s":5.48,"r":26.0,"h":null,"lt":36.97123,"ln":-122.00016,"i":2},{"e":"00:07:31.0","s":5.55,"r":60.0,"h":null,"lt":36.97163,"ln":-121.99991,"i":2},{"e":"00:07:51.4","s":5.48,"r":28.0,"h":null,"lt":36.97204,"ln":-121.99966,"i":2},{"e":"00:08:13.5","s":4.29,"r":32.0,"h":null,"lt":36.97244,"ln":-121.99948,"i":2},{"e":"00:08:30.2","s":4.92,"r":63.0,"h":null,"lt":36.9723,"ln":-121.99974,"i":2},{"e":"00:08:51.8","s":5.53,"r":40.0,"h":null,"lt":36.97186,"ln":-121.99997,"i":2},{"e":"00:09:13.5","s":5.5,"r":31.0,"h":null,"lt":36.97143,"ln":-122.00025,"i":2},{"e":"00:09:32.8","s":5.1,"r":70.0,"h":null,"lt":36.97105,"ln":-122.00044,"i":2},{"e":"00:09:56.5","s":4.9,"r":32.0,"h":null,"lt":36.97062,"ln":-122.00074,"i":2},{"e":"00:10:18.2","s":5.01,"r":67.0,"h":null,"lt":36.9703,"ln":-122.00112,"i":2},{"e":"00:10:34.5","s":5.23,"r":67.0,"h":null,"lt":36.97004,"ln":-122.00139,"i":2},{"e":"00:10:53.6","s":5.41,"r":32.0,"h":null,"lt":36.96975,"ln":-122.00177,"i":2},{"e":"00:11:11.8","s":5.3,"r":30.0,"h":null,"lt":36.96947,"ln":-122.00213,"i":2},{"e":"00:11:32.2","s":5.26,"r":32.0,"h":null,"lt":36.96914,"ln":-122.00249,"i":2},{"e":"00:11:57.8","s":5.53,"r":74.0,"h":null,"lt":36.96863,"ln":-122.00276,"i":2},{"e":"00:12:20.0","s":5.44,"r":30.0,"h":null,"lt":36.96815,"ln":-122.00283,"i":2},{"e":"00:12:42.4","s":5.64,"r":34.0,"h":null,"lt":36.96767,"ln":-122.00281,"i":2},{"e":"00:13:05.6","s":5.32,"r":28.0,"h":null,"lt":36.96715,"ln":-122.00284,"i":2},{"e":"00:13:19.8","s":5.12,"r":80.0,"h":null,"lt":36.96685,"ln":-122.00278,"i":2},{"e":"00:13:39.8","s":5.35,"r":30.0,"h":null,"lt":36.96644,"ln":-122.0027,"i":2},{"e":"00:13:58.5","s":5.39,"r":67.0,"h":null,"lt":36.96604,"ln":-122.00268,"i":2},{"e":"00:14:16.5","s":5.79,"r":33.0,"h":null,"lt":36.96564,"ln":-122.00269,"i":2},{"e":"00:14:34.6","s":5.59,"r":32.0,"h":null,"lt":36.96525,"ln":-122.00254,"i":2},{"e":"00:00:05.7","s":4.65,"r":30.0,"h":null,"lt":36.96368,"ln":-122.00231,"i":3},{"e":"00:00:28.1","s":4.7,"r":40.0,"h":null,"lt":36.96411,"ln":-122.00234,"i":3},{"e":"00:00:49.7","s":4.81,"r":62.0,"h":null,"lt":36.96453,"ln":-122.00225,"i":3},{"e":"00:01:17.5","s":4.99,"r":36.0,"h":null,"lt":36.96518,"ln":-122.00226,"i":3},{"e":"00:01:39.1","s":4.79,"r":36.0,"h":null,"lt":36.9656,"ln":-122.00231,"i":3},{"e":"00:02:08.3","s":5.28,"r":38.0,"h":null,"lt":36.96619,"ln":-122.00247,"i":3},{"e":"00:02:31.5","s":5.21,"r":30.0,"h":null,"lt":36.96667,"ln":-122.00256,"i":3},{"e":"00:02:49.1","s":5.19,"r":36.0,"h":null,"lt":36.96704,"ln":-122.00261,"i":3},{"e":"00:03:09.8","s":5.05,"r":66.0,"h":null,"lt":36.96746,"ln":-122.00264,"i":3},{"e":"00:03:29.7","s":4.92,"r":32.0,"h":null,"lt":36.96787,"ln":-122.0027,"i":3},{"e":"00:03:49.9","s":5.03,"r":28.0,"h":null,"lt":36.96826,"ln":-122.00271,"i":3},{"e":"00:04:15.9","s":4.74,"r":58.0,"h":null,"lt":36.96878,"ln":-122.0026,"i":3},{"e":"00:04:32.5","s":4.88,"r":46.0,"h":null,"lt":36.96904,"ln":-122.00236,"i":3},{"e":"00:04:50.9","s":5.17,"r":44.0,"h":null,"lt":36.96932,"ln":-122.00206,"i":3},{"e":"00:05:11.9","s":5.05,"r":74.0,"h":null,"lt":36.96962,"ln":-122.00167,"i":3},{"e":"00:05:36.6","s":5.21,"r":32.0,"h":null,"lt":36.96998,"ln":-122.00123,"i":3},{"e":"00:05:55.5","s":4.81,"r":82.0,"h":null,"lt":36.97026,"ln":-122.00091,"i":3},{"e":"00:06:13.3","s":5.05,"r":104.0,"h":null,"lt":36.97052,"ln":-122.00061,"i":3},{"e":"00:06:34.3","s":5.1,"r":28.0,"h":null,"lt":36.9709,"ln":-122.00034,"i":3},{"e":"00:06:55.9","s":5.12,"r":39.0,"h":null,"lt":36.97129,"ln":-122.00008,"i":3},{"e":"00:07:19.5","s":5.28,"r":52.0,"h":null,"lt":36.97174,"ln":-121.9998,"i":3},{"e":"00:07:35.3","s":5.53,"r":30.0,"h":null,"lt":36.97204,"ln":-121.99958,"i":3},{"e":"00:07:54.5","s":4.97,"r":33.0,"h":null,"lt":36.97242,"ln":-121.99941,"i":3},{"e":"00:08:16.9","s":5.17,"r":35.0,"h":null,"lt":36.9722,"ln":-121.99971,"i":3},{"e":"00:08:34.5","s":5.19,"r":74.0,"h":null,"lt":36.97186,"ln":-121.9999,"i":3},{"e":"00:08:56.9","s":5.5,"r":86.0,"h":null,"lt":36.97142,"ln":-122.00017,"i":3},{"e":"00:09:18.6","s":5.53,"r":52.0,"h":null,"lt":36.97099,"ln":-122.00045,"i":3},{"e":"00:09:39.6","s":5.39,"r":16.0,"h":null,"lt":36.9706,"ln":-122.00075,"i":3},{"e":"00:10:01.3","s":5.37,"r":52.0,"h":null,"lt":36.97025,"ln":-122.00113,"i":3},{"e":"00:10:20.7","s":5.1,"r":48.0,"h":null,"lt":36.96994,"ln":-122.00143,"i":3},{"e":"00:10:41.5","s":4.9,"r":38.0,"h":null,"lt":36.96963,"ln":-122.0018,"i":3},{"e":"00:11:02.5","s":5.3,"r":26.0,"h":null,"lt":36.96931,"ln":-122.00216,"i":3},{"e":"00:11:30.5","s":5.23,"r":40.0,"h":null,"lt":36.96889,"ln":-122.00266,"i":3},{"e":"00:11:54.1","s":5.39,"r":35.0,"h":null,"lt":36.96839,"ln":-122.00281,"i":3},{"e":"00:12:14.9","s":5.55,"r":61.0,"h":null,"lt":36.96793,"ln":-122.00283,"i":3},{"e":"00:12:33.9","s":5.21,"r":35.0,"h":null,"lt":36.96751,"ln":-122.00278,"i":3},{"e":"00:12:56.9","s":4.97,"r":56.0,"h":null,"lt":36.96707,"ln":-122.00282,"i":3},{"e":"00:13:13.5","s":5.57,"r":66.0,"h":null,"lt":36.96671,"ln":-122.00273,"i":3},{"e":"00:13:27.9","s":5.44,"r":62.0,"h":null,"lt":36.96639,"ln":-122.00269,"i":3},{"e":"00:13:52.1","s":5.14,"r":30.0,"h":null,"lt":36.96591,"ln":-122.00264,"i":3},{"e":"00:14:14.9","s":5.35,"r":40.0,"h":null,"lt":36.96542,"ln":-122.00256,"i":3},{"e":"00:14:32.9","s":5.41,"r":74.0,"h":null,"lt":36.96503,"ln":-122.00252,"i":3},{"e":"00:14:53.5","s":5.41,"r":90.0,"h":null,"lt":36.96459,"ln":-122.00251,"i":3},{"e":"00:00:23.1","s":4.81,"r":89.0,"h":null,"lt":36.96341,"ln":-122.00211,"i":4},{"e":"00:00:43.3","s":5.28,"r":33.0,"h":null,"lt":36.96383,"ln":-122.00216,"i":4},{"e":"00:01:03.9","s":5.19,"r":33.0,"h":null,"lt":36.96427,"ln":-122.00219,"i":4},{"e":"00:01:25.9","s":5.32,"r":33.0,"h":null,"lt":36.96474,"ln":-122.00224,"i":4},{"e":"00:01:46.1","s":5.41,"r":93.0,"h":null,"lt":36.96517,"ln":-122.0023,"i":4},{"e":"00:02:09.6","s":5.62,"r":34.0,"h":null,"lt":36.96568,"ln":-122.00236,"i":4},{"e":"00:02:24.5","s":5.73,"r":74.0,"h":null,"lt":36.96601,"ln":-122.0024,"i":4},{"e":"00:02:46.7","s":5.5,"r":32.0,"h":null,"lt":36.96651,"ln":-122.00248,"i":4},{"e":"00:03:06.5","s":5.21,"r":36.0,"h":null,"lt":36.96693,"ln":-122.00253,"i":4},{"e":"00:03:27.6","s":5.41,"r":32.0,"h":null,"lt":36.96739,"ln":-122.00258,"i":4},{"e":"00:03:46.9","s":5.48,"r":96.0,"h":null,"lt":36.96781,"ln":-122.00262,"i":4},{"e":"00:04:13.5","s":5.3,"r":52.0,"h":null,"lt":36.96838,"ln":-122.00263,"i":4},{"e":"00:04:42.1","s":5.05,"r":32.0,"h":null,"lt":36.96896,"ln":-122.00247,"i":4},{"e":"00:05:23.6","s":5.23,"r":36.0,"h":null,"lt":36.9701,"ln":-122.00111,"i":4},{"e":"00:05:41.1","s":4.97,"r":51.0,"h":null,"lt":36.97035,"ln":-122.0008,"i":4},{"e":"00:05:57.6","s":4.94,"r":66.0,"h":null,"lt":36.97059,"ln":-122.00052,"i":4},{"e":"00:06:17.3","s":4.99,"r":37.0,"h":null,"lt":36.97095,"ln":-122.0003,"i":4},{"e":"00:06:41.0","s":5.03,"r":56.0,"h":null,"lt":36.97138,"ln":-122.00005,"i":4},{"e":"00:06:59.6","s":5.01,"r":82.0,"h":null,"lt":36.97172,"ln":-121.99984,"i":4},{"e":"00:07:24.0","s":5.03,"r":31.0,"h":null,"lt":36.97216,"ln":-121.99958,"i":4},{"e":"00:07:47.8","s":4.05,"r":32.0,"h":null,"lt":36.9723,"ln":-121.99972,"i":4},{"e":"00:08:09.8","s":5.1,"r":36.0,"h":null,"lt":36.97189,"ln":-121.99995,"i":4},{"e":"00:08:32.0","s":5.35,"r":32.0,"h":null,"lt":36.97148,"ln":-122.0002,"i":4},{"e":"00:08:54.6","s":5.53,"r":27.0,"h":null,"lt":36.97102,"ln":-122.00048,"i":4},{"e":"00:09:18.6","s":5.48,"r":61.0,"h":null,"lt":36.97056,"ln":-122.00082,"i":4},{"e":"00:09:44.1","s":5.44,"r":27.0,"h":null,"lt":36.97014,"ln":-122.00128,"i":4},{"e":"00:10:05.0","s":5.5,"r":42.0,"h":null,"lt":36.9698,"ln":-122.00168,"i":4},{"e":"00:10:30.2","s":5.26,"r":30.0,"h":null,"lt":36.96944,"ln":-122.00217,"i":4},{"e":"00:10:51.6","s":5.3,"r":34.0,"h":null,"lt":36.96907,"ln":-122.00254,"i":4},{"e":"00:11:14.6","s":5.7,"r":36.0,"h":null,"lt":36.96861,"ln":-122.0028,"i":4},{"e":"00:11:31.6","s":5.93,"r":65.0,"h":null,"lt":36.9682,"ln":-122.00287,"i":4},{"e":"00:11:52.6","s":5.66,"r":72.0,"h":null,"lt":36.96772,"ln":-122.00283,"i":4},{"e":"00:12:13.4","s":5.88,"r":35.0,"h":null,"lt":36.96723,"ln":-122.00279,"i":4},{"e":"00:12:40.1","s":5.66,"r":32.0,"h":null,"lt":36.96653,"ln":-122.0027,"i":4},{"e":"00:13:01.1","s":5.55,"r":35.0,"h":null,"lt":36.96607,"ln":-122.00265,"i":4},{"e":"00:13:27.1","s":5.28,"r":82.0,"h":null,"lt":36.96549,"ln":-122.00255,"i":4},{"e":"00:13:45.9","s":5.39,"r":66.0,"h":null,"lt":36.96513,"ln":-122.00239,"i":4},{"e":"00:14:03.3","s":5.95,"r":66.0,"h":null,"lt":36.96472,"ln":-122.00239,"i":4},{"e":"00:14:19.1","s":5.79,"r":72.0,"h":null,"lt":36.96433,"ln":-122.00239,"i":4},{"e":"00:14:35.9","s":5.35,"r":61.0,"h":null,"lt":36.96397,"ln":-122.0024,"i":4},{"e":"00:14:57.5","s":5.21,"r":54.0,"h":null,"lt":36.9635,"ln":-122.00245,"i":4},{"e":"00:00:21.7","s":4.72,"r":44.0,"h":null,"lt":36.96065,"ln":-122.00152,"i":5},{"e":"00:00:39.3","s":5.21,"r":56.0,"h":null,"lt":36.96032,"ln":-122.00166,"i":5},{"e":"00:01:12.1","s":1.61,"r":56.0,"h":null,"lt":36.96014,"ln":-122.00212,"i":5},{"e":"00:01:40.3","s":4.07,"r":64.0,"h":null,"lt":36.96025,"ln":-122.00269,"i":5},{"e":"00:02:06.7","s":5.37,"r":35.0,"h":null,"lt":36.96002,"ln":-122.00331,"i":5},{"e":"00:02:33.3","s":2.75,"r":25.0,"h":null,"lt":36.95984,"ln":-122.00387,"i":5},{"e":"00:03:01.9","s":2.28,"r":68.0,"h":null,"lt":36.95973,"ln":-122.00418,"i":5},{"e":"00:03:22.3","s":5.3,"r":68.0,"h":null,"lt":36.95968,"ln":-122.00463,"i":5},{"e":"00:03:46.5","s":4.94,"r":72.0,"h":null,"lt":36.95971,"ln":-122.00521,"i":5},{"e":"00:04:12.3","s":5.01,"r":74.0,"h":null,"lt":36.95953,"ln":-122.00578,"i":5},{"e":"00:04:32.9","s":2.19,"r":42.0,"h":null,"lt":36.95946,"ln":-122.00614,"i":5}],"midLat":36.9682,"midLon":-122.0027},{"date":"20260507","startTime":"05/07/2026 18:21:01","sessionType":"Interval","programName":"15:00/:15","avgSpeed":4.809,"totalDist":4.239,"elapsed":"00:52:41.8","avgStrokeRate":57.0,"avgHR":null,"startLat":36.9638572,"startLon":-122.0024188,"hasHR":false,"intervals":[{"n":"1","d":1.303,"el":"00:15:00.0","sp":"00:11:33.6","v":5.19,"sr":48.5,"hr":null,"lt":36.96386,"ln":-122.00242},{"n":"2","d":1.457,"el":"00:20:00.0","sp":"00:13:45.3","v":4.362,"sr":53.0,"hr":null,"lt":36.95065,"ln":-122.01697},{"n":"3","d":0.646,"el":"00:08:00.0","sp":"00:12:25.0","v":4.832,"sr":64.0,"hr":null,"lt":36.96389,"ln":-122.00251},{"n":"4","d":0.834,"el":"00:09:41.7","sp":"00:11:39.7","v":5.145,"sr":62.5,"hr":null,"lt":36.9653,"ln":-122.00252}],"strokes":[{"e":"00:00:00.8","s":4.61,"r":58.0,"h":null,"lt":36.96384,"ln":-122.00242,"i":1},{"e":"00:00:17.6","s":4.72,"r":68.0,"h":null,"lt":36.96353,"ln":-122.00238,"i":1},{"e":"00:00:34.8","s":4.7,"r":58.0,"h":null,"lt":36.96319,"ln":-122.00234,"i":1},{"e":"00:00:49.8","s":4.92,"r":68.0,"h":null,"lt":36.9629,"ln":-122.0023,"i":1},{"e":"00:01:03.4","s":5.03,"r":62.0,"h":null,"lt":36.96263,"ln":-122.00224,"i":1},{"e":"00:01:20.6","s":5.01,"r":54.0,"h":null,"lt":36.9623,"ln":-122.00216,"i":1},{"e":"00:01:35.0","s":4.74,"r":69.0,"h":null,"lt":36.96201,"ln":-122.00209,"i":1},{"e":"00:01:50.6","s":4.63,"r":58.0,"h":null,"lt":36.96173,"ln":-122.00199,"i":1},{"e":"00:02:04.4","s":4.72,"r":62.0,"h":null,"lt":36.96146,"ln":-122.00193,"i":1},{"e":"00:02:22.8","s":5.03,"r":31.0,"h":null,"lt":36.9611,"ln":-122.00181,"i":1},{"e":"00:02:38.2","s":4.67,"r":90.0,"h":null,"lt":36.96081,"ln":-122.00171,"i":1},{"e":"00:03:03.6","s":4.99,"r":38.0,"h":null,"lt":36.96032,"ln":-122.00168,"i":1},{"e":"00:03:24.8","s":4.7,"r":48.0,"h":null,"lt":36.95995,"ln":-122.00192,"i":1},{"e":"00:03:58.4","s":5.3,"r":30.0,"h":null,"lt":36.95941,"ln":-122.00249,"i":1},{"e":"00:04:28.3","s":5.66,"r":58.0,"h":null,"lt":36.95899,"ln":-122.00316,"i":1},{"e":"00:04:56.7","s":5.08,"r":54.0,"h":null,"lt":36.95858,"ln":-122.00372,"i":1},{"e":"00:05:22.5","s":5.84,"r":54.0,"h":null,"lt":36.95816,"ln":-122.0042,"i":1},{"e":"00:05:44.9","s":5.55,"r":68.0,"h":null,"lt":36.95782,"ln":-122.00464,"i":1},{"e":"00:06:10.5","s":5.59,"r":38.0,"h":null,"lt":36.95745,"ln":-122.00515,"i":1},{"e":"00:06:42.5","s":5.48,"r":56.0,"h":null,"lt":36.95703,"ln":-122.00584,"i":1},{"e":"00:07:02.9","s":5.12,"r":27.0,"h":null,"lt":36.95675,"ln":-122.00627,"i":1},{"e":"00:07:25.7","s":5.39,"r":34.0,"h":null,"lt":36.95642,"ln":-122.00673,"i":1},{"e":"00:07:46.9","s":4.94,"r":31.0,"h":null,"lt":36.95612,"ln":-122.00717,"i":1},{"e":"00:08:26.8","s":5.59,"r":34.0,"h":null,"lt":36.95556,"ln":-122.00805,"i":1},{"e":"00:08:56.4","s":5.59,"r":50.0,"h":null,"lt":36.95517,"ln":-122.00869,"i":1},{"e":"00:09:28.5","s":5.41,"r":62.0,"h":null,"lt":36.95478,"ln":-122.00946,"i":1},{"e":"00:09:52.9","s":4.54,"r":58.0,"h":null,"lt":36.95456,"ln":-122.01004,"i":1},{"e":"00:10:16.5","s":5.7,"r":51.0,"h":null,"lt":36.95425,"ln":-122.01051,"i":1},{"e":"00:10:39.7","s":5.82,"r":57.0,"h":null,"lt":36.95395,"ln":-122.01102,"i":1},{"e":"00:11:02.1","s":5.23,"r":25.0,"h":null,"lt":36.95364,"ln":-122.01148,"i":1},{"e":"00:11:30.1","s":5.59,"r":44.0,"h":null,"lt":36.95329,"ln":-122.01207,"i":1},{"e":"00:11:58.5","s":5.05,"r":57.0,"h":null,"lt":36.95298,"ln":-122.01265,"i":1},{"e":"00:12:26.7","s":5.14,"r":38.0,"h":null,"lt":36.95264,"ln":-122.0133,"i":1},{"e":"00:12:59.6","s":5.01,"r":58.0,"h":null,"lt":36.95226,"ln":-122.01405,"i":1},{"e":"00:13:27.1","s":5.53,"r":55.0,"h":null,"lt":36.95191,"ln":-122.01463,"i":1},{"e":"00:14:00.5","s":4.9,"r":62.0,"h":null,"lt":36.9515,"ln":-122.01539,"i":1},{"e":"00:14:25.9","s":5.44,"r":32.0,"h":null,"lt":36.95118,"ln":-122.01591,"i":1},{"e":"00:14:54.1","s":5.21,"r":31.0,"h":null,"lt":36.95088,"ln":-122.01653,"i":1},{"e":"00:00:18.6","s":4.61,"r":58.0,"h":null,"lt":36.95042,"ln":-122.01727,"i":2},{"e":"00:00:48.2","s":4.5,"r":54.0,"h":null,"lt":36.95008,"ln":-122.01786,"i":2},{"e":"00:01:17.2","s":4.79,"r":53.0,"h":null,"lt":36.94974,"ln":-122.01845,"i":2},{"e":"00:01:44.2","s":5.3,"r":62.0,"h":null,"lt":36.94943,"ln":-122.01901,"i":2},{"e":"00:02:05.8","s":5.21,"r":53.0,"h":null,"lt":36.94914,"ln":-122.01943,"i":2},{"e":"00:02:32.8","s":4.97,"r":49.0,"h":null,"lt":36.94884,"ln":-122.01996,"i":2},{"e":"00:03:01.4","s":4.85,"r":58.0,"h":null,"lt":36.94846,"ln":-122.02051,"i":2},{"e":"00:03:27.2","s":5.21,"r":82.0,"h":null,"lt":36.94812,"ln":-122.02099,"i":2},{"e":"00:03:50.4","s":4.61,"r":42.0,"h":null,"lt":36.94778,"ln":-122.02141,"i":2},{"e":"00:04:17.1","s":4.29,"r":46.0,"h":null,"lt":36.94736,"ln":-122.02179,"i":2},{"e":"00:04:41.8","s":3.92,"r":74.0,"h":null,"lt":36.9473,"ln":-122.02151,"i":2},{"e":"00:04:59.8","s":3.58,"r":53.0,"h":null,"lt":36.94751,"ln":-122.02122,"i":2},{"e":"00:05:17.6","s":4.36,"r":52.0,"h":null,"lt":36.94771,"ln":-122.02091,"i":2},{"e":"00:05:32.0","s":4.03,"r":82.0,"h":null,"lt":36.9479,"ln":-122.02069,"i":2},{"e":"00:05:44.2","s":4.7,"r":75.0,"h":null,"lt":36.94804,"ln":-122.02047,"i":2},{"e":"00:06:03.6","s":4.85,"r":33.0,"h":null,"lt":36.94826,"ln":-122.02012,"i":2},{"e":"00:06:18.0","s":3.74,"r":80.0,"h":null,"lt":36.94835,"ln":-122.01981,"i":2},{"e":"00:06:32.8","s":5.5,"r":76.0,"h":null,"lt":36.9485,"ln":-122.01951,"i":2},{"e":"00:06:52.0","s":5.35,"r":106.0,"h":null,"lt":36.94867,"ln":-122.01912,"i":2},{"e":"00:07:04.2","s":5.93,"r":67.0,"h":null,"lt":36.94877,"ln":-122.01887,"i":2},{"e":"00:07:29.8","s":4.07,"r":84.0,"h":null,"lt":36.949,"ln":-122.0184,"i":2},{"e":"00:07:50.4","s":3.27,"r":62.0,"h":null,"lt":36.9492,"ln":-122.01805,"i":2},{"e":"00:08:07.2","s":5.05,"r":68.0,"h":null,"lt":36.94934,"ln":-122.01774,"i":2},{"e":"00:08:26.0","s":3.42,"r":36.0,"h":null,"lt":36.94952,"ln":-122.01745,"i":2},{"e":"00:08:45.6","s":2.93,"r":74.0,"h":null,"lt":36.94972,"ln":-122.01715,"i":2},{"e":"00:09:02.2","s":4.16,"r":74.0,"h":null,"lt":36.94988,"ln":-122.01684,"i":2},{"e":"00:09:19.8","s":4.38,"r":68.0,"h":null,"lt":36.95002,"ln":-122.01651,"i":2},{"e":"00:09:37.9","s":4.56,"r":68.0,"h":null,"lt":36.9502,"ln":-122.01619,"i":2},{"e":"00:09:53.6","s":4.21,"r":35.0,"h":null,"lt":36.95035,"ln":-122.01588,"i":2},{"e":"00:10:12.8","s":4.38,"r":42.0,"h":null,"lt":36.95055,"ln":-122.01552,"i":2},{"e":"00:10:34.9","s":4.5,"r":38.0,"h":null,"lt":36.95085,"ln":-122.01518,"i":2},{"e":"00:10:50.8","s":4.29,"r":37.0,"h":null,"lt":36.95107,"ln":-122.01494,"i":2},{"e":"00:11:05.4","s":4.34,"r":70.0,"h":null,"lt":36.95124,"ln":-122.01473,"i":2},{"e":"00:11:31.8","s":4.14,"r":24.0,"h":null,"lt":36.95157,"ln":-122.01433,"i":2},{"e":"00:11:52.0","s":4.85,"r":74.0,"h":null,"lt":36.95182,"ln":-122.01401,"i":2},{"e":"00:12:11.1","s":3.98,"r":34.0,"h":null,"lt":36.95206,"ln":-122.01374,"i":2},{"e":"00:12:31.2","s":4.21,"r":52.0,"h":null,"lt":36.95225,"ln":-122.01339,"i":2},{"e":"00:12:54.2","s":4.43,"r":12.0,"h":null,"lt":36.95249,"ln":-122.01301,"i":2},{"e":"00:13:12.0","s":5.03,"r":43.0,"h":null,"lt":36.9527,"ln":-122.01269,"i":2},{"e":"00:13:35.4","s":4.43,"r":12.0,"h":null,"lt":36.95296,"ln":-122.0123,"i":2},{"e":"00:14:01.8","s":4.65,"r":57.0,"h":null,"lt":36.9533,"ln":-122.01191,"i":2},{"e":"00:14:22.9","s":3.94,"r":63.0,"h":null,"lt":36.95353,"ln":-122.01159,"i":2},{"e":"00:14:42.2","s":4.05,"r":71.0,"h":null,"lt":36.95374,"ln":-122.01128,"i":2},{"e":"00:15:07.2","s":3.96,"r":48.0,"h":null,"lt":36.95403,"ln":-122.01091,"i":2},{"e":"00:15:27.0","s":3.67,"r":62.0,"h":null,"lt":36.95428,"ln":-122.01065,"i":2},{"e":"00:15:46.9","s":4.7,"r":68.0,"h":null,"lt":36.95453,"ln":-122.01038,"i":2},{"e":"00:16:19.5","s":3.38,"r":53.0,"h":null,"lt":36.95491,"ln":-122.01,"i":2},{"e":"00:16:44.9","s":4.65,"r":68.0,"h":null,"lt":36.95523,"ln":-122.00961,"i":2},{"e":"00:17:09.3","s":3.8,"r":34.0,"h":null,"lt":36.95551,"ln":-122.00922,"i":2},{"e":"00:17:37.5","s":4.16,"r":34.0,"h":null,"lt":36.9558,"ln":-122.00882,"i":2},{"e":"00:17:57.7","s":5.1,"r":84.0,"h":null,"lt":36.95603,"ln":-122.00848,"i":2},{"e":"00:18:22.3","s":3.76,"r":34.0,"h":null,"lt":36.95627,"ln":-122.00808,"i":2},{"e":"00:18:43.3","s":4.21,"r":54.0,"h":null,"lt":36.95652,"ln":-122.0078,"i":2},{"e":"00:19:02.8","s":4.38,"r":57.0,"h":null,"lt":36.95675,"ln":-122.00754,"i":2},{"e":"00:19:28.3","s":3.33,"r":47.0,"h":null,"lt":36.95706,"ln":-122.00721,"i":2},{"e":"00:19:49.3","s":5.01,"r":75.0,"h":null,"lt":36.95728,"ln":-122.00692,"i":2},{"e":"00:00:12.4","s":2.75,"r":34.0,"h":null,"lt":36.96397,"ln":-122.00247,"i":3},{"e":"00:00:27.4","s":4.74,"r":62.0,"h":null,"lt":36.9642,"ln":-122.00231,"i":3},{"e":"00:00:41.4","s":4.59,"r":62.0,"h":null,"lt":36.96446,"ln":-122.00225,"i":3},{"e":"00:00:55.8","s":4.81,"r":62.0,"h":null,"lt":36.96474,"ln":-122.00227,"i":3},{"e":"00:01:09.6","s":5.01,"r":62.0,"h":null,"lt":36.96502,"ln":-122.00231,"i":3},{"e":"00:01:25.0","s":5.05,"r":57.0,"h":null,"lt":36.96533,"ln":-122.00234,"i":3},{"e":"00:01:39.4","s":5.12,"r":62.0,"h":null,"lt":36.96562,"ln":-122.00237,"i":3},{"e":"00:01:53.8","s":4.97,"r":62.0,"h":null,"lt":36.96591,"ln":-122.00243,"i":3},{"e":"00:02:08.2","s":4.83,"r":62.0,"h":null,"lt":36.96619,"ln":-122.00248,"i":3},{"e":"00:02:22.8","s":4.85,"r":62.0,"h":null,"lt":36.96647,"ln":-122.00252,"i":3},{"e":"00:02:37.8","s":4.7,"r":62.0,"h":null,"lt":36.96676,"ln":-122.00255,"i":3},{"e":"00:02:51.6","s":4.88,"r":62.0,"h":null,"lt":36.96703,"ln":-122.00258,"i":3},{"e":"00:03:05.8","s":5.23,"r":62.0,"h":null,"lt":36.96732,"ln":-122.00263,"i":3},{"e":"00:03:20.2","s":4.81,"r":68.0,"h":null,"lt":36.96761,"ln":-122.00267,"i":3},{"e":"00:03:34.4","s":4.85,"r":76.0,"h":null,"lt":36.96789,"ln":-122.00269,"i":3},{"e":"00:03:48.4","s":5.19,"r":74.0,"h":null,"lt":36.96816,"ln":-122.00269,"i":3},{"e":"00:04:02.8","s":4.94,"r":57.0,"h":null,"lt":36.96846,"ln":-122.00265,"i":3},{"e":"00:04:16.9","s":4.94,"r":68.0,"h":null,"lt":36.96874,"ln":-122.00262,"i":3},{"e":"00:04:30.8","s":5.03,"r":62.0,"h":null,"lt":36.96899,"ln":-122.0025,"i":3},{"e":"00:04:44.4","s":4.85,"r":62.0,"h":null,"lt":36.9692,"ln":-122.00229,"i":3},{"e":"00:04:58.0","s":5.08,"r":68.0,"h":null,"lt":36.96941,"ln":-122.00207,"i":3},{"e":"00:05:19.5","s":4.94,"r":67.0,"h":null,"lt":36.96951,"ln":-122.00194,"i":3},{"e":"00:05:33.3","s":4.99,"r":67.0,"h":null,"lt":36.96932,"ln":-122.00221,"i":3},{"e":"00:05:46.9","s":4.92,"r":74.0,"h":null,"lt":36.96912,"ln":-122.00242,"i":3},{"e":"00:06:01.5","s":4.63,"r":74.0,"h":null,"lt":36.96887,"ln":-122.00259,"i":3},{"e":"00:06:15.1","s":4.72,"r":74.0,"h":null,"lt":36.96862,"ln":-122.00267,"i":3},{"e":"00:06:28.9","s":4.79,"r":74.0,"h":null,"lt":36.96836,"ln":-122.00269,"i":3},{"e":"00:06:44.1","s":4.76,"r":65.0,"h":null,"lt":36.96806,"ln":-122.00268,"i":3},{"e":"00:06:57.7","s":4.9,"r":66.0,"h":null,"lt":36.9678,"ln":-122.00266,"i":3},{"e":"00:07:13.9","s":5.01,"r":82.0,"h":null,"lt":36.96747,"ln":-122.00271,"i":3},{"e":"00:07:27.5","s":4.85,"r":74.0,"h":null,"lt":36.96721,"ln":-122.0028,"i":3},{"e":"00:07:41.9","s":4.85,"r":62.0,"h":null,"lt":36.96693,"ln":-122.0028,"i":3},{"e":"00:07:55.5","s":4.9,"r":74.0,"h":null,"lt":36.96666,"ln":-122.00277,"i":3},{"e":"00:00:12.7","s":5.1,"r":48.0,"h":null,"lt":36.96505,"ln":-122.00249,"i":4},{"e":"00:00:27.1","s":5.05,"r":62.0,"h":null,"lt":36.96475,"ln":-122.00245,"i":4},{"e":"00:00:41.1","s":4.99,"r":68.0,"h":null,"lt":36.96447,"ln":-122.00243,"i":4},{"e":"00:00:58.9","s":5.03,"r":67.0,"h":null,"lt":36.96411,"ln":-122.00241,"i":4},{"e":"00:01:16.9","s":5.03,"r":62.0,"h":null,"lt":36.96375,"ln":-122.00248,"i":4},{"e":"00:01:33.9","s":4.97,"r":67.0,"h":null,"lt":36.96342,"ln":-122.00256,"i":4},{"e":"00:01:52.6","s":4.81,"r":63.0,"h":null,"lt":36.96306,"ln":-122.00251,"i":4},{"e":"00:02:09.7","s":4.61,"r":82.0,"h":null,"lt":36.9631,"ln":-122.00226,"i":4},{"e":"00:02:23.7","s":5.44,"r":67.0,"h":null,"lt":36.96338,"ln":-122.00214,"i":4},{"e":"00:02:38.7","s":5.39,"r":74.0,"h":null,"lt":36.96369,"ln":-122.00206,"i":4},{"e":"00:02:52.9","s":5.37,"r":82.0,"h":null,"lt":36.964,"ln":-122.00207,"i":4},{"e":"00:03:06.1","s":5.41,"r":74.0,"h":null,"lt":36.96428,"ln":-122.00212,"i":4},{"e":"00:03:20.1","s":5.26,"r":67.0,"h":null,"lt":36.96458,"ln":-122.00217,"i":4},{"e":"00:03:33.7","s":5.46,"r":62.0,"h":null,"lt":36.96487,"ln":-122.00221,"i":4},{"e":"00:03:47.5","s":5.39,"r":67.0,"h":null,"lt":36.96517,"ln":-122.00226,"i":4},{"e":"00:04:01.5","s":5.53,"r":56.0,"h":null,"lt":36.96547,"ln":-122.0023,"i":4},{"e":"00:04:15.9","s":5.62,"r":67.0,"h":null,"lt":36.9658,"ln":-122.00237,"i":4},{"e":"00:04:29.3","s":5.41,"r":67.0,"h":null,"lt":36.9661,"ln":-122.00241,"i":4},{"e":"00:04:43.1","s":5.66,"r":62.0,"h":null,"lt":36.9664,"ln":-122.00245,"i":4},{"e":"00:04:56.9","s":5.59,"r":62.0,"h":null,"lt":36.96671,"ln":-122.00249,"i":4},{"e":"00:05:10.5","s":5.32,"r":67.0,"h":null,"lt":36.967,"ln":-122.00253,"i":4},{"e":"00:05:32.4","s":5.5,"r":67.0,"h":null,"lt":36.96759,"ln":-122.00261,"i":4},{"e":"00:05:45.6","s":5.64,"r":74.0,"h":null,"lt":36.96788,"ln":-122.00264,"i":4},{"e":"00:06:01.8","s":5.08,"r":74.0,"h":null,"lt":36.96823,"ln":-122.00266,"i":4},{"e":"00:06:16.2","s":4.34,"r":67.0,"h":null,"lt":36.96818,"ln":-122.00287,"i":4},{"e":"00:06:29.2","s":5.35,"r":68.0,"h":null,"lt":36.96793,"ln":-122.00286,"i":4},{"e":"00:06:42.4","s":5.23,"r":67.0,"h":null,"lt":36.96765,"ln":-122.00283,"i":4},{"e":"00:06:56.8","s":5.14,"r":64.0,"h":null,"lt":36.96734,"ln":-122.0029,"i":4},{"e":"00:07:11.4","s":5.26,"r":62.0,"h":null,"lt":36.96704,"ln":-122.00284,"i":4},{"e":"00:07:23.8","s":5.19,"r":73.0,"h":null,"lt":36.96678,"ln":-122.00279,"i":4},{"e":"00:07:44.2","s":5.53,"r":35.0,"h":null,"lt":36.96633,"ln":-122.00275,"i":4},{"e":"00:08:05.4","s":5.35,"r":35.0,"h":null,"lt":36.96586,"ln":-122.0027,"i":4},{"e":"00:08:25.6","s":5.12,"r":67.0,"h":null,"lt":36.96543,"ln":-122.00263,"i":4},{"e":"00:08:45.4","s":5.23,"r":64.0,"h":null,"lt":36.96503,"ln":-122.00259,"i":4},{"e":"00:09:03.0","s":5.26,"r":80.0,"h":null,"lt":36.96467,"ln":-122.0025,"i":4},{"e":"00:09:21.4","s":4.43,"r":62.0,"h":null,"lt":36.96438,"ln":-122.00262,"i":4}],"midLat":36.9541,"midLon":-122.0108},{"date":"20260509","startTime":"05/09/2026 15:47:41","sessionType":"Just Go","programName":"JustGo-9.210MI","avgSpeed":5.011,"totalDist":9.21,"elapsed":"01:50:04.3","avgStrokeRate":52.0,"avgHR":null,"startLat":36.9644074,"startLon":-122.0029528,"hasHR":false,"intervals":[{"n":"1","d":9.21,"el":"01:50:04.3","sp":"00:11:58.4","v":5.011,"sr":52.0,"hr":null,"lt":36.96441,"ln":-122.00295}],"strokes":[{"e":"00:00:02.0","s":1.12,"r":30.0,"h":null,"lt":36.96441,"ln":-122.00295,"i":1},{"e":"00:00:26.1","s":4.54,"r":69.0,"h":null,"lt":36.96438,"ln":-122.00258,"i":1},{"e":"00:00:41.3","s":4.34,"r":54.0,"h":null,"lt":36.96419,"ln":-122.0024,"i":1},{"e":"00:00:55.8","s":4.63,"r":69.0,"h":null,"lt":36.96393,"ln":-122.00236,"i":1},{"e":"00:01:10.5","s":4.5,"r":59.0,"h":null,"lt":36.96365,"ln":-122.00232,"i":1},{"e":"00:01:24.3","s":4.83,"r":68.0,"h":null,"lt":36.96339,"ln":-122.00227,"i":1},{"e":"00:01:37.6","s":4.94,"r":63.0,"h":null,"lt":36.96312,"ln":-122.00225,"i":1},{"e":"00:01:50.9","s":5.17,"r":70.0,"h":null,"lt":36.96285,"ln":-122.0022,"i":1},{"e":"00:02:04.5","s":5.21,"r":75.0,"h":null,"lt":36.96257,"ln":-122.00213,"i":1},{"e":"00:02:30.5","s":5.3,"r":58.0,"h":null,"lt":36.96201,"ln":-122.002,"i":1},{"e":"00:02:54.4","s":5.12,"r":22.0,"h":null,"lt":36.96152,"ln":-122.00189,"i":1},{"e":"00:03:12.8","s":4.85,"r":68.0,"h":null,"lt":36.96116,"ln":-122.00174,"i":1},{"e":"00:03:32.2","s":5.12,"r":74.0,"h":null,"lt":36.96078,"ln":-122.00158,"i":1},{"e":"00:03:53.8","s":4.79,"r":18.0,"h":null,"lt":36.96035,"ln":-122.00157,"i":1},{"e":"00:04:18.3","s":5.19,"r":84.0,"h":null,"lt":36.95992,"ln":-122.00189,"i":1},{"e":"00:04:34.8","s":5.19,"r":68.0,"h":null,"lt":36.95961,"ln":-122.0021,"i":1},{"e":"00:04:52.4","s":5.08,"r":58.0,"h":null,"lt":36.95928,"ln":-122.00232,"i":1},{"e":"00:05:18.3","s":5.64,"r":16.0,"h":null,"lt":36.95879,"ln":-122.00264,"i":1},{"e":"00:05:36.4","s":5.14,"r":38.0,"h":null,"lt":36.95846,"ln":-122.00287,"i":1},{"e":"00:05:59.4","s":5.05,"r":68.0,"h":null,"lt":36.95802,"ln":-122.00313,"i":1},{"e":"00:06:22.0","s":4.83,"r":21.0,"h":null,"lt":36.95761,"ln":-122.00337,"i":1},{"e":"00:06:44.0","s":5.53,"r":82.0,"h":null,"lt":36.9572,"ln":-122.00358,"i":1},{"e":"00:07:10.2","s":5.01,"r":40.0,"h":null,"lt":36.95672,"ln":-122.0039,"i":1},{"e":"00:07:28.8","s":4.94,"r":84.0,"h":null,"lt":36.95638,"ln":-122.00411,"i":1},{"e":"00:07:46.8","s":5.08,"r":62.0,"h":null,"lt":36.95607,"ln":-122.00433,"i":1},{"e":"00:08:13.2","s":5.3,"r":28.0,"h":null,"lt":36.95564,"ln":-122.00473,"i":1},{"e":"00:08:40.1","s":5.17,"r":36.0,"h":null,"lt":36.95515,"ln":-122.00507,"i":1},{"e":"00:09:00.9","s":5.28,"r":87.0,"h":null,"lt":36.95481,"ln":-122.00538,"i":1},{"e":"00:09:18.9","s":4.92,"r":74.0,"h":null,"lt":36.95454,"ln":-122.00568,"i":1},{"e":"00:09:47.9","s":4.92,"r":56.0,"h":null,"lt":36.95415,"ln":-122.00625,"i":1},{"e":"00:10:12.1","s":5.19,"r":63.0,"h":null,"lt":36.95381,"ln":-122.00669,"i":1},{"e":"00:10:33.7","s":4.32,"r":40.0,"h":null,"lt":36.95352,"ln":-122.00705,"i":1},{"e":"00:11:01.6","s":5.19,"r":84.0,"h":null,"lt":36.95315,"ln":-122.00766,"i":1},{"e":"00:11:19.8","s":4.99,"r":46.0,"h":null,"lt":36.95295,"ln":-122.00805,"i":1},{"e":"00:11:46.8","s":4.88,"r":28.0,"h":null,"lt":36.9527,"ln":-122.00865,"i":1},{"e":"00:12:14.9","s":5.12,"r":54.0,"h":null,"lt":36.95249,"ln":-122.00931,"i":1},{"e":"00:12:32.9","s":5.21,"r":26.0,"h":null,"lt":36.95233,"ln":-122.00973,"i":1},{"e":"00:12:56.9","s":5.46,"r":39.0,"h":null,"lt":36.9521,"ln":-122.01029,"i":1},{"e":"00:13:21.8","s":5.21,"r":26.0,"h":null,"lt":36.95183,"ln":-122.01082,"i":1},{"e":"00:14:02.5","s":4.81,"r":44.0,"h":null,"lt":36.95138,"ln":-122.01182,"i":1},{"e":"00:14:28.7","s":4.92,"r":83.0,"h":null,"lt":36.95111,"ln":-122.01236,"i":1},{"e":"00:14:53.5","s":4.81,"r":68.0,"h":null,"lt":36.95084,"ln":-122.01284,"i":1},{"e":"00:15:16.7","s":4.54,"r":31.0,"h":null,"lt":36.95061,"ln":-122.01331,"i":1},{"e":"00:15:34.3","s":4.7,"r":50.0,"h":null,"lt":36.9504,"ln":-122.01364,"i":1},{"e":"00:16:01.9","s":4.63,"r":28.0,"h":null,"lt":36.95009,"ln":-122.01417,"i":1},{"e":"00:16:33.9","s":4.92,"r":54.0,"h":null,"lt":36.94982,"ln":-122.01484,"i":1},{"e":"00:16:57.5","s":4.16,"r":42.0,"h":null,"lt":36.9495,"ln":-122.01523,"i":1},{"e":"00:17:17.3","s":4.94,"r":68.0,"h":null,"lt":36.94927,"ln":-122.0156,"i":1},{"e":"00:17:43.3","s":4.97,"r":37.0,"h":null,"lt":36.94899,"ln":-122.0161,"i":1},{"e":"00:18:05.7","s":4.97,"r":74.0,"h":null,"lt":36.94879,"ln":-122.01655,"i":1},{"e":"00:18:34.6","s":4.72,"r":75.0,"h":null,"lt":36.94849,"ln":-122.01712,"i":1},{"e":"00:18:54.6","s":4.07,"r":57.0,"h":null,"lt":36.94832,"ln":-122.01749,"i":1},{"e":"00:19:18.6","s":4.99,"r":36.0,"h":null,"lt":36.94807,"ln":-122.01793,"i":1},{"e":"00:19:43.0","s":4.16,"r":74.0,"h":null,"lt":36.94785,"ln":-122.01838,"i":1},{"e":"00:20:07.4","s":4.0,"r":38.0,"h":null,"lt":36.94759,"ln":-122.01879,"i":1},{"e":"00:20:48.2","s":3.96,"r":24.0,"h":null,"lt":36.94726,"ln":-122.01956,"i":1},{"e":"00:21:16.4","s":3.85,"r":14.0,"h":null,"lt":36.94705,"ln":-122.02008,"i":1},{"e":"00:21:41.0","s":4.27,"r":62.0,"h":null,"lt":36.94681,"ln":-122.02051,"i":1},{"e":"00:21:59.4","s":4.41,"r":39.0,"h":null,"lt":36.94665,"ln":-122.02086,"i":1},{"e":"00:22:37.3","s":3.96,"r":53.0,"h":null,"lt":36.94632,"ln":-122.02157,"i":1},{"e":"00:23:05.6","s":4.25,"r":45.0,"h":null,"lt":36.94618,"ln":-122.02211,"i":1},{"e":"00:23:35.7","s":4.27,"r":16.0,"h":null,"lt":36.94601,"ln":-122.02271,"i":1},{"e":"00:24:06.1","s":4.12,"r":38.0,"h":null,"lt":36.94582,"ln":-122.02329,"i":1},{"e":"00:24:40.1","s":4.16,"r":39.0,"h":null,"lt":36.9457,"ln":-122.02394,"i":1},{"e":"00:24:59.6","s":3.85,"r":54.0,"h":null,"lt":36.94562,"ln":-122.02429,"i":1},{"e":"00:25:21.7","s":3.74,"r":60.0,"h":null,"lt":36.94555,"ln":-122.02472,"i":1},{"e":"00:25:50.6","s":4.18,"r":25.0,"h":null,"lt":36.94547,"ln":-122.02529,"i":1},{"e":"00:26:20.8","s":3.87,"r":32.0,"h":null,"lt":36.94536,"ln":-122.02586,"i":1},{"e":"00:26:43.1","s":4.03,"r":54.0,"h":null,"lt":36.94524,"ln":-122.02627,"i":1},{"e":"00:27:08.7","s":4.32,"r":52.0,"h":null,"lt":36.94511,"ln":-122.02674,"i":1},{"e":"00:27:32.1","s":3.65,"r":33.0,"h":null,"lt":36.94499,"ln":-122.02718,"i":1},{"e":"00:28:02.9","s":4.0,"r":51.0,"h":null,"lt":36.94484,"ln":-122.02775,"i":1},{"e":"00:28:31.5","s":3.69,"r":34.0,"h":null,"lt":36.94473,"ln":-122.02826,"i":1},{"e":"00:28:58.7","s":3.51,"r":46.0,"h":null,"lt":36.94463,"ln":-122.02873,"i":1},{"e":"00:29:33.6","s":3.83,"r":20.0,"h":null,"lt":36.94449,"ln":-122.02938,"i":1},{"e":"00:30:11.3","s":3.87,"r":26.0,"h":null,"lt":36.94436,"ln":-122.03015,"i":1},{"e":"00:30:38.4","s":3.6,"r":39.0,"h":null,"lt":36.94423,"ln":-122.03066,"i":1},{"e":"00:31:13.2","s":4.29,"r":17.0,"h":null,"lt":36.94407,"ln":-122.03133,"i":1},{"e":"00:31:43.8","s":4.09,"r":52.0,"h":null,"lt":36.94394,"ln":-122.03191,"i":1},{"e":"00:32:10.0","s":4.27,"r":46.0,"h":null,"lt":36.94385,"ln":-122.03242,"i":1},{"e":"00:32:33.6","s":3.67,"r":24.0,"h":null,"lt":36.94375,"ln":-122.03286,"i":1},{"e":"00:33:04.8","s":3.85,"r":43.0,"h":null,"lt":36.94365,"ln":-122.03344,"i":1},{"e":"00:33:37.6","s":3.29,"r":50.0,"h":null,"lt":36.94357,"ln":-122.03404,"i":1},{"e":"00:34:03.2","s":3.94,"r":36.0,"h":null,"lt":36.9435,"ln":-122.0345,"i":1},{"e":"00:34:29.3","s":3.44,"r":32.0,"h":null,"lt":36.94338,"ln":-122.03497,"i":1},{"e":"00:35:00.8","s":3.76,"r":32.0,"h":null,"lt":36.94322,"ln":-122.03549,"i":1},{"e":"00:35:27.6","s":3.44,"r":45.0,"h":null,"lt":36.94312,"ln":-122.03594,"i":1},{"e":"00:35:53.7","s":3.89,"r":67.0,"h":null,"lt":36.94303,"ln":-122.03639,"i":1},{"e":"00:36:18.0","s":3.71,"r":35.0,"h":null,"lt":36.94294,"ln":-122.03681,"i":1},{"e":"00:36:47.8","s":3.87,"r":57.0,"h":null,"lt":36.94288,"ln":-122.03733,"i":1},{"e":"00:37:14.3","s":3.92,"r":34.0,"h":null,"lt":36.94275,"ln":-122.0378,"i":1},{"e":"00:37:37.8","s":3.89,"r":40.0,"h":null,"lt":36.94262,"ln":-122.03824,"i":1},{"e":"00:38:04.8","s":3.67,"r":30.0,"h":null,"lt":36.94249,"ln":-122.0387,"i":1},{"e":"00:38:45.2","s":3.02,"r":34.0,"h":null,"lt":36.94225,"ln":-122.03933,"i":1},{"e":"00:39:13.4","s":3.62,"r":58.0,"h":null,"lt":36.94216,"ln":-122.03979,"i":1},{"e":"00:39:44.8","s":3.51,"r":8.0,"h":null,"lt":36.9421,"ln":-122.0403,"i":1},{"e":"00:40:21.2","s":3.04,"r":62.0,"h":null,"lt":36.942,"ln":-122.04092,"i":1},{"e":"00:40:43.4","s":2.93,"r":26.0,"h":null,"lt":36.94197,"ln":-122.04125,"i":1},{"e":"00:41:15.4","s":2.77,"r":33.0,"h":null,"lt":36.9419,"ln":-122.04171,"i":1},{"e":"00:41:40.6","s":3.0,"r":27.0,"h":null,"lt":36.94189,"ln":-122.04207,"i":1},{"e":"00:42:07.4","s":3.35,"r":28.0,"h":null,"lt":36.94179,"ln":-122.04251,"i":1},{"e":"00:42:35.7","s":3.38,"r":36.0,"h":null,"lt":36.94167,"ln":-122.04295,"i":1},{"e":"00:43:04.8","s":3.49,"r":16.0,"h":null,"lt":36.94149,"ln":-122.04339,"i":1},{"e":"00:43:38.6","s":3.51,"r":12.0,"h":null,"lt":36.94136,"ln":-122.04392,"i":1},{"e":"00:44:10.4","s":3.06,"r":30.0,"h":null,"lt":36.94126,"ln":-122.04443,"i":1},{"e":"00:44:38.3","s":3.4,"r":56.0,"h":null,"lt":36.94117,"ln":-122.04488,"i":1},{"e":"00:45:08.3","s":3.8,"r":23.0,"h":null,"lt":36.94105,"ln":-122.04543,"i":1},{"e":"00:45:39.1","s":3.11,"r":38.0,"h":null,"lt":36.94095,"ln":-122.04591,"i":1},{"e":"00:46:10.7","s":3.06,"r":35.0,"h":null,"lt":36.94078,"ln":-122.04637,"i":1},{"e":"00:46:52.5","s":3.44,"r":30.0,"h":null,"lt":36.94062,"ln":-122.04705,"i":1},{"e":"00:47:19.3","s":3.47,"r":21.0,"h":null,"lt":36.94056,"ln":-122.04747,"i":1},{"e":"00:47:47.4","s":2.77,"r":21.0,"h":null,"lt":36.94046,"ln":-122.04785,"i":1},{"e":"00:48:14.0","s":3.15,"r":24.0,"h":null,"lt":36.94036,"ln":-122.04825,"i":1},{"e":"00:48:43.5","s":2.75,"r":36.0,"h":null,"lt":36.94021,"ln":-122.04859,"i":1},{"e":"00:49:17.0","s":2.53,"r":46.0,"h":null,"lt":36.93998,"ln":-122.04898,"i":1},{"e":"00:49:57.4","s":3.38,"r":26.0,"h":null,"lt":36.94005,"ln":-122.04923,"i":1},{"e":"00:50:20.8","s":8.03,"r":83.0,"h":null,"lt":36.94012,"ln":-122.04863,"i":1},{"e":"00:50:45.0","s":5.28,"r":26.0,"h":null,"lt":36.9402,"ln":-122.04794,"i":1},{"e":"00:51:17.2","s":6.84,"r":37.0,"h":null,"lt":36.94044,"ln":-122.04693,"i":1},{"e":"00:51:38.2","s":7.38,"r":76.0,"h":null,"lt":36.94057,"ln":-122.04628,"i":1},{"e":"00:51:52.6","s":5.97,"r":72.0,"h":null,"lt":36.94064,"ln":-122.04585,"i":1},{"e":"00:52:22.7","s":6.46,"r":88.0,"h":null,"lt":36.94087,"ln":-122.04484,"i":1},{"e":"00:52:38.7","s":6.44,"r":82.0,"h":null,"lt":36.94098,"ln":-122.04438,"i":1},{"e":"00:53:03.5","s":5.84,"r":41.0,"h":null,"lt":36.94114,"ln":-122.04361,"i":1},{"e":"00:53:19.9","s":7.0,"r":39.0,"h":null,"lt":36.94124,"ln":-122.04309,"i":1},{"e":"00:53:41.3","s":6.84,"r":74.0,"h":null,"lt":36.94137,"ln":-122.04236,"i":1},{"e":"00:53:57.7","s":5.75,"r":78.0,"h":null,"lt":36.9415,"ln":-122.04182,"i":1},{"e":"00:54:18.5","s":6.2,"r":49.0,"h":null,"lt":36.9417,"ln":-122.04115,"i":1},{"e":"00:54:40.9","s":6.78,"r":36.0,"h":null,"lt":36.94198,"ln":-122.04054,"i":1},{"e":"00:55:00.1","s":8.25,"r":24.0,"h":null,"lt":36.94218,"ln":-122.0399,"i":1},{"e":"00:55:18.5","s":6.02,"r":44.0,"h":null,"lt":36.94229,"ln":-122.03928,"i":1},{"e":"00:55:38.9","s":9.42,"r":18.0,"h":null,"lt":36.94247,"ln":-122.03856,"i":1},{"e":"00:55:58.1","s":6.84,"r":41.0,"h":null,"lt":36.94261,"ln":-122.03789,"i":1},{"e":"00:56:21.5","s":7.0,"r":40.0,"h":null,"lt":36.94279,"ln":-122.0372,"i":1},{"e":"00:56:45.5","s":7.65,"r":78.0,"h":null,"lt":36.94306,"ln":-122.03642,"i":1},{"e":"00:57:08.3","s":8.52,"r":74.0,"h":null,"lt":36.94323,"ln":-122.03554,"i":1},{"e":"00:57:27.9","s":7.45,"r":85.0,"h":null,"lt":36.94335,"ln":-122.03489,"i":1},{"e":"00:57:53.9","s":6.35,"r":62.0,"h":null,"lt":36.94357,"ln":-122.03404,"i":1},{"e":"00:58:13.5","s":6.67,"r":29.0,"h":null,"lt":36.94368,"ln":-122.0334,"i":1},{"e":"00:58:29.3","s":6.62,"r":62.0,"h":null,"lt":36.9438,"ln":-122.03294,"i":1},{"e":"00:58:50.5","s":8.23,"r":74.0,"h":null,"lt":36.944,"ln":-122.03231,"i":1},{"e":"00:59:07.9","s":5.95,"r":88.0,"h":null,"lt":36.94416,"ln":-122.03179,"i":1},{"e":"00:59:32.7","s":7.02,"r":80.0,"h":null,"lt":36.94419,"ln":-122.03092,"i":1},{"e":"00:59:56.9","s":4.7,"r":32.0,"h":null,"lt":36.94398,"ln":-122.03041,"i":1},{"e":"01:00:15.5","s":6.02,"r":54.0,"h":null,"lt":36.94366,"ln":-122.03019,"i":1},{"e":"01:00:39.5","s":6.15,"r":24.0,"h":null,"lt":36.94353,"ln":-122.02952,"i":1},{"e":"01:00:59.9","s":8.12,"r":38.0,"h":null,"lt":36.94358,"ln":-122.02881,"i":1},{"e":"01:01:21.5","s":5.73,"r":42.0,"h":null,"lt":36.94358,"ln":-122.02815,"i":1},{"e":"01:01:42.9","s":5.77,"r":28.0,"h":null,"lt":36.9436,"ln":-122.02742,"i":1},{"e":"01:02:02.1","s":6.71,"r":58.0,"h":null,"lt":36.94362,"ln":-122.02673,"i":1},{"e":"01:02:18.5","s":6.82,"r":35.0,"h":null,"lt":36.94364,"ln":-122.02619,"i":1},{"e":"01:02:33.5","s":5.84,"r":92.0,"h":null,"lt":36.94365,"ln":-122.02575,"i":1},{"e":"01:02:50.9","s":8.57,"r":76.0,"h":null,"lt":36.94371,"ln":-122.02511,"i":1},{"e":"01:03:06.1","s":7.29,"r":80.0,"h":null,"lt":36.94375,"ln":-122.02452,"i":1},{"e":"01:03:20.9","s":4.41,"r":68.0,"h":null,"lt":36.94378,"ln":-122.02401,"i":1},{"e":"01:03:34.3","s":8.3,"r":76.0,"h":null,"lt":36.94384,"ln":-122.02352,"i":1},{"e":"01:03:46.3","s":6.49,"r":64.0,"h":null,"lt":36.94386,"ln":-122.02314,"i":1},{"e":"01:04:00.5","s":6.71,"r":37.0,"h":null,"lt":36.9439,"ln":-122.02272,"i":1},{"e":"01:04:17.5","s":7.54,"r":44.0,"h":null,"lt":36.94398,"ln":-122.02217,"i":1},{"e":"01:04:32.5","s":7.61,"r":74.0,"h":null,"lt":36.94402,"ln":-122.02163,"i":1},{"e":"01:04:57.5","s":7.18,"r":62.0,"h":null,"lt":36.94414,"ln":-122.02086,"i":1},{"e":"01:05:15.5","s":8.79,"r":93.0,"h":null,"lt":36.94426,"ln":-122.02029,"i":1},{"e":"01:05:34.9","s":8.03,"r":18.0,"h":null,"lt":36.94439,"ln":-122.01956,"i":1},{"e":"01:06:01.5","s":5.64,"r":20.0,"h":null,"lt":36.94445,"ln":-122.01874,"i":1},{"e":"01:06:23.1","s":5.97,"r":20.0,"h":null,"lt":36.94446,"ln":-122.01804,"i":1},{"e":"01:06:41.5","s":5.84,"r":32.0,"h":null,"lt":36.94446,"ln":-122.01751,"i":1},{"e":"01:06:59.5","s":7.79,"r":85.0,"h":null,"lt":36.94452,"ln":-122.01693,"i":1},{"e":"01:07:19.9","s":8.1,"r":39.0,"h":null,"lt":36.94469,"ln":-122.0161,"i":1},{"e":"01:07:37.5","s":8.32,"r":45.0,"h":null,"lt":36.94483,"ln":-122.01553,"i":1},{"e":"01:07:52.9","s":7.27,"r":83.0,"h":null,"lt":36.94492,"ln":-122.01503,"i":1},{"e":"01:08:12.1","s":6.38,"r":85.0,"h":null,"lt":36.9449,"ln":-122.01445,"i":1},{"e":"01:08:27.5","s":6.55,"r":74.0,"h":null,"lt":36.94493,"ln":-122.01398,"i":1},{"e":"01:08:46.5","s":6.29,"r":75.0,"h":null,"lt":36.945,"ln":-122.01345,"i":1},{"e":"01:09:05.9","s":5.46,"r":98.0,"h":null,"lt":36.9451,"ln":-122.01287,"i":1},{"e":"01:09:24.5","s":6.8,"r":40.0,"h":null,"lt":36.94517,"ln":-122.01227,"i":1},{"e":"01:09:46.6","s":6.08,"r":75.0,"h":null,"lt":36.94533,"ln":-122.01149,"i":1},{"e":"01:09:59.2","s":8.12,"r":38.0,"h":null,"lt":36.94541,"ln":-122.0111,"i":1},{"e":"01:10:16.6","s":6.24,"r":86.0,"h":null,"lt":36.94548,"ln":-122.01048,"i":1},{"e":"01:10:36.6","s":7.18,"r":35.0,"h":null,"lt":36.94558,"ln":-122.00987,"i":1},{"e":"01:10:55.8","s":6.53,"r":64.0,"h":null,"lt":36.94567,"ln":-122.00922,"i":1},{"e":"01:11:17.0","s":5.19,"r":58.0,"h":null,"lt":36.94578,"ln":-122.0086,"i":1},{"e":"01:11:33.0","s":6.46,"r":72.0,"h":null,"lt":36.94591,"ln":-122.00804,"i":1},{"e":"01:11:53.0","s":8.01,"r":75.0,"h":null,"lt":36.94599,"ln":-122.0074,"i":1},{"e":"01:12:11.2","s":7.47,"r":92.0,"h":null,"lt":36.94609,"ln":-122.00682,"i":1},{"e":"01:12:23.8","s":8.68,"r":92.0,"h":null,"lt":36.94616,"ln":-122.00641,"i":1},{"e":"01:12:46.2","s":5.14,"r":75.0,"h":null,"lt":36.94624,"ln":-122.00575,"i":1},{"e":"01:13:07.4","s":5.7,"r":36.0,"h":null,"lt":36.94633,"ln":-122.00512,"i":1},{"e":"01:13:24.2","s":4.27,"r":49.0,"h":null,"lt":36.9464,"ln":-122.00462,"i":1},{"e":"01:13:37.2","s":7.34,"r":36.0,"h":null,"lt":36.94646,"ln":-122.00416,"i":1},{"e":"01:13:58.8","s":5.32,"r":57.0,"h":null,"lt":36.94659,"ln":-122.00351,"i":1},{"e":"01:14:13.4","s":7.16,"r":26.0,"h":null,"lt":36.94666,"ln":-122.00301,"i":1},{"e":"01:14:29.8","s":7.29,"r":29.0,"h":null,"lt":36.94679,"ln":-122.00238,"i":1},{"e":"01:14:50.0","s":6.4,"r":47.0,"h":null,"lt":36.94685,"ln":-122.00176,"i":1},{"e":"01:15:12.6","s":7.43,"r":40.0,"h":null,"lt":36.94694,"ln":-122.00113,"i":1},{"e":"01:15:33.2","s":6.06,"r":30.0,"h":null,"lt":36.94701,"ln":-122.00053,"i":1},{"e":"01:15:52.8","s":5.37,"r":75.0,"h":null,"lt":36.94714,"ln":-122.0,"i":1},{"e":"01:16:11.8","s":4.5,"r":40.0,"h":null,"lt":36.94729,"ln":-121.99948,"i":1},{"e":"01:16:28.8","s":7.2,"r":34.0,"h":null,"lt":36.94739,"ln":-121.99898,"i":1},{"e":"01:16:48.0","s":6.15,"r":70.0,"h":null,"lt":36.94749,"ln":-121.99835,"i":1},{"e":"01:17:02.2","s":7.25,"r":58.0,"h":null,"lt":36.94757,"ln":-121.99788,"i":1},{"e":"01:17:21.6","s":6.04,"r":75.0,"h":null,"lt":36.9477,"ln":-121.99728,"i":1},{"e":"01:17:32.8","s":6.35,"r":92.0,"h":null,"lt":36.94777,"ln":-121.99696,"i":1},{"e":"01:17:46.2","s":7.02,"r":69.0,"h":null,"lt":36.94786,"ln":-121.99651,"i":1},{"e":"01:18:02.0","s":7.2,"r":72.0,"h":null,"lt":36.94799,"ln":-121.99602,"i":1},{"e":"01:18:16.0","s":6.87,"r":84.0,"h":null,"lt":36.94815,"ln":-121.99557,"i":1},{"e":"01:18:29.8","s":4.5,"r":76.0,"h":null,"lt":36.94824,"ln":-121.99523,"i":1},{"e":"01:18:44.4","s":7.29,"r":79.0,"h":null,"lt":36.94835,"ln":-121.99473,"i":1},{"e":"01:18:56.2","s":5.46,"r":82.0,"h":null,"lt":36.94844,"ln":-121.9944,"i":1},{"e":"01:19:15.0","s":5.57,"r":26.0,"h":null,"lt":36.94856,"ln":-121.99374,"i":1},{"e":"01:19:32.2","s":6.82,"r":32.0,"h":null,"lt":36.94868,"ln":-121.99315,"i":1},{"e":"01:19:49.4","s":7.2,"r":24.0,"h":null,"lt":36.9488,"ln":-121.99262,"i":1},{"e":"01:20:10.0","s":7.07,"r":62.0,"h":null,"lt":36.94898,"ln":-121.99205,"i":1},{"e":"01:20:25.2","s":4.97,"r":54.0,"h":null,"lt":36.9491,"ln":-121.9916,"i":1},{"e":"01:20:42.2","s":5.66,"r":54.0,"h":null,"lt":36.94926,"ln":-121.99113,"i":1},{"e":"01:20:57.4","s":6.89,"r":68.0,"h":null,"lt":36.9494,"ln":-121.9906,"i":1},{"e":"01:21:16.6","s":5.64,"r":78.0,"h":null,"lt":36.94952,"ln":-121.99,"i":1},{"e":"01:21:33.8","s":6.69,"r":74.0,"h":null,"lt":36.94958,"ln":-121.98947,"i":1},{"e":"01:21:51.6","s":6.42,"r":46.0,"h":null,"lt":36.9496,"ln":-121.98891,"i":1},{"e":"01:22:13.0","s":5.86,"r":14.0,"h":null,"lt":36.94974,"ln":-121.98829,"i":1},{"e":"01:22:32.8","s":8.86,"r":66.0,"h":null,"lt":36.94991,"ln":-121.98767,"i":1},{"e":"01:22:56.8","s":5.12,"r":20.0,"h":null,"lt":36.95008,"ln":-121.98696,"i":1},{"e":"01:23:13.0","s":7.96,"r":56.0,"h":null,"lt":36.95018,"ln":-121.98643,"i":1},{"e":"01:23:30.6","s":6.84,"r":36.0,"h":null,"lt":36.95022,"ln":-121.98581,"i":1},{"e":"01:23:49.8","s":4.65,"r":68.0,"h":null,"lt":36.95038,"ln":-121.98531,"i":1},{"e":"01:24:21.6","s":6.35,"r":78.0,"h":null,"lt":36.9506,"ln":-121.98448,"i":1},{"e":"01:24:38.8","s":7.52,"r":13.0,"h":null,"lt":36.95079,"ln":-121.98394,"i":1},{"e":"01:24:50.8","s":5.5,"r":76.0,"h":null,"lt":36.9509,"ln":-121.9836,"i":1},{"e":"01:25:03.2","s":4.9,"r":70.0,"h":null,"lt":36.95104,"ln":-121.9833,"i":1},{"e":"01:25:15.6","s":6.11,"r":88.0,"h":null,"lt":36.95111,"ln":-121.98297,"i":1},{"e":"01:25:29.0","s":6.38,"r":68.0,"h":null,"lt":36.95119,"ln":-121.98259,"i":1},{"e":"01:25:42.6","s":6.08,"r":63.0,"h":null,"lt":36.95129,"ln":-121.98223,"i":1},{"e":"01:25:58.8","s":5.05,"r":85.0,"h":null,"lt":36.95144,"ln":-121.98178,"i":1},{"e":"01:26:17.4","s":5.57,"r":44.0,"h":null,"lt":36.9514,"ln":-121.98124,"i":1},{"e":"01:26:54.3","s":3.98,"r":44.0,"h":null,"lt":36.95167,"ln":-121.98142,"i":1},{"e":"01:27:19.5","s":4.16,"r":34.0,"h":null,"lt":36.95157,"ln":-121.98187,"i":1},{"e":"01:27:44.3","s":4.74,"r":76.0,"h":null,"lt":36.95155,"ln":-121.98241,"i":1},{"e":"01:28:09.7","s":4.43,"r":58.0,"h":null,"lt":36.95157,"ln":-121.98298,"i":1},{"e":"01:28:39.1","s":4.27,"r":30.0,"h":null,"lt":36.95153,"ln":-121.98359,"i":1},{"e":"01:29:10.5","s":4.54,"r":41.0,"h":null,"lt":36.9517,"ln":-121.98431,"i":1},{"e":"01:29:39.5","s":4.59,"r":68.0,"h":null,"lt":36.95168,"ln":-121.98498,"i":1},{"e":"01:30:07.2","s":4.61,"r":42.0,"h":null,"lt":36.9517,"ln":-121.98559,"i":1},{"e":"01:30:40.2","s":4.63,"r":54.0,"h":null,"lt":36.95181,"ln":-121.98638,"i":1},{"e":"01:31:10.3","s":4.54,"r":30.0,"h":null,"lt":36.95196,"ln":-121.98707,"i":1},{"e":"01:31:37.1","s":4.7,"r":42.0,"h":null,"lt":36.95213,"ln":-121.98765,"i":1},{"e":"01:32:08.7","s":4.76,"r":84.0,"h":null,"lt":36.95223,"ln":-121.98837,"i":1},{"e":"01:32:32.3","s":4.54,"r":62.0,"h":null,"lt":36.95241,"ln":-121.98885,"i":1},{"e":"01:32:59.3","s":4.72,"r":24.0,"h":null,"lt":36.95259,"ln":-121.9894,"i":1},{"e":"01:33:25.1","s":4.97,"r":31.0,"h":null,"lt":36.95282,"ln":-121.98996,"i":1},{"e":"01:33:50.5","s":4.56,"r":30.0,"h":null,"lt":36.95288,"ln":-121.99051,"i":1},{"e":"01:34:19.9","s":4.5,"r":58.0,"h":null,"lt":36.95286,"ln":-121.99115,"i":1},{"e":"01:34:46.5","s":4.81,"r":48.0,"h":null,"lt":36.95291,"ln":-121.99175,"i":1},{"e":"01:35:04.7","s":4.41,"r":54.0,"h":null,"lt":36.953,"ln":-121.99215,"i":1},{"e":"01:35:31.3","s":4.7,"r":49.0,"h":null,"lt":36.95305,"ln":-121.99278,"i":1},{"e":"01:35:55.7","s":4.81,"r":44.0,"h":null,"lt":36.95308,"ln":-121.99334,"i":1},{"e":"01:36:24.5","s":5.14,"r":58.0,"h":null,"lt":36.95321,"ln":-121.99399,"i":1},{"e":"01:36:48.6","s":4.76,"r":72.0,"h":null,"lt":36.95349,"ln":-121.99448,"i":1},{"e":"01:37:08.3","s":4.7,"r":57.0,"h":null,"lt":36.95361,"ln":-121.99493,"i":1},{"e":"01:37:36.5","s":4.81,"r":34.0,"h":null,"lt":36.95355,"ln":-121.99556,"i":1},{"e":"01:37:58.3","s":4.18,"r":34.0,"h":null,"lt":36.95342,"ln":-121.99602,"i":1},{"e":"01:38:21.7","s":4.21,"r":25.0,"h":null,"lt":36.9533,"ln":-121.99652,"i":1},{"e":"01:38:48.5","s":4.5,"r":54.0,"h":null,"lt":36.95333,"ln":-121.99708,"i":1},{"e":"01:39:07.5","s":4.54,"r":36.0,"h":null,"lt":36.95344,"ln":-121.99748,"i":1},{"e":"01:39:36.7","s":4.18,"r":60.0,"h":null,"lt":36.95346,"ln":-121.99813,"i":1},{"e":"01:40:10.4","s":4.92,"r":22.0,"h":null,"lt":36.95367,"ln":-121.99888,"i":1},{"e":"01:40:34.0","s":4.9,"r":34.0,"h":null,"lt":36.95403,"ln":-121.99926,"i":1},{"e":"01:40:50.6","s":4.61,"r":82.0,"h":null,"lt":36.95429,"ln":-121.99946,"i":1},{"e":"01:41:12.4","s":4.76,"r":34.0,"h":null,"lt":36.95471,"ln":-121.99947,"i":1},{"e":"01:41:32.4","s":5.5,"r":88.0,"h":null,"lt":36.95504,"ln":-121.99909,"i":1},{"e":"01:41:52.8","s":4.99,"r":38.0,"h":null,"lt":36.95543,"ln":-121.99907,"i":1},{"e":"01:42:15.1","s":5.28,"r":44.0,"h":null,"lt":36.95587,"ln":-121.99927,"i":1},{"e":"01:42:44.2","s":5.39,"r":86.0,"h":null,"lt":36.95647,"ln":-121.9994,"i":1},{"e":"01:43:04.2","s":5.05,"r":82.0,"h":null,"lt":36.95691,"ln":-121.99934,"i":1},{"e":"01:43:29.2","s":5.23,"r":26.0,"h":null,"lt":36.95742,"ln":-121.99954,"i":1},{"e":"01:43:58.2","s":5.14,"r":23.0,"h":null,"lt":36.958,"ln":-121.99983,"i":1},{"e":"01:44:26.4","s":5.46,"r":25.0,"h":null,"lt":36.9586,"ln":-121.99996,"i":1},{"e":"01:44:44.2","s":5.12,"r":36.0,"h":null,"lt":36.959,"ln":-121.99997,"i":1},{"e":"01:45:11.2","s":5.28,"r":75.0,"h":null,"lt":36.95939,"ln":-122.00041,"i":1},{"e":"01:45:31.8","s":5.59,"r":31.0,"h":null,"lt":36.95977,"ln":-122.00069,"i":1},{"e":"01:45:47.2","s":5.08,"r":34.0,"h":null,"lt":36.96008,"ln":-122.00082,"i":1},{"e":"01:46:08.4","s":5.26,"r":69.0,"h":null,"lt":36.96052,"ln":-122.001,"i":1},{"e":"01:46:34.8","s":5.26,"r":94.0,"h":null,"lt":36.96101,"ln":-122.00134,"i":1},{"e":"01:46:50.0","s":5.64,"r":92.0,"h":null,"lt":36.96133,"ln":-122.00151,"i":1},{"e":"01:47:09.0","s":5.75,"r":67.0,"h":null,"lt":36.96177,"ln":-122.00162,"i":1},{"e":"01:47:23.6","s":5.39,"r":68.0,"h":null,"lt":36.96209,"ln":-122.00169,"i":1},{"e":"01:47:37.0","s":5.57,"r":62.0,"h":null,"lt":36.96239,"ln":-122.00178,"i":1},{"e":"01:47:51.2","s":5.68,"r":62.0,"h":null,"lt":36.96271,"ln":-122.00184,"i":1},{"e":"01:48:04.8","s":5.84,"r":69.0,"h":null,"lt":36.96302,"ln":-122.00191,"i":1},{"e":"01:48:18.6","s":5.62,"r":74.0,"h":null,"lt":36.96333,"ln":-122.00197,"i":1},{"e":"01:48:33.0","s":5.39,"r":57.0,"h":null,"lt":36.96365,"ln":-122.00205,"i":1},{"e":"01:48:49.0","s":5.62,"r":68.0,"h":null,"lt":36.964,"ln":-122.00211,"i":1},{"e":"01:49:03.0","s":5.28,"r":74.0,"h":null,"lt":36.96427,"ln":-122.00226,"i":1},{"e":"01:49:19.0","s":4.7,"r":74.0,"h":null,"lt":36.96438,"ln":-122.00261,"i":1},{"e":"01:49:34.8","s":4.34,"r":46.0,"h":null,"lt":36.9643,"ln":-122.00297,"i":1},{"e":"01:50:01.6","s":1.52,"r":46.0,"h":null,"lt":36.96435,"ln":-122.00312,"i":1}],"midLat":36.9436,"midLon":-122.0284},{"date":"20260510","startTime":"05/10/2026 17:17:17","sessionType":"Just Go","programName":"JustGo-4.840MI","avgSpeed":4.809,"totalDist":4.84,"elapsed":"01:00:20.3","avgStrokeRate":50.0,"avgHR":123.0,"startLat":36.964419,"startLon":-122.0031212,"hasHR":true,"intervals":[{"n":"1","d":4.84,"el":"01:00:20.3","sp":"00:12:28.5","v":4.809,"sr":50.0,"hr":122.0,"lt":36.96442,"ln":-122.00312}],"strokes":[{"e":"00:00:02.9","s":0.22,"r":20.0,"h":92,"lt":36.96442,"ln":-122.00312,"i":1},{"e":"00:00:27.5","s":3.06,"r":49.0,"h":100,"lt":36.96443,"ln":-122.00279,"i":1},{"e":"00:00:46.1","s":3.62,"r":54.0,"h":103,"lt":36.96437,"ln":-122.00245,"i":1},{"e":"00:01:00.3","s":4.52,"r":64.0,"h":105,"lt":36.96414,"ln":-122.00239,"i":1},{"e":"00:01:25.5","s":4.47,"r":64.0,"h":110,"lt":36.96372,"ln":-122.00235,"i":1},{"e":"00:01:39.5","s":5.21,"r":70.0,"h":113,"lt":36.96344,"ln":-122.00232,"i":1},{"e":"00:01:55.1","s":5.08,"r":68.0,"h":118,"lt":36.96311,"ln":-122.0023,"i":1},{"e":"00:02:08.3","s":5.1,"r":74.0,"h":119,"lt":36.96283,"ln":-122.00227,"i":1},{"e":"00:02:21.7","s":5.26,"r":60.0,"h":122,"lt":36.96255,"ln":-122.00227,"i":1},{"e":"00:02:36.5","s":5.17,"r":76.0,"h":125,"lt":36.96225,"ln":-122.0022,"i":1},{"e":"00:02:51.9","s":5.17,"r":64.0,"h":127,"lt":36.96194,"ln":-122.00214,"i":1},{"e":"00:03:06.9","s":4.74,"r":64.0,"h":126,"lt":36.96166,"ln":-122.00223,"i":1},{"e":"00:03:24.1","s":4.43,"r":63.0,"h":121,"lt":36.96138,"ln":-122.00219,"i":1},{"e":"00:03:42.1","s":4.74,"r":34.0,"h":121,"lt":36.96108,"ln":-122.00199,"i":1},{"e":"00:03:57.7","s":4.99,"r":69.0,"h":123,"lt":36.96088,"ln":-122.0017,"i":1},{"e":"00:04:16.5","s":5.17,"r":44.0,"h":125,"lt":36.96052,"ln":-122.00164,"i":1},{"e":"00:04:37.5","s":5.75,"r":40.0,"h":127,"lt":36.96014,"ln":-122.00194,"i":1},{"e":"00:05:08.3","s":4.9,"r":17.0,"h":124,"lt":36.95961,"ln":-122.00243,"i":1},{"e":"00:05:32.0","s":5.35,"r":17.0,"h":123,"lt":36.9593,"ln":-122.00293,"i":1},{"e":"00:05:56.0","s":4.88,"r":32.0,"h":124,"lt":36.9589,"ln":-122.00329,"i":1},{"e":"00:06:29.5","s":5.26,"r":63.0,"h":125,"lt":36.95826,"ln":-122.00376,"i":1},{"e":"00:06:54.8","s":5.59,"r":68.0,"h":123,"lt":36.95779,"ln":-122.00408,"i":1},{"e":"00:07:17.2","s":5.44,"r":34.0,"h":124,"lt":36.95741,"ln":-122.00446,"i":1},{"e":"00:07:36.8","s":4.52,"r":66.0,"h":124,"lt":36.95708,"ln":-122.00478,"i":1},{"e":"00:08:09.0","s":4.94,"r":16.0,"h":125,"lt":36.95652,"ln":-122.00526,"i":1},{"e":"00:08:35.2","s":5.44,"r":40.0,"h":124,"lt":36.95602,"ln":-122.00556,"i":1},{"e":"00:09:03.0","s":5.26,"r":35.0,"h":126,"lt":36.95549,"ln":-122.00589,"i":1},{"e":"00:09:25.6","s":4.81,"r":50.0,"h":131,"lt":36.9551,"ln":-122.00619,"i":1},{"e":"00:09:46.2","s":5.48,"r":58.0,"h":128,"lt":36.95476,"ln":-122.0065,"i":1},{"e":"00:10:15.0","s":4.5,"r":10.0,"h":123,"lt":36.95443,"ln":-122.00704,"i":1},{"e":"00:10:37.8","s":4.34,"r":34.0,"h":121,"lt":36.95417,"ln":-122.00743,"i":1},{"e":"00:10:58.8","s":5.08,"r":64.0,"h":121,"lt":36.95384,"ln":-122.00774,"i":1},{"e":"00:11:22.8","s":4.88,"r":38.0,"h":121,"lt":36.95351,"ln":-122.00811,"i":1},{"e":"00:11:42.7","s":4.34,"r":68.0,"h":119,"lt":36.95325,"ln":-122.00839,"i":1},{"e":"00:12:11.8","s":4.61,"r":62.0,"h":121,"lt":36.95285,"ln":-122.00886,"i":1},{"e":"00:12:31.0","s":4.16,"r":76.0,"h":117,"lt":36.95264,"ln":-122.00919,"i":1},{"e":"00:13:01.2","s":4.47,"r":40.0,"h":119,"lt":36.95232,"ln":-122.00971,"i":1},{"e":"00:13:23.0","s":4.92,"r":62.0,"h":121,"lt":36.95207,"ln":-122.01011,"i":1},{"e":"00:13:43.0","s":4.54,"r":41.0,"h":119,"lt":36.95186,"ln":-122.01047,"i":1},{"e":"00:14:15.7","s":4.45,"r":50.0,"h":120,"lt":36.95159,"ln":-122.01113,"i":1},{"e":"00:14:41.0","s":4.79,"r":62.0,"h":120,"lt":36.95129,"ln":-122.01157,"i":1},{"e":"00:15:03.7","s":4.65,"r":58.0,"h":121,"lt":36.95103,"ln":-122.01197,"i":1},{"e":"00:15:27.7","s":4.16,"r":14.0,"h":121,"lt":36.95078,"ln":-122.0124,"i":1},{"e":"00:15:52.2","s":4.47,"r":32.0,"h":120,"lt":36.9505,"ln":-122.01285,"i":1},{"e":"00:16:25.2","s":4.79,"r":37.0,"h":121,"lt":36.95024,"ln":-122.01352,"i":1},{"e":"00:16:51.0","s":4.36,"r":31.0,"h":120,"lt":36.95005,"ln":-122.01406,"i":1},{"e":"00:17:15.7","s":4.43,"r":62.0,"h":119,"lt":36.94987,"ln":-122.01456,"i":1},{"e":"00:17:50.2","s":4.52,"r":68.0,"h":121,"lt":36.9496,"ln":-122.01525,"i":1},{"e":"00:18:11.6","s":4.81,"r":53.0,"h":121,"lt":36.94941,"ln":-122.01567,"i":1},{"e":"00:18:38.2","s":4.43,"r":83.0,"h":122,"lt":36.94922,"ln":-122.01621,"i":1},{"e":"00:18:57.7","s":4.5,"r":57.0,"h":122,"lt":36.94909,"ln":-122.01661,"i":1},{"e":"00:19:29.5","s":4.09,"r":16.0,"h":121,"lt":36.9489,"ln":-122.01726,"i":1},{"e":"00:19:56.5","s":4.65,"r":83.0,"h":120,"lt":36.9487,"ln":-122.01781,"i":1},{"e":"00:20:25.8","s":3.96,"r":68.0,"h":122,"lt":36.94844,"ln":-122.01834,"i":1},{"e":"00:20:54.7","s":4.32,"r":10.0,"h":120,"lt":36.94821,"ln":-122.01891,"i":1},{"e":"00:21:27.2","s":4.14,"r":28.0,"h":119,"lt":36.94798,"ln":-122.01955,"i":1},{"e":"00:21:54.8","s":4.38,"r":20.0,"h":121,"lt":36.94778,"ln":-122.02009,"i":1},{"e":"00:22:23.0","s":3.78,"r":26.0,"h":123,"lt":36.94759,"ln":-122.02059,"i":1},{"e":"00:22:57.4","s":4.12,"r":34.0,"h":121,"lt":36.94734,"ln":-122.02118,"i":1},{"e":"00:23:30.1","s":3.6,"r":62.0,"h":121,"lt":36.94715,"ln":-122.02174,"i":1},{"e":"00:23:51.5","s":3.85,"r":68.0,"h":120,"lt":36.947,"ln":-122.02208,"i":1},{"e":"00:24:15.5","s":3.65,"r":57.0,"h":121,"lt":36.94683,"ln":-122.02247,"i":1},{"e":"00:24:41.1","s":3.29,"r":32.0,"h":123,"lt":36.9467,"ln":-122.02289,"i":1},{"e":"00:25:29.2","s":3.02,"r":28.0,"h":116,"lt":36.94641,"ln":-122.02363,"i":1},{"e":"00:25:55.2","s":6.11,"r":73.0,"h":115,"lt":36.9467,"ln":-122.02325,"i":1},{"e":"00:26:17.4","s":6.35,"r":67.0,"h":116,"lt":36.94697,"ln":-122.02266,"i":1},{"e":"00:26:36.4","s":6.69,"r":20.0,"h":117,"lt":36.94714,"ln":-122.02209,"i":1},{"e":"00:26:53.4","s":5.64,"r":75.0,"h":119,"lt":36.94728,"ln":-122.02163,"i":1},{"e":"00:27:13.4","s":5.17,"r":42.0,"h":122,"lt":36.94757,"ln":-122.02117,"i":1},{"e":"00:27:32.6","s":5.77,"r":38.0,"h":120,"lt":36.94777,"ln":-122.02071,"i":1},{"e":"00:27:54.0","s":5.28,"r":74.0,"h":123,"lt":36.94807,"ln":-122.02022,"i":1},{"e":"00:28:15.0","s":4.5,"r":74.0,"h":122,"lt":36.94837,"ln":-122.01978,"i":1},{"e":"00:28:38.4","s":7.36,"r":80.0,"h":122,"lt":36.94869,"ln":-122.01918,"i":1},{"e":"00:28:57.8","s":5.41,"r":37.0,"h":124,"lt":36.94896,"ln":-122.01871,"i":1},{"e":"00:29:26.5","s":6.13,"r":57.0,"h":121,"lt":36.94944,"ln":-122.01797,"i":1},{"e":"00:29:49.1","s":6.53,"r":62.0,"h":121,"lt":36.94983,"ln":-122.01753,"i":1},{"e":"00:30:05.9","s":5.19,"r":78.0,"h":121,"lt":36.95001,"ln":-122.01713,"i":1},{"e":"00:30:24.5","s":5.1,"r":34.0,"h":119,"lt":36.95004,"ln":-122.01663,"i":1},{"e":"00:30:45.7","s":5.86,"r":35.0,"h":118,"lt":36.95012,"ln":-122.01609,"i":1},{"e":"00:31:09.1","s":4.83,"r":36.0,"h":121,"lt":36.95046,"ln":-122.01562,"i":1},{"e":"00:31:24.7","s":5.14,"r":62.0,"h":121,"lt":36.95063,"ln":-122.01524,"i":1},{"e":"00:31:43.1","s":5.05,"r":53.0,"h":126,"lt":36.95091,"ln":-122.01489,"i":1},{"e":"00:31:58.9","s":5.39,"r":66.0,"h":123,"lt":36.95115,"ln":-122.01461,"i":1},{"e":"00:32:13.7","s":4.12,"r":68.0,"h":123,"lt":36.95139,"ln":-122.01434,"i":1},{"e":"00:32:40.9","s":5.39,"r":62.0,"h":122,"lt":36.95169,"ln":-122.01374,"i":1},{"e":"00:32:59.5","s":4.21,"r":58.0,"h":124,"lt":36.95194,"ln":-122.01337,"i":1},{"e":"00:33:13.3","s":5.66,"r":74.0,"h":124,"lt":36.95212,"ln":-122.01309,"i":1},{"e":"00:33:37.9","s":5.01,"r":22.0,"h":117,"lt":36.95239,"ln":-122.01259,"i":1},{"e":"00:34:06.7","s":5.03,"r":20.0,"h":121,"lt":36.95278,"ln":-122.01205,"i":1},{"e":"00:34:25.9","s":4.81,"r":46.0,"h":123,"lt":36.95298,"ln":-122.01163,"i":1},{"e":"00:34:47.1","s":4.92,"r":78.0,"h":121,"lt":36.95322,"ln":-122.01119,"i":1},{"e":"00:35:07.5","s":5.12,"r":39.0,"h":120,"lt":36.95331,"ln":-122.0107,"i":1},{"e":"00:35:29.3","s":5.23,"r":50.0,"h":122,"lt":36.9536,"ln":-122.01027,"i":1},{"e":"00:35:54.1","s":4.59,"r":40.0,"h":121,"lt":36.95396,"ln":-122.00986,"i":1},{"e":"00:36:15.5","s":5.93,"r":18.0,"h":121,"lt":36.95427,"ln":-122.00948,"i":1},{"e":"00:36:33.7","s":5.55,"r":37.0,"h":124,"lt":36.95454,"ln":-122.00912,"i":1},{"e":"00:36:54.3","s":4.72,"r":64.0,"h":121,"lt":36.95479,"ln":-122.00877,"i":1},{"e":"00:37:15.7","s":4.9,"r":75.0,"h":120,"lt":36.955,"ln":-122.00837,"i":1},{"e":"00:37:34.1","s":4.81,"r":58.0,"h":118,"lt":36.95512,"ln":-122.008,"i":1},{"e":"00:37:54.1","s":4.5,"r":81.0,"h":120,"lt":36.95542,"ln":-122.00771,"i":1},{"e":"00:38:18.7","s":4.72,"r":40.0,"h":113,"lt":36.95564,"ln":-122.00805,"i":1},{"e":"00:38:47.3","s":5.62,"r":36.0,"h":113,"lt":36.9552,"ln":-122.00849,"i":1},{"e":"00:39:17.7","s":5.48,"r":26.0,"h":114,"lt":36.95468,"ln":-122.0089,"i":1},{"e":"00:39:49.9","s":5.17,"r":20.0,"h":116,"lt":36.95414,"ln":-122.0093,"i":1},{"e":"00:40:19.9","s":5.7,"r":30.0,"h":120,"lt":36.95364,"ln":-122.00969,"i":1},{"e":"00:40:47.3","s":5.08,"r":26.0,"h":118,"lt":36.9532,"ln":-122.01009,"i":1},{"e":"00:41:20.1","s":4.27,"r":39.0,"h":118,"lt":36.95271,"ln":-122.01056,"i":1},{"e":"00:41:47.3","s":4.34,"r":12.0,"h":119,"lt":36.95232,"ln":-122.01102,"i":1},{"e":"00:42:13.1","s":4.67,"r":38.0,"h":120,"lt":36.95197,"ln":-122.01143,"i":1},{"e":"00:42:43.3","s":4.65,"r":50.0,"h":117,"lt":36.95151,"ln":-122.01181,"i":1},{"e":"00:43:15.1","s":4.25,"r":32.0,"h":119,"lt":36.95113,"ln":-122.01229,"i":1},{"e":"00:43:43.7","s":4.0,"r":40.0,"h":118,"lt":36.9508,"ln":-122.01272,"i":1},{"e":"00:44:15.5","s":3.96,"r":56.0,"h":120,"lt":36.95046,"ln":-122.01321,"i":1},{"e":"00:44:41.5","s":4.43,"r":50.0,"h":123,"lt":36.95015,"ln":-122.01363,"i":1},{"e":"00:45:22.3","s":3.44,"r":34.0,"h":118,"lt":36.94989,"ln":-122.01433,"i":1},{"e":"00:45:42.3","s":6.87,"r":76.0,"h":117,"lt":36.95018,"ln":-122.01408,"i":1},{"e":"00:46:05.5","s":5.97,"r":44.0,"h":118,"lt":36.95055,"ln":-122.01363,"i":1},{"e":"00:46:34.1","s":5.1,"r":22.0,"h":120,"lt":36.95089,"ln":-122.01302,"i":1},{"e":"00:47:00.1","s":5.48,"r":28.0,"h":119,"lt":36.95126,"ln":-122.01252,"i":1},{"e":"00:47:29.2","s":4.85,"r":25.0,"h":116,"lt":36.95167,"ln":-122.01198,"i":1},{"e":"00:47:51.1","s":4.97,"r":35.0,"h":116,"lt":36.95185,"ln":-122.0115,"i":1},{"e":"00:48:15.3","s":5.32,"r":38.0,"h":116,"lt":36.95192,"ln":-122.0109,"i":1},{"e":"00:48:41.0","s":4.63,"r":22.0,"h":117,"lt":36.95217,"ln":-122.01039,"i":1},{"e":"00:49:05.8","s":4.9,"r":37.0,"h":117,"lt":36.95251,"ln":-122.00996,"i":1},{"e":"00:49:31.4","s":4.5,"r":16.0,"h":119,"lt":36.95288,"ln":-122.00955,"i":1},{"e":"00:49:59.8","s":5.12,"r":50.0,"h":121,"lt":36.95331,"ln":-122.00909,"i":1},{"e":"00:50:25.3","s":4.54,"r":36.0,"h":122,"lt":36.95366,"ln":-122.00868,"i":1},{"e":"00:50:47.0","s":4.34,"r":68.0,"h":116,"lt":36.95391,"ln":-122.0083,"i":1},{"e":"00:51:11.0","s":4.52,"r":38.0,"h":118,"lt":36.9542,"ln":-122.00788,"i":1},{"e":"00:51:33.8","s":4.81,"r":72.0,"h":115,"lt":36.9544,"ln":-122.0074,"i":1},{"e":"00:51:59.0","s":4.65,"r":57.0,"h":116,"lt":36.95461,"ln":-122.00699,"i":1},{"e":"00:52:23.0","s":4.14,"r":23.0,"h":116,"lt":36.95477,"ln":-122.00655,"i":1},{"e":"00:52:54.9","s":4.18,"r":14.0,"h":114,"lt":36.9552,"ln":-122.00617,"i":1},{"e":"00:53:14.0","s":3.87,"r":89.0,"h":114,"lt":36.95542,"ln":-122.0059,"i":1},{"e":"00:53:41.8","s":4.38,"r":24.0,"h":113,"lt":36.95515,"ln":-122.00574,"i":1},{"e":"00:54:10.6","s":5.79,"r":62.0,"h":118,"lt":36.95469,"ln":-122.0062,"i":1},{"e":"00:54:32.9","s":5.03,"r":16.0,"h":121,"lt":36.95449,"ln":-122.00666,"i":1},{"e":"00:55:01.3","s":5.05,"r":20.0,"h":118,"lt":36.95483,"ln":-122.00653,"i":1},{"e":"00:55:17.8","s":4.9,"r":74.0,"h":123,"lt":36.95509,"ln":-122.00625,"i":1},{"e":"00:55:35.8","s":4.97,"r":58.0,"h":130,"lt":36.9554,"ln":-122.00592,"i":1},{"e":"00:55:53.5","s":5.41,"r":61.0,"h":136,"lt":36.95571,"ln":-122.00559,"i":1},{"e":"00:56:09.8","s":5.05,"r":80.0,"h":139,"lt":36.95602,"ln":-122.00533,"i":1},{"e":"00:56:29.9","s":5.35,"r":36.0,"h":143,"lt":36.95642,"ln":-122.00496,"i":1},{"e":"00:56:41.8","s":6.29,"r":106.0,"h":145,"lt":36.95663,"ln":-122.00474,"i":1},{"e":"00:56:58.3","s":5.62,"r":89.0,"h":146,"lt":36.95694,"ln":-122.00444,"i":1},{"e":"00:57:11.9","s":5.7,"r":68.0,"h":148,"lt":36.95718,"ln":-122.00423,"i":1},{"e":"00:57:24.5","s":6.78,"r":74.0,"h":148,"lt":36.95741,"ln":-122.00401,"i":1},{"e":"00:57:39.5","s":5.48,"r":40.0,"h":149,"lt":36.95765,"ln":-122.00375,"i":1},{"e":"00:57:52.1","s":3.89,"r":72.0,"h":149,"lt":36.95786,"ln":-122.00352,"i":1},{"e":"00:58:09.9","s":5.95,"r":75.0,"h":148,"lt":36.95819,"ln":-122.00322,"i":1},{"e":"00:58:25.1","s":6.71,"r":68.0,"h":148,"lt":36.95843,"ln":-122.00295,"i":1},{"e":"00:58:39.8","s":5.66,"r":70.0,"h":149,"lt":36.95868,"ln":-122.00273,"i":1},{"e":"00:58:56.0","s":4.43,"r":84.0,"h":151,"lt":36.95898,"ln":-122.0025,"i":1},{"e":"00:59:08.8","s":4.52,"r":66.0,"h":153,"lt":36.95925,"ln":-122.00235,"i":1},{"e":"00:59:26.5","s":5.39,"r":36.0,"h":153,"lt":36.95963,"ln":-122.00218,"i":1},{"e":"00:59:44.1","s":6.93,"r":89.0,"h":153,"lt":36.95995,"ln":-122.00195,"i":1},{"e":"01:00:01.3","s":6.35,"r":58.0,"h":154,"lt":36.96033,"ln":-122.00176,"i":1},{"e":"01:00:17.1","s":5.17,"r":38.0,"h":153,"lt":36.96066,"ln":-122.00163,"i":1}],"midLat":36.9503,"midLon":-122.0159}];
+let SESSIONS=[];
 
 const PROGRAM={
   2:{id:'intervals',label:'Tuesday · Z2 Intervals',shortLabel:'Tue Intervals',icon:'⚡',color:'#7c6fa0',colorLt:'#ede8f7',zone:'Z2',bungee:false,srTargets:{easy:36,hard:'40–42'},desc:'65–70 min. Main set: 8× split-5 (2min @ 80% RPE 6–7, 1min @ 90% RPE 8, 2min @ 80%). SR targets: 36 spm easy / 40–42 spm hard.',note:null},
@@ -128,32 +642,12 @@ const DLABELS={};
 
 /* ═══════════════════════════════════════════
    LOCALSTORAGE PERSISTENCE
-   Key: pawddle_sessions
+   Key: clubby_sessions
    Value: JSON array of session objects
    Embedded seed sessions (from CSV pre-parse)
    are saved on first load if storage is empty.
 ═══════════════════════════════════════════ */
-var STORAGE_KEY='pawddle_sessions';
-
-function saveToStorage(){
-  /* Strip transient computed properties before persisting.
-     _wx, _tide, strokes contain derived/cached data that must be
-     recomputed from the raw CSV on each load — never persisted. */
-  var TRANSIENT = ['_wx','_tide','strokes','splits','computed'];
-  var clean = SESSIONS.map(function(s){
-    var out = {};
-    Object.keys(s).forEach(function(k){
-      if(TRANSIENT.indexOf(k) === -1) out[k] = s[k];
-    });
-    return out;
-  });
-  /* Write directly to _store to avoid triggering safeStorage's
-     persistData with a potentially incomplete snapshot */
-  _store[STORAGE_KEY] = clean;
-  try{ window._ls.setItem(STORAGE_KEY, JSON.stringify(clean)); }catch(e){}
-  persistData();
-  updateStorageBadge();
-}
+var STORAGE_KEY='clubby_sessions';
 
 function loadFromStorage(){
   try{
@@ -209,16 +703,6 @@ function deleteSession(date){
   if(SEL===date)SEL=SESSIONS.length?SESSIONS[SESSIONS.length-1].date:null;
   saveToStorage();
   PAGE=SEL?'session':'overview';
-  refresh();
-}
-
-function clearAllStorage(){
-  if(!confirm('Delete all saved sessions? The 5 pre-loaded sessions will remain.'))return;
-  try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
-  // Reset to seeds
-  SESSIONS=SEED_SESSIONS.map(function(s){return Object.assign({},s);});
-  saveToStorage();
-  SEL=SESSIONS[SESSIONS.length-1].date;
   refresh();
 }
 
@@ -458,6 +942,7 @@ function render(){
   else if(PAGE==='session')renderSession(el);
   else if(PAGE==='by-focus')renderByFocus(el);
   else if(PAGE==='segments')renderSegments(el);
+  else if(PAGE==='plans') renderPlansPage(el);
 }
 
 /* ═══════════════════════════════════════════
@@ -465,7 +950,7 @@ function render(){
 ═══════════════════════════════════════════ */
 function renderOverview(el){
   var ss=filteredSessions().slice().reverse();
-  if(!ss.length){el.innerHTML='<div class="view"><div class="pt">🐱 Upload your first session!</div></div>';return;}
+  if(!ss.length){el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div></div>';return;}
   var nonB=ss.filter(function(s){return !getFocus(s)||!getFocus(s).bungee;});
   var bOnly=ss.filter(function(s){return getFocus(s)&&getFocus(s).bungee;});
   var bestNB=nonB.length?nonB.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}):null;
@@ -495,7 +980,7 @@ function renderOverview(el){
     rows+='</tr>';
   });
   el.innerHTML='<div class="view">'
-    +'<div class="pt">🐾 Training Overview</div>'
+    +'<div class="pt">🦭 Training Overview</div>'
     +'<div class="ps">Road 2 Worlds · Week 8 · Phase 2 — auto-tagged by day of week. Sessions are saved locally in your browser.</div>'
     +renderDateFilter()
     +'<div class="notice n-orange"><b>🔴 Bungee Thursdays:</b> Speed is intentionally lower. Apr 30 &amp; May 7 only compare to each other. Use "By Focus Type" for clean comparisons.</div>'
@@ -1107,7 +1592,7 @@ document.getElementById('fi').addEventListener('change',function(e){
         SEL=SESSIONS[SESSIONS.length-1].date;
         saveToStorage();
         computeAllTides();
-        showToast('🐾 '+added+' session'+(added>1?'s':'')+' saved!','success');
+        showToast('🦭 '+added+' session'+(added>1?'s':'')+' saved!','success');
         fetchAllWeather(function(){ refresh(); });
       }
       e.target.value='';return;
@@ -1129,8 +1614,10 @@ loadPersistedData(function(){
   loadFromStorage();
   loadTags();
   loadNotes();
+  loadWeeklyPlans();
   computeAllTides();
   SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
+  addSignOutButton();
   fetchAllWeather(function(){ refresh(); });
 });
 /* ═══════════════════════════════════════════
@@ -1138,18 +1625,18 @@ loadPersistedData(function(){
    Free, no key needed, works for ocean coords
    Fetches hourly wind speed + direction + wave
    height for the hour matching session start.
-   Cached in localStorage under pawddle_wx_<date>
+   Cached in localStorage under clubby_wx_<date>
 ═══════════════════════════════════════════ */
-var WX_CACHE_PREFIX='pawddle_wx_';
+var WX_CACHE_PREFIX='clubby_wx_';
 
 /* ═══════════════════════════════════════════
    WEATHER — Open-Meteo Historical API
    Free, no key needed, works for ocean coords
    Fetches hourly wind speed + direction + wave
    height for the hour matching session start.
-   Cached in localStorage under pawddle_wx_<date>
+   Cached in localStorage under clubby_wx_<date>
 ═══════════════════════════════════════════ */
-var WX_CACHE_PREFIX='pawddle_wx_';
+var WX_CACHE_PREFIX='clubby_wx_';
 
 function windDirLabel(deg){
   var dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -1263,12 +1750,12 @@ function wxExposureNote(session){
 
 /* ═══════════════════════════════════════════
    SESSION TAGS — manual overrides
-   Stored in localStorage: pawddle_tags
+   Stored in localStorage: clubby_tags
    Structure: { "20260430": "bungee", "20260507": null }
    null = remove the auto-detected tag entirely
    string = override with this focus id
 ═══════════════════════════════════════════ */
-var TAGS_KEY='pawddle_tags';
+var TAGS_KEY='clubby_tags';
 var SESSION_TAGS={};
 
 function loadTags(){
@@ -1276,14 +1763,6 @@ function loadTags(){
     var raw=localStorage.getItem(TAGS_KEY);
     if(raw)SESSION_TAGS=JSON.parse(raw);
   }catch(e){SESSION_TAGS={};}
-}
-
-function saveTags(){
-  /* Write directly to _store without triggering a full persistData POST.
-     Tags are small — persist immediately via a targeted update. */
-  _store[TAGS_KEY] = SESSION_TAGS;
-  try{ window._ls.setItem(TAGS_KEY, JSON.stringify(SESSION_TAGS)); }catch(e){}
-  persistData();
 }
 
 function setSessionTag(date, focusId){
@@ -1366,9 +1845,9 @@ function wxCell(session){
    
    Fetches high/low tide times for the session
    date and finds the tide state at session start.
-   Cached in localStorage under pawddle_tide_<date>
+   Cached in localStorage under clubby_tide_<date>
 ═══════════════════════════════════════════ */
-var TIDE_CACHE_PREFIX = 'pawddle_tide_';
+var TIDE_CACHE_PREFIX = 'clubby_tide_';
 var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
 
 function fetchTides(session, callback) {
@@ -1393,7 +1872,7 @@ function fetchTides(session, callback) {
     + '&time_zone=lst_ldt'
     + '&interval=hilo'
     + '&units=english'
-    + '&application=pawddle_progress'
+    + '&application=clubby_progress'
     + '&format=json';
 
   fetch(url)
@@ -1496,19 +1975,14 @@ function tideStateColor(state) {
 
 /* ═══════════════════════════════════════════
    SESSION NOTES
-   Stored in localStorage: pawddle_notes
+   Stored in localStorage: clubby_notes
    { "20260509": "Exceptional upwind resistance returning to shore..." }
 ═══════════════════════════════════════════ */
-var NOTES_KEY = 'pawddle_notes';
+var NOTES_KEY = 'clubby_notes';
 var SESSION_NOTES = {};
 
 function loadNotes() {
   try { var r = localStorage.getItem(NOTES_KEY); if (r) SESSION_NOTES = JSON.parse(r); } catch(e) {}
-}
-function saveNotes() {
-  _store[NOTES_KEY] = SESSION_NOTES;
-  try{ window._ls.setItem(NOTES_KEY, JSON.stringify(SESSION_NOTES)); }catch(e){}
-  persistData();
 }
 function setNote(date, text) {
   if (text && text.trim()) SESSION_NOTES[date] = text.trim();
@@ -2253,6 +2727,409 @@ function applyDateFilter() {
   render();
 }
 function clearDateFilter() { FILTER_FROM = null; FILTER_TO = null; render(); }
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════
+   WEEKLY PLAN — Manual form editor, no image recognition.
+   Each week's plan stored under 'clubby_weekly_plans'.
+   getFocus() checks the session's week plan first, then
+   falls back to the base PROGRAM definition.
+═══════════════════════════════════════════════════════════ */
+
+var PLAN_KEY    = 'clubby_weekly_plans';
+var WEEKLY_PLANS = {};
+var DOW_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var ACTIVE_PLAN_WEEK = null;  // which week is open in the editor
+
+/* Focus options the user can pick from */
+var FOCUS_OPTIONS = [
+  { id:'',               label:'— Rest / no session —',     icon:'',   bungee:false },
+  { id:'intervals',      label:'Z2 Intervals',               icon:'⚡', bungee:false },
+  { id:'easy',           label:'Easy Paddle',                icon:'🌿', bungee:false },
+  { id:'bungee',         label:'Bungee Resistance',          icon:'🔴', bungee:true  },
+  { id:'long-z2',        label:'Long Z2 / Downwind',         icon:'🌊', bungee:false },
+  { id:'easy-benchmark', label:'Easy + Z3 Benchmark',        icon:'😌', bungee:false },
+  { id:'race',           label:'Race',                       icon:'🏆', bungee:false },
+  { id:'gym',            label:'Gym / Cross-training',       icon:'🏋️', bungee:false },
+];
+
+/* Days shown in the editor — only paddling days */
+var PLAN_DAYS = [
+  { dow:1, name:'Monday'    },
+  { dow:2, name:'Tuesday'   },
+  { dow:3, name:'Wednesday' },
+  { dow:4, name:'Thursday'  },
+  { dow:5, name:'Friday'    },
+  { dow:6, name:'Saturday'  },
+  { dow:0, name:'Sunday'    },
+];
+
+/* ── ISO week key ── */
+function isoWeek(dateStr) {
+  var y = +dateStr.slice(0,4), m = +dateStr.slice(4,6)-1, d = +dateStr.slice(6,8);
+  var date  = new Date(y,m,d);
+  var jan4  = new Date(date.getFullYear(), 0, 4);
+  var start = new Date(jan4);
+  start.setDate(jan4.getDate() - ((jan4.getDay()+6)%7));
+  var wn = Math.floor(((date - start)/86400000 + 1)/7) + 1;
+  return date.getFullYear() + 'W' + String(wn).padStart(2,'0');
+}
+
+function weekMonday(isoKey) {
+  /* Return the Monday date string for display */
+  var y = +isoKey.slice(0,4), wn = +isoKey.slice(5);
+  var jan4 = new Date(y, 0, 4);
+  var mon  = new Date(jan4);
+  mon.setDate(jan4.getDate() - ((jan4.getDay()+6)%7) + (wn-1)*7);
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[mon.getMonth()] + ' ' + mon.getDate() + ', ' + mon.getFullYear();
+}
+
+function loadWeeklyPlans() {
+  try {
+    var raw = _store[PLAN_KEY] || null;
+    if (!raw) { try { raw = window._ls.getItem(PLAN_KEY); } catch(e){} }
+    if (raw) WEEKLY_PLANS = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch(e) { WEEKLY_PLANS = {}; }
+}
+
+function buildFocusFromDay(day, dow) {
+  /* Build a focus object compatible with what the rest of the app expects */
+  var base = PROGRAM[dow] || {};
+  var opt  = FOCUS_OPTIONS.filter(function(o){ return o.id === day.id; })[0] || {};
+  return {
+    id:         day.id,
+    label:      DOW_NAMES[dow] + ' · ' + (opt.label || day.id),
+    shortLabel: opt.label || day.id,
+    icon:       opt.icon  || base.icon  || '📅',
+    color:      base.color   || '#9b8bb8',
+    colorLt:    base.colorLt || '#f0eaf9',
+    bungee:     opt.bungee   || false,
+    srTargets:  day.srTargets || null,
+    desc:       day.desc || '',
+    note:       null,
+  };
+}
+
+/* ── Render the Plans page ── */
+function renderPlansPage(el) {
+  var weeks  = Object.keys(WEEKLY_PLANS).sort().reverse();
+  var html = '<div class="view"><div class="pt">📋 Weekly Plans</div>'
+    + '<div class="ps">Set the workout schedule for each week. Sessions are automatically tagged by day — no manual tagging needed.</div>';
+
+  /* Add new week button */
+  html += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">';
+  html += '<button onclick="openNewPlan()" style="font-family:var(--font);font-size:12px;font-weight:800;'
+        + 'padding:10px 20px;border-radius:var(--r-pill);border:none;background:var(--lav);color:var(--plum);cursor:pointer">'
+        + '＋ Add week plan</button>';
+  if (weeks.length) {
+    html += '<span style="font-size:11px;font-weight:600;color:var(--gm)">'
+          + weeks.length + ' week' + (weeks.length>1?'s':'') + ' saved</span>';
+  }
+  html += '</div>';
+
+  /* Editor slot (shown when adding/editing) */
+  html += '<div id="plan-editor-slot"></div>';
+
+  /* Saved plans list */
+  if (weeks.length) {
+    weeks.forEach(function(wk) {
+      html += renderPlanCard(wk, WEEKLY_PLANS[wk]);
+    });
+  } else {
+    html += '<div class="notice n-purple">No weekly plans saved yet. Click <b>Add week plan</b> to set up your first week.</div>';
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+
+  /* If a plan was being edited, re-open it */
+  if (ACTIVE_PLAN_WEEK) openPlanEditor(ACTIVE_PLAN_WEEK);
+}
+
+function renderPlanCard(wk, plan) {
+  var days = plan.days || {};
+  var dayOrder = [1,2,3,4,5,6,0];
+  var html = '<div class="card" id="plan-card-'+wk+'">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
+  html += '<div>';
+  html += '<div style="font-size:14px;font-weight:900;color:var(--plum)">Week of ' + weekMonday(wk) + '</div>';
+  html += '<div style="font-size:10px;font-weight:600;color:var(--gm)">' + wk + '</div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="openPlanEditor(\''+wk+'\')" style="font-family:var(--font);font-size:11px;font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--lav-md);background:var(--lav-lt);color:var(--plum);cursor:pointer">✏️ Edit</button>';
+  html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:11px;font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">Remove</button>';
+  html += '</div></div>';
+
+  /* Day tiles */
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">';
+  dayOrder.forEach(function(dow) {
+    var day = days[dow];
+    var dayName = DOW_NAMES[dow];
+    if (!day || !day.id) {
+      html += '<div style="background:var(--cloud);border:1.5px dashed var(--lav-lt);border-radius:8px;padding:10px 12px;opacity:.5">';
+      html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">' + dayName + '</div>';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-top:2px">Rest</div>';
+      html += '</div>';
+      return;
+    }
+    var base = PROGRAM[dow] || {};
+    var opt  = FOCUS_OPTIONS.filter(function(o){ return o.id===day.id; })[0] || {};
+    var col  = base.color   || '#9b8bb8';
+    var colLt = base.colorLt || '#f0eaf9';
+    html += '<div style="background:'+colLt+';border:1.5px solid '+col+'44;border-radius:8px;padding:10px 12px">';
+    html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:'+col+'">' + dayName + '</div>';
+    html += '<div style="font-size:12px;font-weight:800;color:var(--ink);margin-top:2px">' + (opt.icon||'') + ' ' + escHtml(opt.label||day.id) + '</div>';
+    if (day.desc) html += '<div style="font-size:10px;font-weight:600;color:var(--gt);margin-top:3px;line-height:1.4">' + escHtml(day.desc.slice(0,80)) + (day.desc.length>80?'…':'') + '</div>';
+    if (opt.bungee) html += '<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:2px">🔴 bungee</div>';
+    if (day.srTargets) html += '<div style="font-size:9px;font-weight:700;color:var(--gm);margin-top:2px">SR: ' + day.srTargets.easy + '/' + day.srTargets.hard + ' spm</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+/* ── Editor ── */
+function openNewPlan() {
+  /* Default to current week */
+  var now = new Date();
+  var ds  = now.getFullYear()
+          + String(now.getMonth()+1).padStart(2,'0')
+          + String(now.getDate()).padStart(2,'0');
+  ACTIVE_PLAN_WEEK = isoWeek(ds);
+  openPlanEditor(ACTIVE_PLAN_WEEK);
+}
+
+function openPlanEditor(wk) {
+  ACTIVE_PLAN_WEEK = wk;
+  var slot = document.getElementById('plan-editor-slot');
+  if (!slot) return;
+  var plan = WEEKLY_PLANS[wk] || { days: {} };
+
+  /* Week selector */
+  /* Build a list of week options: current week ±8 weeks */
+  var now = new Date();
+  var weekOptions = '';
+  for (var delta = -4; delta <= 8; delta++) {
+    var d = new Date(now);
+    d.setDate(d.getDate() - d.getDay() + 1 + delta*7);  /* Monday */
+    var ds2 = d.getFullYear()
+            + String(d.getMonth()+1).padStart(2,'0')
+            + String(d.getDate()).padStart(2,'0');
+    var wk2 = isoWeek(ds2);
+    var lbl = 'Week of ' + weekMonday(wk2) + (delta===0?' (this week)':delta<0?' (past)':' (upcoming)');
+    weekOptions += '<option value="'+wk2+'"'+(wk2===wk?' selected':'')+'>'+lbl+'</option>';
+  }
+
+  var html = '<div class="card" style="border-color:var(--lav-md);margin-bottom:16px">';
+  html += '<div class="ct-title" style="margin-bottom:2px">✏️ ' + (WEEKLY_PLANS[wk] ? 'Edit' : 'New') + ' week plan</div>';
+
+  /* Week picker */
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
+  html += '<label style="font-size:11px;font-weight:800;color:var(--plum)">Week:</label>';
+  html += '<select id="plan-week-select" onchange="switchPlanWeek(this.value)" style="font-family:var(--font);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">';
+  html += weekOptions + '</select>';
+  html += '</div>';
+
+  /* Day rows */
+  html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">';
+  PLAN_DAYS.forEach(function(d) {
+    var day = (plan.days||{})[d.dow] || {};
+    var focusOpts = FOCUS_OPTIONS.map(function(o) {
+      return '<option value="'+o.id+'"'+(o.id===day.id?' selected':'')+'>'+o.icon+' '+o.label+'</option>';
+    }).join('');
+
+    html += '<div style="display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:start;padding:10px 12px;background:var(--lilac2);border-radius:10px;border:1.5px solid var(--lav-lt)">';
+    html += '<div style="font-size:12px;font-weight:800;color:var(--ink);padding-top:6px">' + d.name + '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px">';
+
+    /* Focus type dropdown */
+    html += '<select data-dow="'+d.dow+'" data-field="id" onchange="updatePlanDay(this)" '
+          + 'style="font-family:var(--font);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
+          + focusOpts + '</select>';
+
+    /* Description textarea — only shown if not rest */
+    var isRest = !day.id;
+    html += '<textarea data-dow="'+d.dow+'" data-field="desc" onchange="updatePlanDay(this)" '
+          + 'placeholder="Session description, e.g. 70 min · 3×10 min bungee sets · Z2–Z3" rows="2" '
+          + (isRest ? 'style="display:none;' : 'style="')
+          + 'font-family:var(--font);font-size:11px;font-weight:600;padding:7px 10px;border-radius:8px;'
+          + 'border:1.5px solid var(--lav);background:var(--white);color:var(--ink);resize:vertical;width:100%;box-sizing:border-box">'
+          + escHtml(day.desc||'') + '</textarea>';
+
+    /* SR targets (optional) — only for interval-type sessions */
+    var showSR = (day.id==='intervals');
+    html += '<div data-dow="'+d.dow+'" data-srrow="1" style="display:'+(showSR?'flex':'none')+';align-items:center;gap:6px;flex-wrap:wrap">';
+    html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">SR targets:</span>';
+    html += '<input type="text" data-dow="'+d.dow+'" data-field="sr_easy" onchange="updatePlanDay(this)" '
+          + 'placeholder="easy (e.g. 36)" value="'+escHtml(day.srTargets?String(day.srTargets.easy):'')+'" '
+          + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
+    html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">/</span>';
+    html += '<input type="text" data-dow="'+d.dow+'" data-field="sr_hard" onchange="updatePlanDay(this)" '
+          + 'placeholder="hard (e.g. 40-42)" value="'+escHtml(day.srTargets?String(day.srTargets.hard):'')+'" '
+          + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
+    html += '</div>';
+
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  /* Save / Cancel buttons */
+  html += '<div style="display:flex;gap:10px">';
+  html += '<button onclick="savePlanFromEditor()" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save plan</button>';
+  html += '<button onclick="closePlanEditor()" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Cancel</button>';
+  if (WEEKLY_PLANS[wk]) {
+    html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer;margin-left:auto">Remove this week</button>';
+  }
+  html += '</div>';
+  html += '</div>';
+  slot.innerHTML = html;
+
+  /* Scroll editor into view */
+  slot.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function switchPlanWeek(newWk) {
+  ACTIVE_PLAN_WEEK = newWk;
+  openPlanEditor(newWk);
+}
+
+function updatePlanDay(el) {
+  var dow   = +el.dataset.dow;
+  var field = el.dataset.field;
+  var val   = el.value;
+  var plan  = WEEKLY_PLANS[ACTIVE_PLAN_WEEK] || { days:{} };
+  if (!plan.days) plan.days = {};
+  if (!plan.days[dow]) plan.days[dow] = {};
+
+  if (field === 'id') {
+    plan.days[dow].id = val;
+    /* Show/hide desc textarea and SR row */
+    var allDesc = document.querySelectorAll('textarea[data-dow="'+dow+'"]');
+    var allSR   = document.querySelectorAll('[data-srrow][data-dow="'+dow+'"]');
+    allDesc.forEach(function(t){ t.style.display = val ? '' : 'none'; });
+    allSR.forEach(function(r){ r.style.display = (val==='intervals') ? 'flex' : 'none'; });
+  } else if (field === 'desc') {
+    plan.days[dow].desc = val;
+  } else if (field === 'sr_easy') {
+    if (!plan.days[dow].srTargets) plan.days[dow].srTargets = {};
+    plan.days[dow].srTargets.easy = isNaN(+val) ? val : +val;
+  } else if (field === 'sr_hard') {
+    if (!plan.days[dow].srTargets) plan.days[dow].srTargets = {};
+    plan.days[dow].srTargets.hard = val;
+  }
+
+  /* Remove day entirely if set back to rest */
+  if (field === 'id' && !val) {
+    delete plan.days[dow];
+  }
+
+  WEEKLY_PLANS[ACTIVE_PLAN_WEEK] = plan;
+}
+
+function savePlanFromEditor() {
+  var wk   = ACTIVE_PLAN_WEEK;
+  var plan = WEEKLY_PLANS[wk] || { days:{} };
+  /* Read all current field values from DOM */
+  document.querySelectorAll('[data-dow][data-field]').forEach(function(el) {
+    updatePlanDay(el);
+  });
+  plan = WEEKLY_PLANS[wk] || { days:{} };
+  /* Remove days with empty id */
+  Object.keys(plan.days||{}).forEach(function(dow) {
+    if (!plan.days[dow] || !plan.days[dow].id) delete plan.days[dow];
+  });
+  WEEKLY_PLANS[wk] = plan;
+  saveWeeklyPlans();
+  closePlanEditor();
+  refresh();
+  showToast('📋 Plan saved for week of ' + weekMonday(wk), 'success');
+}
+
+function closePlanEditor() {
+  ACTIVE_PLAN_WEEK = null;
+  var slot = document.getElementById('plan-editor-slot');
+  if (slot) slot.innerHTML = '';
+}
+
+function deletePlan(wk) {
+  if (!confirm('Remove plan for week of ' + weekMonday(wk) + '?')) return;
+  delete WEEKLY_PLANS[wk];
+  saveWeeklyPlans();
+  ACTIVE_PLAN_WEEK = null;
+  refresh();
+}
+
+
+
+/* ── Mobile helpers ── */
+var _mobSessOpen = false;
+
+function mobSelSess(date){ selSess(date); toggleMobSessions(); }
+function toggleMobSessions() {
+  _mobSessOpen = !_mobSessOpen;
+  var drawer = document.getElementById('mob-sess-drawer');
+  if (drawer) drawer.style.display = _mobSessOpen ? 'block' : 'none';
+  /* Populate the mobile session list */
+  if (_mobSessOpen) {
+    var listEl = document.getElementById('mob-sess-list');
+    if (listEl) {
+      var h = '';
+      SESSIONS.slice().reverse().forEach(function(s) {
+        var f = getFocus(s); var fc = f ? f.color : '#9b8bb8';
+        var active = (SEL===s.date && PAGE==='session') ? 'active' : '';
+        h += '<div class="si '+active+'" data-date="'+s.date+'" onclick="mobSelSess(this.dataset.date)">'
+           + '<span class="si-spd" style="color:'+fc+'">'+s.avgSpeed.toFixed(2)+'</span>'
+           + '<div class="si-date">'+dateLabel(s.date)+'</div>'
+           + '<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+'</div>'
+           + '</div>';
+      });
+      listEl.innerHTML = h;
+    }
+  }
+}
+
+/* Sync mobile bottom nav active state */
+function updateMobNav() {
+  document.querySelectorAll('.mob-nb').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.page === PAGE);
+  });
+  /* __sessions button active when drawer open */
+  var sessBtn = document.querySelector('.mob-nb[data-page="__sessions"]');
+  if (sessBtn) sessBtn.classList.toggle('active', _mobSessOpen);
+}
+
+/* Close sessions drawer on outside tap */
+document.addEventListener('click', function(e) {
+  if (!_mobSessOpen) return;
+  var drawer = document.getElementById('mob-sess-drawer');
+  var btn    = document.querySelector('.mob-nb[data-page="__sessions"]');
+  if (drawer && !drawer.contains(e.target) && btn && !btn.contains(e.target)) {
+    _mobSessOpen = false;
+    drawer.style.display = 'none';
+    updateMobNav();
+  }
+});
+
+/* Patch nav() and selSess() to also update mobile nav */
+var _navBase = nav;
+nav = function(p) {
+  _mobSessOpen = false;
+  var d = document.getElementById('mob-sess-drawer');
+  if (d) d.style.display = 'none';
+  _navBase(p);
+  updateMobNav();
+};
+
+var _selSessBase = selSess;
+selSess = function(date) {
+  _selSessBase(date);
+  updateMobNav();
+};
+
 
 
 
