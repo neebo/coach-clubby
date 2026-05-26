@@ -328,6 +328,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -613,17 +614,64 @@ function sbRestoreSession(cb) {
     var raw = localStorage.getItem('sb_session');
     if (raw) {
       var sess = JSON.parse(raw);
-      /* Check if access token is still fresh (JWT exp claim) */
-      var parts = (sess.access_token || '').split('.');
+      if (!sess.access_token) { cb(null, null); return; }
+
+      /* Try to check expiry from JWT payload (standard access tokens) */
+      var expired = false;
+      var parts = sess.access_token.split('.');
       if (parts.length === 3) {
-        var payload = JSON.parse(atob(parts[1]));
-        var expiresAt = payload.exp * 1000;
-        if (Date.now() < expiresAt - 60000) {
-          SB_SESSION = sess;
-          cb(null, sess);
-          return;
+        try {
+          /* Pad base64 string to valid length before decoding */
+          var b64 = parts[1].replace(/-/g,'+').replace(/_/g,'/');
+          while (b64.length % 4) b64 += '=';
+          var payload = JSON.parse(atob(b64));
+          if (payload.exp) {
+            expired = Date.now() > (payload.exp * 1000 - 60000);
+          }
+        } catch(e) {
+          /* Non-JWT token (e.g. Supabase publishable key format) —
+             can't decode expiry, so treat as valid and let the API
+             reject it if truly expired */
+          expired = false;
         }
       }
+
+      if (!expired) {
+        /* Token looks valid — verify with Supabase by fetching the user */
+        fetch(SUPABASE_URL + '/auth/v1/user', {
+          headers: {
+            'apikey':        SUPABASE_KEY,
+            'Authorization': 'Bearer ' + sess.access_token,
+          }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(user) {
+          if (user && user.id) {
+            /* Ensure user object is populated */
+            sess.user = user;
+            SB_SESSION = sess;
+            try { localStorage.setItem('sb_session', JSON.stringify(sess)); } catch(e) {}
+            cb(null, sess);
+          } else if (sess.refresh_token) {
+            sbRefresh(sess.refresh_token, cb);
+          } else {
+            cb(null, null);
+          }
+        })
+        .catch(function() {
+          /* Network error — trust the stored session optimistically */
+          if (sess.user && sess.user.id) {
+            SB_SESSION = sess;
+            cb(null, sess);
+          } else if (sess.refresh_token) {
+            sbRefresh(sess.refresh_token, cb);
+          } else {
+            cb(null, null);
+          }
+        });
+        return;
+      }
+
       /* Token expired — try refresh */
       if (sess.refresh_token) {
         sbRefresh(sess.refresh_token, cb);
@@ -631,7 +679,7 @@ function sbRestoreSession(cb) {
       }
     }
   } catch(e) {}
-  cb(null, null);  /* no session */
+  cb(null, null);
 }
 
 /* ── Replace storage layer with Supabase ── */
@@ -4044,6 +4092,7 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
 
 
 
