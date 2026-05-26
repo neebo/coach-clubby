@@ -332,6 +332,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -390,7 +391,15 @@ function sbGet(key, token, cb) {
   fetch(SUPABASE_URL + '/rest/v1/user_data?key=eq.' + encodeURIComponent(key) + '&select=value', {
     headers: sbHeaders(token)
   })
-  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(t) {
+        console.error('[sbGet] HTTP', r.status, 'key:', key, 'body:', t.slice(0,120));
+        throw new Error(r.status + ': ' + t.slice(0,80));
+      });
+    }
+    return r.json();
+  })
   .then(function(rows) { cb(null, rows.length ? rows[0].value : null); })
   .catch(function(e)  { cb(e, null); });
 }
@@ -762,19 +771,19 @@ function loadAllSessionDetails(sessions, cb) {
 
 /* Override the storage functions used throughout the app */
 function loadPersistedData(cb) {
-  /* First check if we're arriving from a verification/recovery email link */
   handleAuthRedirect(function(wasRedirect) {
     if (wasRedirect && SB_SESSION) {
-      /* Came from email link and have a valid session — load data */
+      console.log('[auth] arrived via email redirect, user:', SB_SESSION.user && SB_SESSION.user.email);
       _loadUserData(cb);
       return;
     }
     sbRestoreSession(function(err, sess) {
-    if (err || !sess) {
-      showAuthScreen();
-      return;
-    }
-    _loadUserData(cb);
+      console.log('[auth] sbRestoreSession result:', err ? 'ERROR:'+err : sess ? 'OK user='+((sess.user||{}).email||'?') : 'NO SESSION');
+      if (err || !sess) {
+        showAuthScreen();
+        return;
+      }
+      _loadUserData(cb);
     });
   });
 }
@@ -783,15 +792,21 @@ function _loadUserData(cb) {
   var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY];
   var loaded = 0;
   _store = {};
+  console.log('[load] _loadUserData start, token:', sbToken() ? sbToken().slice(0,20)+'...' : 'NULL');
   keys.forEach(function(k) {
     sbGet(k, sbToken(), function(err2, val) {
-      if (!err2 && val !== null) _store[k] = val;
+      if (err2) {
+        console.error('[load] sbGet error for key:', k, err2.message || err2);
+      } else {
+        console.log('[load] sbGet', k, '->', val === null ? 'null' : typeof val);
+        if (!err2 && val !== null) _store[k] = val;
+      }
       if (++loaded === keys.length) {
-        /* Now load full stroke data for each session */
         var sessions = _store[STORAGE_KEY] || [];
+        console.log('[load] sessions in store:', sessions.length);
         loadAllSessionDetails(sessions, function() {
-          /* Merge strokes back into _store */
           _store[STORAGE_KEY] = sessions;
+          console.log('[load] _loadUserData complete, sessions:', sessions.length);
           cb();
         });
       }
@@ -4096,6 +4111,7 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
 
 
 
