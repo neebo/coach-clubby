@@ -350,6 +350,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -4429,38 +4430,37 @@ function _parseFITBuffer(view, bytes, filename) {
 
   /* ── Decode helpers ── */
   function readVal(pos, size, base, be) {
+    /* Bounds check — return null for any read that would go past end of buffer */
+    if (pos < 0 || pos + size > bytes.length) return null;
     var b = base & 0x9F;
-    if (size === 1) {
-      if (b===0x01) return view.getInt8(pos);
-      return bytes[pos];
-    }
-    if (size === 2) {
-      if (b===0x83||b===0x8C||b===0x03) return view.getInt16(pos, !be);
-      return view.getUint16(pos, !be);
-    }
-    if (size === 4) {
-      if (b===0x83) {
-        var v=view.getInt32(pos,!be); return v===0x7FFFFFFF?null:v;
+    try {
+      if (size === 1) {
+        if (b===0x01) return view.getInt8(pos);
+        return bytes[pos];
       }
-      if (b===0x84) {
+      if (size === 2) {
+        if (b===0x83||b===0x8C||b===0x03) return view.getInt16(pos, !be);
+        return view.getUint16(pos, !be);
+      }
+      if (size === 4) {
+        if (b===0x83) {
+          var v=view.getInt32(pos,!be); return v===0x7FFFFFFF?null:v;
+        }
+        if (b===0x84) {
+          var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
+        }
+        if (b===0x86) return view.getFloat32(pos,!be);
         var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
       }
-      if (b===0x86) return view.getFloat32(pos,!be);
-      var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
-    }
-    if (size === 8) {
-      /* Read as two 32-bit values */
-      return null;
-    }
-    if (b===0x07) {
-      /* string */
-      var s='';
-      for(var i=0;i<size;i++) { var c=bytes[pos+i]; if(c===0)break; s+=String.fromCharCode(c); }
-      return s;
-    }
-    /* fallback: first 4 bytes as uint32 */
-    if (size>=4) { var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v; }
-    return bytes[pos];
+      if (size === 8) { return null; }
+      if (b===0x07) {
+        var s='';
+        for(var i=0;i<size;i++) { var c=bytes[pos+i]; if(c===0)break; s+=String.fromCharCode(c); }
+        return s;
+      }
+      if (size>=4) { var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v; }
+      return bytes[pos];
+    } catch(e) { return null; }
   }
 
   /* FIT timestamp epoch: 1989-12-31 00:00:00 UTC in ms */
@@ -4499,6 +4499,10 @@ function _parseFITBuffer(view, bytes, filename) {
       var def = definitions[localNum];
       if (!def) { pos += 1; continue; }
 
+      /* Check if the full record fits in the buffer; skip if not */
+      var rowSize = 0;
+      for (var fi=0; fi<def.fields.length; fi++) rowSize += def.fields[fi].size;
+      if (pos + rowSize > bytes.length) { pos += rowSize; continue; }
       var row = {};
       for (var fi=0; fi<def.fields.length; fi++) {
         var f = def.fields[fi];
@@ -4710,6 +4714,7 @@ function fitDataToSession(data, filename) {
     _source:        'fit',
   };
 }
+
 
 
 
