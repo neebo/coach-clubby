@@ -331,6 +331,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -372,7 +373,8 @@ var WEEKLY_PLANS   = {};
 var USER_PREFS     = { defaultCraft: 'OC1' };
 var SESSION_CRAFTS = {};
    // e.g. https://xyzxyz.supabase.co
-var SUPABASE_KEY = 'sb_publishable_uvX8awTNtVI86e9Q0xcORw_xjP4qIC5';
+var SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlcHN2b21jYWZ5anhzdXpkaHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NTYxNzIsImV4cCI6MjA5NTMzMjE3Mn0.748_xFf5FUiUvAICfUFmkkwhm3tTLLhvZBM98oxfUOY';   /* anon JWT — for /rest/v1/ data API */
+var SUPABASE_AUTH = 'sb_publishable_uvX8awTNtVI86e9Q0xcORw_xjP4qIC5'; /* publishable key — for /auth/v1/ endpoints */
 
 /* ── Supabase REST helpers (no SDK needed — plain fetch) ── */
 function sbHeaders(token) {
@@ -4094,6 +4096,7 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
 
 
 
