@@ -205,6 +205,14 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   border-radius:14px;
 }
 #dnd-ghost .drag-handle { display:none; }
+
+@keyframes auth-shake {
+  0%,100%{ transform:translateX(0); }
+  20%     { transform:translateX(-6px); }
+  40%     { transform:translateX(6px); }
+  60%     { transform:translateX(-4px); }
+  80%     { transform:translateX(4px); }
+}
 </style>
 </head>
 <body>
@@ -228,6 +236,10 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
 
 
 
@@ -357,12 +369,19 @@ function sbSignUp(email, password, cb) {
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
     body: JSON.stringify({ email: email, password: password })
   })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.error) { cb(d.error.message || d.error, null); return; }
+  .then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  })
+  .then(function(res) {
+    var d = res.data;
+    if (res.status >= 400 || d.error) {
+      var msg = (d.error && d.error.message) || d.msg || d.message || d.error || 'Sign up failed';
+      cb(msg, null);
+      return;
+    }
     cb(null, d);
   })
-  .catch(function(e) { cb(e.message, null); });
+  .catch(function(e) { cb(e.message || 'Network error', null); });
 }
 
 /* Sign in */
@@ -372,14 +391,22 @@ function sbSignIn(email, password, cb) {
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
     body: JSON.stringify({ email: email, password: password })
   })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.error || d.error_description) { cb(d.error_description || d.error, null); return; }
+  .then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  })
+  .then(function(res) {
+    var d = res.data;
+    if (res.status >= 400 || d.error || d.error_description) {
+      /* Prefer the most descriptive field available */
+      var msg = d.error_description || d.msg || d.message || d.error || 'Sign in failed';
+      cb(msg, null);
+      return;
+    }
     SB_SESSION = d;
     try { localStorage.setItem('sb_session', JSON.stringify(d)); } catch(e) {}
     cb(null, d);
   })
-  .catch(function(e) { cb(e.message, null); });
+  .catch(function(e) { cb(e.message || 'Network error', null); });
 }
 
 /* Sign out */
@@ -630,7 +657,7 @@ function loadPersistedData(cb) {
 }
 
 function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY];
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY];
   var loaded = 0;
   _store = {};
   keys.forEach(function(k) {
@@ -691,7 +718,7 @@ function saveWeeklyPlans() {
 function clearAllStorage() {
   if (!confirm('Delete all your saved data and start fresh?')) return;
   /* Delete all known keys from Supabase */
-  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY];
+  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY];
   allKeys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
   /* Delete per-session detail rows */
   SESSIONS.forEach(function(s) { deleteSessionDetail(s.date); });
@@ -747,7 +774,7 @@ function renderAuthForm(mode) {
     'padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:16px"></div>',
 
     '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Email</label>',
-    '<input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email"',
+    '<input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" oninput="authClearError()"',
     ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
     'font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink);',
     'background:var(--white);margin-bottom:12px;box-sizing:border-box">',
@@ -795,9 +822,61 @@ function authTab(mode) {
   if (form) form.innerHTML = renderAuthForm(mode);
 }
 
-function authError(msg) {
+function authError(msg, field) {
+  /* Map raw Supabase error strings to friendly messages */
+  var friendly = msg;
+  var rawLower = (msg||'').toLowerCase();
+  if (rawLower.indexOf('invalid login') >= 0 || rawLower.indexOf('invalid credentials') >= 0) {
+    friendly = '❌ Wrong email or password. Please try again.';
+    field = field || 'both';
+  } else if (rawLower.indexOf('email not confirmed') >= 0) {
+    friendly = '📬 Please verify your email before signing in. Check your inbox for the verification link.';
+  } else if (rawLower.indexOf('user not found') >= 0 || rawLower.indexOf('no user found') >= 0) {
+    friendly = '❌ No account found with that email address.';
+    field = field || 'email';
+  } else if (rawLower.indexOf('already registered') >= 0 || rawLower.indexOf('already been registered') >= 0) {
+    friendly = '⚠️ An account with this email already exists. Try signing in instead.';
+    field = field || 'email';
+  } else if (rawLower.indexOf('password') >= 0 && rawLower.indexOf('least') >= 0) {
+    friendly = '⚠️ Password must be at least 6 characters.';
+    field = field || 'pw';
+  } else if (rawLower.indexOf('rate limit') >= 0 || rawLower.indexOf('too many') >= 0) {
+    friendly = '⏳ Too many attempts. Please wait a minute and try again.';
+  } else if (rawLower.indexOf('network') >= 0 || rawLower.indexOf('failed to fetch') >= 0) {
+    friendly = '🌐 Connection error. Check your internet and try again.';
+  } else if (rawLower.indexOf('signup') >= 0 && rawLower.indexOf('disabled') >= 0) {
+    friendly = '⚠️ New sign-ups are currently disabled. Contact the app owner.';
+  }
+
+  /* Show error message */
   var el = document.getElementById('auth-err');
-  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  if (el) {
+    el.textContent = friendly;
+    el.style.display = 'block';
+    /* Shake animation */
+    el.style.animation = 'none';
+    el.offsetHeight; /* reflow */
+    el.style.animation = 'auth-shake .4s ease';
+  }
+
+  /* Highlight relevant fields */
+  var errStyle = '1.5px solid #c0406a';
+  var normStyle = '1.5px solid var(--lav)';
+  var emailEl = document.getElementById('auth-email');
+  var pwEl    = document.getElementById('auth-pw');
+  var pw2El   = document.getElementById('auth-pw2');
+  if (emailEl) emailEl.style.border = (field==='email'||field==='both') ? errStyle : normStyle;
+  if (pwEl)    pwEl.style.border    = (field==='pw'   ||field==='both') ? errStyle : normStyle;
+  if (pw2El)   pw2El.style.border   = (field==='pw2'  ||field==='both') ? errStyle : normStyle;
+}
+
+function authClearError() {
+  var el = document.getElementById('auth-err');
+  if (el) { el.style.display='none'; el.textContent=''; }
+  ['auth-email','auth-pw','auth-pw2'].forEach(function(id){
+    var f = document.getElementById(id);
+    if (f) f.style.border = '1.5px solid var(--lav)';
+  });
 }
 
 function authSubmit(mode) {
@@ -811,6 +890,7 @@ function authSubmit(mode) {
   if (pw.length < 6) { authError('Password must be at least 6 characters.'); return; }
 
   if (btn) { btn.textContent = '…'; btn.disabled = true; }
+  authClearError();
 
   if (mode === 'signup') {
     sbSignUp(email, pw, function(err, data) {
@@ -1280,53 +1360,59 @@ function render(){
 ═══════════════════════════════════════════ */
 function renderOverview(el){
   var ss=filteredSessions().slice().reverse();
-  if(!ss.length){el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div><div class="ps">Supports SpeedCoach <b>.csv</b> files and Garmin/Suunto <b>.fit</b> files.</div></div>';return;}
-  var nonB=ss.filter(function(s){return !getFocus(s)||!getFocus(s).bungee;});
-  var bOnly=ss.filter(function(s){return getFocus(s)&&getFocus(s).bungee;});
-  var bestNB=nonB.length?nonB.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}):null;
-  var bestB=bOnly.length?bOnly.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}):null;
-  var totalDist=ss.reduce(function(a,s){return a+s.totalDist;},0);
-  var rows='';
+  if(!ss.length){
+    el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div>'
+      +'<div class="ps">Supports SpeedCoach <b>.csv</b> files and Garmin/Suunto <b>.fit</b> files.</div></div>';
+    return;
+  }
+  var nonB    = ss.filter(function(s){ return !getFocus(s)||!getFocus(s).bungee; });
+  var bOnly   = ss.filter(function(s){ return getFocus(s)&&getFocus(s).bungee; });
+  var bestNB  = nonB.length ? nonB.reduce(function(m,s){ return s.avgSpeed>m.avgSpeed?s:m; }) : null;
+  var bestB   = bOnly.length ? bOnly.reduce(function(m,s){ return s.avgSpeed>m.avgSpeed?s:m; }) : null;
+  var totalDist = ss.reduce(function(a,s){ return a+s.totalDist; }, 0);
+
+  /* Build rows for the sessions table */
+  var rows = '';
   ss.forEach(function(s){
-    var f=getFocus(s);
-    var sameType=f?ss.filter(function(x){var xf=getFocus(x);return xf&&xf.id===f.id&&x.date!==s.date;}).map(function(x){return dateLabel(x.date);}):[];
-    rows+='<tr class="sess-row" data-date="'+s.date+'" style="cursor:pointer">';
-    rows+='<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>';
-    rows+='<td>'+focusPill(s)+'</td>';
-    rows+='<td>'+s.totalDist.toFixed(2)+' mi</td>';
-    rows+='<td>'+s.elapsed.split('.')[0]+'</td>';
-    rows+='<td class="td-spd" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+' mph'+(f&&f.bungee?' 🔴':'')+'</td>';
-    rows+='<td>'+s.avgStrokeRate.toFixed(0)+' spm</td>';
-    rows+='<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gt)">'+(s._tide?tideCell(s):'—')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>';
-    var noteSnip=getNote(s.date);
-    rows+='<td style="font-size:10px;color:var(--gt);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(noteSnip?'📝 '+escHtml(noteSnip.slice(0,60))+(noteSnip.length>60?'…':''):'')+'</td>';
-    var nSnip=getNote(s.date);
-    rows+='<td style="font-size:10px;color:var(--gt)">'+(nSnip?'\uD83D\uDCDD '+escHtml(nSnip.slice(0,50)):'')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gm)">'+(sameType.length?sameType.join(', '):'only one so far')+'</td>';
-    rows+='<td><button class="del-sess" data-date="'+s.date+'" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:.35;font-family:Nunito,sans-serif;" title="Remove session">🗑</button></td>';
-    rows+='</tr>';
+    var f = getFocus(s);
+    var sameType = f ? ss.filter(function(x){
+      var xf=getFocus(x); return xf&&xf.id===f.id&&x.date!==s.date;
+    }).map(function(x){ return dateLabel(x.date); }) : [];
+    var noteSnip = getNote(s.date);
+    rows += '<tr class="sess-row" data-date="'+s.date+'" style="cursor:pointer">'
+      +'<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>'
+      +'<td>'+focusPill(s)+'</td>'
+      +'<td style="font-size:11px;font-weight:800;color:var(--plum)">'+getCraft(s)+'</td>'
+      +'<td>'+s.totalDist.toFixed(2)+' mi</td>'
+      +'<td>'+s.elapsed.split('.')[0]+'</td>'
+      +'<td class="td-spd" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+' mph'+(f&&f.bungee?' 🔴':'')+'</td>'
+      +'<td>'+s.avgStrokeRate.toFixed(0)+' spm</td>'
+      +'<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>'
+      +'<td style="font-size:10px;color:var(--gm)">'+(s._tide?tideCell(s):'—')+'</td>'
+      +'<td style="font-size:10px;color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>'
+      +'<td style="font-size:10px;color:var(--gt);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+        +(noteSnip?'📝 '+escHtml(noteSnip.slice(0,50))+(noteSnip.length>50?'…':''):'')+'</td>'
+      +'<td style="font-size:10px;color:var(--gm)">'+(sameType.length?sameType.join(', '):'—')+'</td>'
+      +'<td><button class="del-sess" data-date="'+s.date+'" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:.35;font-family:Nunito,sans-serif;" title="Remove">🗑</button></td>'
+      +'</tr>';
   });
-  el.innerHTML='<div class="view">'
-    +'<div class="pt">🦭 Training Overview</div>'
-    +'<div class="ps">Road 2 Worlds · Week 8 · Phase 2 — auto-tagged by day of week. Sessions are saved locally in your browser.</div>'
+
+  /* Build the view shell — header, filter, notice */
+  var viewDiv = document.createElement('div');
+  viewDiv.className = 'view';
+  viewDiv.innerHTML = '<div class="pt">🦭 Training Overview</div>'
+    +'<div class="ps">Road 2 Worlds — sessions auto-tagged by day of week.</div>'
     +renderDateFilter()
-    +'<div class="notice n-orange"><b>🔴 Bungee Thursdays:</b> Speed is intentionally lower. Apr 30 &amp; May 7 only compare to each other. Use "By Focus Type" for clean comparisons.</div>'
-    +'<div class="sg g4">'
-    +'<div class="sc"><div class="sl">Total Distance</div><div class="sv">'+totalDist.toFixed(1)+'<span class="su2"> mi</span></div><div class="sn">'+ss.length+' sessions</div></div>'
-    +'<div class="sc"><div class="sl">Best Non-Bungee</div><div class="sv">'+(bestNB?bestNB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div><div class="sn">'+(bestNB?dateLabel(bestNB.date):'—')+'</div></div>'
-    +'<div class="sc"><div class="sl">Best Bungee</div><div class="sv">'+(bestB?bestB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div><div class="sn">Thu sessions only</div></div>'
-    +'<div class="sc"><div class="sl">HRM Sessions</div><div class="sv">'+ss.filter(function(s){return s.hasHR;}).length+'<span class="su2"> / '+ss.length+'</span></div></div>'
-    +'</div>'
-    +'<div class="card"><div class="ct-title">Session speed — coloured by focus type</div>'
-    +'<div class="ct-sub">🔴 diamonds = bungee Thursdays · dashed lines connect same focus type</div>'
-    +'<canvas id="ov-c" height="175"></canvas></div>'
-    +'<div class="tw"><table><tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th><th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Wind</th><th>Notes</th><th>Compare to</th><th></th></tr>'
-    +rows+'</table></div></div>';
-  setTimeout(function(){drawOvSpeed(ss);},30);
+    +'<div class="notice n-orange"><b>🔴 Bungee Thursdays:</b> Speed is intentionally lower. '
+    +'Use <b>By Focus Type</b> for clean comparisons.</div>';
+
+  el.innerHTML = '';
+  el.appendChild(viewDiv);
+
+  /* Render draggable widgets */
+  renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist);
 }
+
 
 function drawOvSpeed(ss){
   var c=document.getElementById('ov-c');if(!c)return;
@@ -3591,51 +3677,46 @@ function renderUserPrefs() {
     return '<option value="'+c+'"'+(c===craft?' selected':'')+'>'+c+'</option>';
   }).join('');
   setTimeout(function(){
-    var sel=document.getElementById('default-craft-sel');
-    if(sel) sel.onchange=function(){ setDefaultCraft(this.value); };
-    var rst=document.getElementById('reset-layout-btn');
-    if(rst) rst.onclick=function(){ CARD_ORDER=null; saveLayout(); refresh(); showToast('Layout reset to default','success'); };
-  },0);
+    var sel = document.getElementById('default-craft-sel');
+    if (sel) sel.onchange = function(){ setDefaultCraft(this.value); };
+    var r1 = document.getElementById('reset-layout-btn');
+    if (r1) r1.onclick = function(){ CARD_ORDER=null; saveLayout(); refresh(); showToast('Session card layout reset','success'); };
+    var r2 = document.getElementById('reset-ov-btn');
+    if (r2) r2.onclick = function(){ OV_WIDGET_ORDER=null; saveOvLayout(); refresh(); showToast('Overview layout reset','success'); };
+  }, 0);
+
+  var btnStyle = 'font-family:var(--font);font-size:11px;font-weight:800;padding:7px 16px;'
+    + 'border-radius:999px;border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer';
+
   return '<div class="card">'
-    +'<div class="ct-title">⚙️ Your Preferences</div>'
-    +'<div class="ct-sub">Defaults applied to all sessions unless overridden per-session.</div>'
-    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<span style="font-size:12px;font-weight:800;color:var(--plum)">🛶 Default craft:</span>'
-    +'<select id="default-craft-sel" style="font-family:var(--font);font-size:12px;font-weight:700;'
-    +'padding:7px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
-    +craftOpts+'</select>'
-    +'<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
-    +'</div></div>';
+    + '<div class="ct-title">⚙️ Your Preferences</div>'
+    + '<div class="ct-sub">Defaults applied to all sessions unless overridden per-session.</div>'
+
+    /* ── Default craft ── */
+    + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">'
+    + '<span style="font-size:12px;font-weight:800;color:var(--plum)">🛶 Default craft:</span>'
+    + '<select id="default-craft-sel" style="font-family:var(--font);font-size:12px;font-weight:700;'
+    + 'padding:7px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
+    + craftOpts + '</select>'
+    + '<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
+    + '</div>'
+
+    /* ── Layout section ── */
+    + '<div style="padding-top:16px;border-top:1.5px solid var(--lav-lt)">'
+    + '<div style="font-size:12px;font-weight:800;color:var(--plum);margin-bottom:6px">🃏 Dashboard layout</div>'
+    + '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-bottom:12px;line-height:1.6">'
+    + 'Drag the <b>⠿</b> handle on any card in the session detail view to reorder. '
+    + 'Drag the <b>⠿</b> handle on overview sections to reorder the overview. '
+    + 'Your layouts save automatically.'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    + '<button id="reset-layout-btn" style="'+btnStyle+'">↺ Reset session card order</button>'
+    + '<button id="reset-ov-btn"     style="'+btnStyle+'">↺ Reset overview order</button>'
+    + '</div>'
+    + '</div>'
+
+    + '</div>';
 }
-
-
-
-
-
-
-
-
-/* ═══════════════════════════════════════════════════════════
-   FIT FILE PARSER
-   Uses fit-file-parser v1.21.0 from jsDelivr CDN.
-   Loaded lazily on first .fit upload — no cost if never used.
-   
-   FIT → Coach Clubby session mapping:
-   - activity.sessions[0]     → session summary (avgSpeed, dist, etc.)
-   - activity.sessions[0].laps → intervals
-   - activity.records          → per-stroke data (sampled ~every 1s)
-   
-   FIT speed is in m/s → converted to mph
-   FIT distance is in m → converted to miles
-   FIT position is semicircles → converted to degrees
-═══════════════════════════════════════════════════════════ */
-
-var _fitLibLoaded = false;
-var _fitLibLoading = false;
-var _fitLibCallbacks = [];
-
-var FIT_LIB_URL = 'https://cdn.jsdelivr.net/npm/fit-file-parser@1.21.0/dist/fit-file-parser.js';
-
 function loadFitLib(cb) {
   if (_fitLibLoaded) { cb(); return; }
   _fitLibCallbacks.push(cb);
@@ -4103,6 +4184,233 @@ function startDrag(srcWrap, container, s, startY) {
   document.addEventListener('touchend',  onTouchEnd);
 }
 
+
+
+
+
+
+
+/* ── Overview widget drag-and-drop ── */
+var OV_WIDGET_KEY = 'clubby_ov_layout';
+var OV_WIDGET_ORDER = null;
+
+var OV_WIDGET_DEFS = [
+  { id:'week-plan',      label:"This Week's Program" },
+  { id:'stats',          label:'Summary Stats' },
+  { id:'speed-chart',    label:'Speed Chart' },
+  { id:'sessions-table', label:'Sessions Table' },
+];
+
+function defaultOvOrder() {
+  return OV_WIDGET_DEFS.map(function(w){ return w.id; });
+}
+function getOvOrder() {
+  return OV_WIDGET_ORDER || defaultOvOrder();
+}
+function loadOvLayout() {
+  try {
+    var raw = _store[OV_WIDGET_KEY];
+    if (raw) {
+      var stored  = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      var known   = defaultOvOrder();
+      var valid   = stored.filter(function(id){ return known.indexOf(id)>=0; });
+      var missing = known.filter(function(id){ return valid.indexOf(id)<0; });
+      OV_WIDGET_ORDER = valid.concat(missing);
+    }
+  } catch(e) { OV_WIDGET_ORDER = null; }
+}
+function saveOvLayout() {
+  _store[OV_WIDGET_KEY] = OV_WIDGET_ORDER;
+  sbScheduleWrite(OV_WIDGET_KEY, OV_WIDGET_ORDER);
+}
+
+/* ── Weekly program highlight ── */
+function renderWeekPlanWidget(ss) {
+  var today    = new Date();
+  var todayDow = today.getDay();
+  var ds = today.getFullYear()
+         + String(today.getMonth()+1).padStart(2,'0')
+         + String(today.getDate()).padStart(2,'0');
+  var weekKey  = isoWeek(ds);
+  var plan     = WEEKLY_PLANS[weekKey];
+  var dayOrder = [1,2,3,4,5,6,0];
+  var DOW_SHORT= ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  /* Sessions done this week, keyed by DOW */
+  var sessThisWeek = {};
+  ss.forEach(function(s){
+    if (isoWeek(s.date) === weekKey) sessThisWeek[getDOW(s.date)] = s;
+  });
+
+  var html = '<div class="week-plan-strip">'
+    + '<div class="wps-title">📅 This Week\'s Program'
+    + '<span style="font-size:10px;font-weight:600;color:var(--gm);font-style:normal;'
+    + 'text-transform:none;letter-spacing:0;margin-left:6px">'
+    + weekMonday(weekKey) + '</span></div>';
+
+  if (!plan || !plan.days || !Object.keys(plan.days).length) {
+    html += '<div style="font-size:12px;font-weight:600;color:var(--gm);text-align:center;padding:8px 0">'
+      + 'No program set for this week. '
+      + '<button onclick="nav(\'plans\')" style="font-family:var(--font);font-size:11px;font-weight:800;'
+      + 'padding:4px 12px;border-radius:999px;border:1.5px solid var(--lav);'
+      + 'background:var(--lilac);color:var(--plum);cursor:pointer">Set up weekly plan →</button>'
+      + '</div></div>';
+    return html;
+  }
+
+  html += '<div class="week-plan-days">';
+  dayOrder.forEach(function(dow){
+    var dayPlan = (plan.days||{})[dow];
+    var sess    = sessThisWeek[dow];
+    var isToday = (dow === todayDow);
+    var base    = PROGRAM[dow] || {};
+    var opt     = (typeof FOCUS_OPTIONS!=='undefined' && dayPlan)
+                  ? FOCUS_OPTIONS.filter(function(o){ return o.id===dayPlan.id; })[0]||{} : {};
+    var sty     = (typeof FOCUS_STYLES!=='undefined' && dayPlan && FOCUS_STYLES[dayPlan.id])
+                  ? FOCUS_STYLES[dayPlan.id] : {};
+    var col     = sty.color   || base.color   || '#b09dd4';
+    var colLt   = sty.colorLt || base.colorLt || '#f0eaf9';
+    var icon    = opt.icon  || sty.icon  || base.icon  || '';
+    var label   = opt.label || base.shortLabel || '';
+
+    if (!dayPlan || !dayPlan.id) {
+      html += '<div class="wpd" style="background:var(--cloud);color:var(--gm)">'
+        + '<div class="wpd-dow">'+DOW_SHORT[dow]+(isToday?' ●':'')+'</div>'
+        + '<div class="wpd-icon" style="opacity:.25">—</div>'
+        + '<div class="wpd-label" style="opacity:.4">Rest</div>'
+        + '</div>';
+      return;
+    }
+
+    var dateAttr = sess ? ' onclick="selSess(\''+sess.date+'\')"' : '';
+    html += '<div class="wpd'+(sess?' has-session':'')+(isToday?' today':'')+'"'
+      + dateAttr
+      + ' style="background:'+colLt+';color:'+col+'">'
+      + '<div class="wpd-dow" style="color:'+col+'">'+DOW_SHORT[dow]+(isToday?' ●':'')+'</div>'
+      + '<div class="wpd-icon">'+icon+'</div>'
+      + '<div class="wpd-label">'+escHtml(label)+'</div>'
+      + (sess ? '<div class="wpd-speed">'+sess.avgSpeed.toFixed(2)+'</div>' : '')
+      + (sess ? '<div style="font-size:8px;font-weight:700;margin-top:1px;opacity:.7">✓ done</div>' : '')
+      + '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+/* ── Render overview widgets in stored order ── */
+function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist) {
+  var order     = getOvOrder();
+  var container = document.createElement('div');
+  container.id  = 'ov-widgets';
+
+  function widgetHTML(id) {
+    switch(id) {
+      case 'week-plan':
+        return renderWeekPlanWidget(ss);
+      case 'stats':
+        return '<div class="sg g4">'
+          +'<div class="sc"><div class="sl">Total Distance</div>'
+          +'<div class="sv">'+totalDist.toFixed(1)+'<span class="su2"> mi</span></div>'
+          +'<div class="sn">'+ss.length+' sessions</div></div>'
+          +'<div class="sc"><div class="sl">Best Non-Bungee</div>'
+          +'<div class="sv">'+(bestNB?bestNB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
+          +'<div class="sn">'+(bestNB?dateLabel(bestNB.date):'—')+'</div></div>'
+          +'<div class="sc"><div class="sl">Best Bungee</div>'
+          +'<div class="sv">'+(bestB?bestB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
+          +'<div class="sn">Thu only</div></div>'
+          +'<div class="sc"><div class="sl">HRM Sessions</div>'
+          +'<div class="sv">'+ss.filter(function(s){return s.hasHR;}).length
+          +'<span class="su2"> / '+ss.length+'</span></div></div>'
+          +'</div>';
+      case 'speed-chart':
+        return '<div class="card">'
+          +'<div class="ct-title">Session speed — coloured by focus type</div>'
+          +'<div class="ct-sub">🔴 diamonds = bungee Thursdays · dashed lines connect same focus type</div>'
+          +'<canvas id="ov-c" height="175"></canvas></div>';
+      case 'sessions-table':
+        return '<div class="tw"><table>'
+          +'<tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th>'
+          +'<th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Conditions</th>'
+          +'<th>Notes</th><th>Compare to</th><th style="width:32px"></th></tr>'
+          +rows+'</table></div>';
+    }
+    return '';
+  }
+
+  order.forEach(function(id){
+    var h = widgetHTML(id);
+    if (!h) return;
+    var wrap = document.createElement('div');
+    wrap.className        = 'ov-widget-wrap';
+    wrap.dataset.widgetId = id;
+    wrap.innerHTML = '<div class="drag-handle" title="Drag to reorder">⠿</div>' + h;
+    container.appendChild(wrap);
+  });
+
+  viewDiv.appendChild(container);
+  setTimeout(function(){ drawOvSpeed(ss); }, 30);
+  attachOvDrag(container);
+}
+
+/* ── Overview drag handlers ── */
+function attachOvDrag(container) {
+  Array.from(container.querySelectorAll('.ov-widget-wrap')).forEach(function(wrap){
+    var handle = wrap.querySelector(':scope > .drag-handle');
+    if (!handle) return;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault(); startOvDrag(wrap, container, e.clientY);
+    });
+    handle.addEventListener('touchstart', function(e){
+      e.preventDefault(); startOvDrag(wrap, container, e.touches[0].clientY);
+    }, { passive:false });
+  });
+}
+
+function startOvDrag(srcWrap, container, startY) {
+  var srcRect = srcWrap.getBoundingClientRect();
+  var offsetY = startY - srcRect.top;
+  srcWrap.classList.add('dnd-dragging');
+  var ghost   = srcWrap.cloneNode(true);
+  ghost.id    = 'dnd-ghost';
+  ghost.style.cssText = 'position:fixed;z-index:9999;width:'+srcRect.width+'px;'
+    +'opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.2);'
+    +'border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;';
+  document.body.appendChild(ghost);
+
+  function onMove(y) {
+    ghost.style.top = (y-offsetY)+'px';
+    var target = null;
+    Array.from(container.querySelectorAll('.ov-widget-wrap:not(.dnd-dragging)')).forEach(function(w){
+      var r = w.getBoundingClientRect();
+      if (y>=r.top && y<=r.bottom) target=w;
+    });
+    if (target) {
+      var ti = Array.from(container.children).indexOf(target);
+      var si = Array.from(container.children).indexOf(srcWrap);
+      if (ti>si) container.insertBefore(srcWrap, target.nextSibling);
+      else       container.insertBefore(srcWrap, target);
+    }
+  }
+  function onEnd() {
+    srcWrap.classList.remove('dnd-dragging');
+    var g=document.getElementById('dnd-ghost'); if(g) g.remove();
+    var newOrder = Array.from(container.querySelectorAll('.ov-widget-wrap'))
+      .map(function(w){ return w.dataset.widgetId; }).filter(Boolean);
+    if (newOrder.length) { OV_WIDGET_ORDER=newOrder; saveOvLayout(); }
+    document.removeEventListener('mousemove',mm);
+    document.removeEventListener('mouseup',mu);
+    document.removeEventListener('touchmove',tm);
+    document.removeEventListener('touchend',tu);
+  }
+  function mm(e){ onMove(e.clientY); }
+  function mu(){ onEnd(); }
+  function tm(e){ e.preventDefault(); onMove(e.touches[0].clientY); }
+  function tu(){ onEnd(); }
+  document.addEventListener('mousemove',mm);
+  document.addEventListener('mouseup',mu);
+  document.addEventListener('touchmove',tm,{passive:false});
+  document.addEventListener('touchend',tu);
+}
 
 
 </script>
