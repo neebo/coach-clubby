@@ -280,7 +280,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 <div class="istrip" id="istrip"></div>
 
 <div class="body"><aside class="sb"><div class="sb-title">Views</div><button class="nb active" data-page="overview"><span class="nb-icon">🏠</span><div><div class="nb-label">Overview</div><div class="nb-meta">All sessions</div></div></button><button class="nb" data-page="by-focus"><span class="nb-icon">🎯</span><div><div class="nb-label">By Focus Type</div><div class="nb-meta">Compare like with like</div></div></button><button class="nb" data-page="segments"><span class="nb-icon">🗺️</span><div><div class="nb-label">Segment Compare</div><div class="nb-meta">Week over week</div></div></button>
-<button class="nb" data-page="plans"><span class="nb-icon">📋</span><div><div class="nb-label">Weekly Plans</div><div class="nb-meta">Upload workout schedules</div></div></button><div class="sb-div"></div><div class="sb-title">Sessions</div><div id="sess-list"></div><label class="add-sess" for="fi">🦭 Add more sessions</label><div class="clear-btn" onclick="clearAllStorage()">🗑 Reset saved data</div></aside><main class="ct" id="ct"></main></div>
+<button class="nb" data-page="plans"><span class="nb-icon">📋</span><div><div class="nb-label">Weekly Plans</div><div class="nb-meta">Upload workout schedules</div></div></button><div class="sb-div"></div><label class="add-sess" for="fi">＋ Upload Sessions</label><div class="clear-btn" onclick="clearAllStorage()">🗑 Reset all data</div></aside><main class="ct" id="ct"></main></div>
 <nav class="mob-nav" id="mob-nav">
   <div class="mob-nav-inner">
     <button class="mob-nb active" data-page="overview"    onclick="nav(this.dataset.page)"><span class="mob-nb-icon">🏠</span><span class="mob-nb-label">Overview</span></button>
@@ -297,6 +297,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1405,7 +1407,7 @@ function recompute(){
 
   var corridor={};
   SESSIONS.forEach(function(s){
-    var match=s.strokes.filter(function(st){
+    var match=(s.strokes||[]).filter(function(st){
       return st.lt&&st.ln&&st.lt>=CORR_LAT_LO&&st.lt<=CORR_LAT_HI&&(cellCount.get(cellKey(st.lt,st.ln))||0)>=corrThresh;
     });
     var st=statsFor(match);
@@ -1415,7 +1417,7 @@ function recompute(){
   var segments=ZONE_DEFS.map(function(zone){
     var sessions={};
     SESSIONS.forEach(function(s){
-      var match=s.strokes.filter(function(st){
+      var match=(s.strokes||[]).filter(function(st){
         return st.lt&&st.ln&&st.lt>=zone.latLo&&st.lt<zone.latHi&&(cellCount.get(cellKey(st.lt,st.ln))||0)>=2;
       });
       var st=statsFor(match);
@@ -1741,15 +1743,37 @@ function renderByFocus(el){
 
   html+='</div>';
   el.innerHTML=html;
-  /* Use requestAnimationFrame + setTimeout to ensure DOM is painted
-     before reading canvas dimensions, especially for lower cards */
-  requestAnimationFrame(function(){
-    setTimeout(function(){
-      groupList.forEach(function(g){
-        if(g.focus.id==='long-z2') drawDownwindTrend(g);
-        else if(g.sessions.length>=2) drawFocusTrend(g);
-      });
-    },50);
+  /* Draw charts — use IntersectionObserver so off-screen canvases
+     (Race, Tuesday etc.) draw when they scroll into view */
+  groupList.forEach(function(g) {
+    var canvasId = 'ft-' + g.focus.id;
+    function drawWhenReady() {
+      var c = document.getElementById(canvasId);
+      if (!c) return;
+      var W = Math.max(c.offsetWidth, (c.parentElement||{}).offsetWidth||0);
+      if (W > 0) {
+        if (g.focus.id === 'long-z2') drawDownwindTrend(g);
+        else if (g.sessions.length >= 2) drawFocusTrend(g);
+      } else {
+        /* Canvas not visible yet — observe and draw on first intersection */
+        if (window.IntersectionObserver) {
+          var obs = new IntersectionObserver(function(entries, o) {
+            if (entries[0].isIntersecting) {
+              o.disconnect();
+              if (g.focus.id === 'long-z2') drawDownwindTrend(g);
+              else if (g.sessions.length >= 2) drawFocusTrend(g);
+            }
+          }, { threshold: 0.1 });
+          obs.observe(c);
+        } else {
+          setTimeout(function() {
+            if (g.focus.id === 'long-z2') drawDownwindTrend(g);
+            else if (g.sessions.length >= 2) drawFocusTrend(g);
+          }, 300);
+        }
+      }
+    }
+    requestAnimationFrame(drawWhenReady);
   });
 }
 
@@ -4178,6 +4202,8 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
+
 
 
 
