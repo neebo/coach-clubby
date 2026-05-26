@@ -308,6 +308,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -3842,831 +3843,184 @@ function parseFIT(arrayBuffer, filename, cb) {
 }
 
 function fitDataToSession(data, filename) {
-  /* ── Summary from sessions[0] ── */
-  var sum = (data.sessions && data.sessions[0]) || {};
-  var startTime = sum.start_time || (data.activity && data.activity.timestamp) || null;
-  var dateKey   = fitDateToKey(startTime);
-
-  /* Total elapsed time in seconds */
-  var totalSecs = sum.total_elapsed_time || sum.total_timer_time || 0;
-
-  /* Speed: prefer avg_speed, fall back to total_distance/total_timer_time */
-  var avgSpeedMs = sum.avg_speed || 0;
-  if (!avgSpeedMs && sum.total_distance && sum.total_timer_time) {
-    avgSpeedMs = sum.total_distance / sum.total_timer_time;
+  /* ── Helpers ── */
+  function toMph(ms)  { return (ms || 0) * 2.23694; }
+  function toMi(m)    { return (m  || 0) / 1609.344; }
+  function toDeg(sc) {
+    if (sc == null) return null;
+    /* FIT semicircles: stored as sint32 but JS may get uint32 from parser */
+    if (sc > 0x7FFFFFFF) sc -= 0x100000000;
+    return sc * (180 / Math.pow(2, 31));
   }
-  var avgSpeedMph = msToMph(avgSpeedMs);
+  function toSecs(v)  { return (v || 0) / 1000; }   /* FIT elapsed: scale 1/1000 */
+  function secsToStr(s) {
+    s = Math.round(s);
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+    return h+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0')+'.0';
+  }
+  function fitDateStr(ts) {
+    if (!ts) return '';
+    /* FIT timestamp = seconds since 1989-12-31 00:00:00 UTC */
+    var FIT_EPOCH = 631065600000;  /* ms */
+    var d = new Date(FIT_EPOCH + ts * 1000);
+    return String(d.getMonth()+1).padStart(2,'0')+'/'+
+           String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear()+' '+
+           String(d.getHours()).padStart(2,'0')+':'+
+           String(d.getMinutes()).padStart(2,'0')+':'+
+           String(d.getSeconds()).padStart(2,'0');
+  }
+  function fitDateKey(ts) {
+    if (!ts) return String(Date.now());
+    var FIT_EPOCH = 631065600000;
+    var d = new Date(FIT_EPOCH + ts * 1000);
+    return String(d.getFullYear())+
+           String(d.getMonth()+1).padStart(2,'0')+
+           String(d.getDate()).padStart(2,'0');
+  }
 
-  var totalDistMi = mToMi(sum.total_distance || 0);
+  /* ── Session summary ── */
+  var sum = (data.sessions && data.sessions[0]) || {};
+
+  /* Start timestamp — try multiple sources */
+  var startTs = sum.start_time || sum.timestamp ||
+    (data.activity && data.activity.timestamp) || null;
+  /* fit-file-parser returns JS Date objects for timestamps */
+  var startDate = null;
+  if (startTs instanceof Date) startDate = startTs;
+  else if (typeof startTs === 'number' && startTs > 0) {
+    startDate = new Date(631065600000 + startTs * 1000);
+  }
+
+  var dateKey = startDate
+    ? String(startDate.getFullYear())+
+      String(startDate.getMonth()+1).padStart(2,'0')+
+      String(startDate.getDate()).padStart(2,'0')
+    : String(Date.now());
+
+  var startTimeStr = startDate
+    ? String(startDate.getMonth()+1).padStart(2,'0')+'/'+
+      String(startDate.getDate()).padStart(2,'0')+'/'+
+      startDate.getFullYear()+' '+
+      String(startDate.getHours()).padStart(2,'0')+':'+
+      String(startDate.getMinutes()).padStart(2,'0')+':'+
+      String(startDate.getSeconds()).padStart(2,'0')
+    : '';
+
+  /* ── Records → strokes (primary data source) ── */
+  var rawRecs = data.records || [];
+  var validRecs = rawRecs.filter(function(r){
+    return r.position_lat != null && r.position_long != null;
+  });
+
+  /* Compute session stats directly from records as Suunto session summary
+     fields are often miscoded or use different scale factors */
+  var recSpeeds = [], recHRs = [], recTimestamps = [];
+  rawRecs.forEach(function(r) {
+    var spd = r.speed;
+    if (spd != null && typeof spd === 'number' && spd > 0 && spd < 50) recSpeeds.push(spd);
+    var hr = r.heart_rate;
+    if (hr != null && hr > 0 && hr < 250) recHRs.push(hr);
+    var ts = r.timestamp;
+    if (ts instanceof Date) recTimestamps.push(ts.getTime());
+    else if (typeof ts === 'number' && ts > 0) recTimestamps.push(ts * 1000);
+  });
+
+  /* Average speed: prefer record-derived (reliable) over session summary */
+  var avgSpeedMs = recSpeeds.length
+    ? recSpeeds.reduce(function(a,b){return a+b;},0) / recSpeeds.length
+    : (typeof sum.avg_speed === 'number' && sum.avg_speed < 50 ? sum.avg_speed : 0);
+  var avgSpeedMph = toMph(avgSpeedMs);
+
+  /* Elapsed time from record timestamps */
+  var totalSecs = 0;
+  if (recTimestamps.length >= 2) {
+    totalSecs = (Math.max.apply(null,recTimestamps) - Math.min.apply(null,recTimestamps)) / 1000;
+  } else if (typeof sum.total_elapsed_time === 'number' && sum.total_elapsed_time < 100000) {
+    totalSecs = toSecs(sum.total_elapsed_time);
+  }
+
+  /* Total distance: prefer session summary if sane, else estimate from speed * time */
+  var totalDistM = 0;
+  if (typeof sum.total_distance === 'number' && sum.total_distance > 10 && sum.total_distance < 100000) {
+    totalDistM = sum.total_distance;         /* already in metres for most files */
+  } else if (typeof sum.total_distance === 'number' && sum.total_distance > 100000) {
+    totalDistM = sum.total_distance / 100;   /* Garmin scale: /100 */
+  } else {
+    totalDistM = avgSpeedMs * totalSecs;     /* fallback: speed × time */
+  }
+  var totalDistMi = toMi(totalDistM);
 
   /* HR */
-  var avgHR = sum.avg_heart_rate || null;
-  var hasHR = !!(avgHR);
+  var avgHR = recHRs.length
+    ? Math.round(recHRs.reduce(function(a,b){return a+b;},0)/recHRs.length)
+    : (sum.avg_heart_rate && sum.avg_heart_rate < 250 ? sum.avg_heart_rate : null);
+  var hasHR = recHRs.length > 0;
 
-  /* Stroke rate — FIT uses avg_cadence for paddle cadence */
-  var avgSR = sum.avg_cadence || 0;
-  if (avgSR === 0 && sum.avg_stroke_count) avgSR = sum.avg_stroke_count;
+  /* Cadence / stroke rate */
+  var recCadences = rawRecs.map(function(r){return r.cadence||r.stroke_rate||null;})
+    .filter(function(v){return v!=null && v>0 && v<120;});
+  var avgSR = recCadences.length
+    ? Math.round(recCadences.reduce(function(a,b){return a+b;},0)/recCadences.length)
+    : (sum.avg_cadence || 0);
 
-  /* Start GPS */
-  var startLat = 0, startLon = 0;
-  if (data.records && data.records.length) {
-    var firstGPS = data.records.find(function(r) {
-      return r.position_lat != null && r.position_long != null;
-    });
-    if (firstGPS) {
-      startLat = semicirclesToDeg(firstGPS.position_lat);
-      startLon = semicirclesToDeg(firstGPS.position_long);
-    }
+  /* ── GPS ── */
+  var startLat=0, startLon=0, midLat=null, midLon=null;
+  if (validRecs.length) {
+    var fr = validRecs[0];
+    startLat = toDeg(fr.position_lat)  || 0;
+    startLon = toDeg(fr.position_long) || 0;
+    var mr = validRecs[Math.floor(validRecs.length/2)];
+    midLat   = toDeg(mr.position_lat);
+    midLon   = toDeg(mr.position_long);
   }
 
-  /* ── Records → strokes ── */
-  /* FIT records are ~1/sec; SpeedCoach CSV is every 15 strokes (~every 15s).
-     We sample every ~15 records to match the density Coach Clubby expects. */
-  var rawRecords = data.records || [];
-  var SAMPLE_INTERVAL = Math.max(1, Math.round(rawRecords.length / 300)); /* target ~300 strokes */
+  /* ── Sample records → strokes ── */
+  var SAMPLE = Math.max(1, Math.round(rawRecs.length / 300));
   var strokes = [];
-  var intervalIdx = 0;
-
-  rawRecords.forEach(function(r, i) {
-    if (i % SAMPLE_INTERVAL !== 0) return;
-
-    var spd = (r.speed != null) ? msToMph(r.speed) : null;
-    var lt  = (r.position_lat  != null) ? semicirclesToDeg(r.position_lat)  : null;
-    var ln  = (r.position_long != null) ? semicirclesToDeg(r.position_long) : null;
-    var hr  = r.heart_rate || null;
-    /* Cadence in FIT = stroke rate for paddle sports */
-    var sr  = r.cadence || r.stroke_rate || null;
-    var elapsed = secsToElapsed(r.elapsed_time || (i * SAMPLE_INTERVAL));
-
-    /* Map lap index to interval number */
-    if (data.laps) {
-      for (var li = 0; li < data.laps.length; li++) {
-        var lap = data.laps[li];
-        var lapStart = lap.start_time ? new Date(lap.start_time).getTime() : 0;
-        var recTime  = r.timestamp   ? new Date(r.timestamp).getTime()    : 0;
-        if (lapStart && recTime && recTime >= lapStart) intervalIdx = li + 1;
-      }
+  rawRecs.forEach(function(r, i) {
+    if (i % SAMPLE !== 0) return;
+    var lt  = toDeg(r.position_lat);
+    var ln  = toDeg(r.position_long);
+    var spd = (r.speed != null && r.speed < 50) ? toMph(r.speed) : null;
+    var hr  = (r.heart_rate && r.heart_rate < 250) ? r.heart_rate : null;
+    var sr  = (r.cadence || r.stroke_rate || null);
+    var ts  = r.timestamp;
+    var elapsed = 0;
+    if (recTimestamps.length && ts) {
+      var tsMs = ts instanceof Date ? ts.getTime() : ts*1000;
+      elapsed = (tsMs - recTimestamps[0]) / 1000;
     }
-
-    strokes.push({
-      e:  elapsed,
-      s:  spd,
-      r:  sr,
-      h:  hr,
-      lt: lt,
-      ln: ln,
-      i:  intervalIdx || 1,
-    });
+    strokes.push({ e:secsToStr(elapsed), s:spd, r:sr, h:hr, lt:lt, ln:ln, i:1 });
   });
 
-  /* Midpoint GPS */
-  var validStrokes = strokes.filter(function(s) { return s.lt && s.ln; });
-  var mid = validStrokes.length ? validStrokes[Math.floor(validStrokes.length/2)] : null;
-
-  /* ── Laps → intervals ── */
-  var intervals = (data.laps || []).map(function(lap, li) {
-    var lapSpeedMs  = lap.avg_speed || 0;
-    var lapDistMi   = mToMi(lap.total_distance || 0);
-    var lapSecs     = lap.total_elapsed_time || lap.total_timer_time || 0;
-    var lapStartLat = lap.start_position_lat  ? semicirclesToDeg(lap.start_position_lat)  : 0;
-    var lapStartLon = lap.start_position_long ? semicirclesToDeg(lap.start_position_long) : 0;
-    return {
-      n:  String(li + 1),
-      d:  lapDistMi,
-      el: secsToElapsed(lapSecs),
-      sp: lapSpeedMs ? (mToMi(1000) / lapSpeedMs * 60).toFixed(1) + '/mi' : null,
-      v:  msToMph(lapSpeedMs),
-      sr: lap.avg_cadence || 0,
-      hr: lap.avg_heart_rate || null,
-      lt: lapStartLat,
-      ln: lapStartLon,
-    };
-  });
-
-  /* Determine session type from FIT sport field */
-  var sport  = (sum.sport  || '').toLowerCase();
-  var subSport = (sum.sub_sport || '').toLowerCase();
-  var sessionType = 'Paddling';
-  if (sport === 'rowing' || sport === 'kayaking' || sport === 'stand_up_paddleboarding') {
-    sessionType = sport.charAt(0).toUpperCase() + sport.slice(1);
-  }
-  if (subSport) sessionType = subSport.charAt(0).toUpperCase() + subSport.slice(1);
+  /* ── Sport type ── */
+  var sport    = typeof sum.sport === 'string' ? sum.sport.toLowerCase() : '';
+  var subSport = typeof sum.sub_sport === 'string' ? sum.sub_sport.toLowerCase() : '';
+  var sessionType = subSport || sport || 'Paddling';
+  /* Capitalise */
+  sessionType = sessionType.charAt(0).toUpperCase() + sessionType.slice(1).replace(/_/g,' ');
+  if (!sessionType || sessionType === 'Generic') sessionType = 'Paddling';
 
   return {
-    date:           dateKey,
-    startTime:      fitDateToString(startTime),
-    sessionType:    sessionType,
-    programName:    filename || '',
-    avgSpeed:       avgSpeedMph,
-    totalDist:      totalDistMi,
-    elapsed:        secsToElapsed(totalSecs),
-    avgStrokeRate:  avgSR,
-    avgHR:          avgHR,
-    startLat:       startLat,
-    startLon:       startLon,
-    midLat:         mid ? mid.lt : null,
-    midLon:         mid ? mid.ln : null,
-    hasHR:          hasHR,
-    intervals:      intervals,
-    strokes:        strokes,
-    _source:        'fit',
+    date:          dateKey,
+    startTime:     startTimeStr,
+    sessionType:   sessionType,
+    programName:   filename || '',
+    avgSpeed:      avgSpeedMph,
+    totalDist:     totalDistMi,
+    elapsed:       secsToStr(totalSecs),
+    avgStrokeRate: avgSR,
+    avgHR:         avgHR,
+    startLat:      startLat,
+    startLon:      startLon,
+    midLat:        midLat,
+    midLon:        midLon,
+    hasHR:         hasHR,
+    intervals:     [],   /* Suunto rarely has lap messages */
+    strokes:       strokes,
+    _source:       'fit',
   };
 }
-
-
-
-
-/* ═══════════════════════════════════════════════════════════
-   DRAG-AND-DROP CARD REORDERING
-   
-   Applies to session detail cards only.
-   Order persisted per-user under LAYOUT_KEY in Supabase.
-   
-   Default order:
-     legs | tide | weather | notes | speed | intervals
-   
-   Mobile: touch-based drag with long-press activation.
-   Desktop: mouse drag with handle icon.
-═══════════════════════════════════════════════════════════ */
-
-var LAYOUT_KEY   = 'clubby_layout';
-var CARD_ORDER   = null;   /* loaded from storage — null means default */
-
-var CARD_DEFS = [
-  { id: 'legs',      label: 'Legs / Downwind',  icon: '🚣' },
-  { id: 'tide',      label: 'Tide',              icon: '🌊' },
-  { id: 'weather',   label: 'Weather',           icon: '🌤️' },
-  { id: 'notes',     label: 'Notes',             icon: '📝' },
-  { id: 'speed',     label: 'Speed Profile',     icon: '📈' },
-  { id: 'intervals', label: 'Intervals',         icon: '⚡' },
-];
-
-function defaultCardOrder() {
-  return CARD_DEFS.map(function(c) { return c.id; });
-}
-
-function getCardOrder() {
-  return CARD_ORDER || defaultCardOrder();
-}
-
-function loadLayout() {
-  try {
-    var raw = _store[LAYOUT_KEY];
-    if (raw) {
-      var stored = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      /* Validate — only keep known card ids, append any new ones at end */
-      var known  = defaultCardOrder();
-      var valid  = stored.filter(function(id) { return known.indexOf(id) >= 0; });
-      var missing = known.filter(function(id) { return valid.indexOf(id) < 0; });
-      CARD_ORDER = valid.concat(missing);
-    }
-  } catch(e) { CARD_ORDER = null; }
-}
-
-function saveLayout() {
-  _store[LAYOUT_KEY] = CARD_ORDER;
-  sbScheduleWrite(LAYOUT_KEY, CARD_ORDER);
-}
-
-/* ── Render all session cards in the stored order ── */
-function renderSessionCards(s, containerEl) {
-  var order = getCardOrder();
-  var __f   = getFocus(s);
-  var isDownwind = __f && __f.id === 'long-z2';
-
-  /* Build each card's HTML */
-  function cardHTML(id) {
-    switch(id) {
-      case 'legs':
-        return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
-      case 'tide':
-        return renderTideCard(s);
-      case 'weather':
-        return renderWeatherCard(s);
-      case 'notes':
-        return renderNotesEditor(s);
-      case 'speed':
-        return '<div class="card dnd-card" data-card-id="speed">'
-          + '<div class="ct-title">Speed profile</div>'
-          + '<div class="ct-sub">Per-stroke speed · interval dividers'
-          + (s.hasHR ? ' · ♥ HR' : '') + '</div>'
-          + '<canvas id="sc" height="175"></canvas>'
-          + '</div>';
-      case 'intervals':
-        if (!s.intervals || s.intervals.length < 2) return '';
-        return buildIntervalsTable(s);
-      default: return '';
-    }
-  }
-
-  /* Clear container and re-render in order */
-  containerEl.innerHTML = '';
-  order.forEach(function(id) {
-    var h = cardHTML(id);
-    if (!h) return;
-    var wrap = document.createElement('div');
-    wrap.className  = 'dnd-card-wrap';
-    wrap.dataset.cardId = id;
-    wrap.innerHTML  = addDragHandle(h);
-    containerEl.appendChild(wrap);
-  });
-
-  /* Draw chart after render */
-  setTimeout(function() { drawSessChart(s); }, 30);
-
-  /* Attach drag behaviour */
-  attachDragHandlers(containerEl, s);
-}
-
-/* Wrap card HTML with a drag handle */
-function addDragHandle(cardHTML) {
-  /* Inject drag handle as first child of .card */
-  return cardHTML.replace(
-    /(<div class="card[^"]*")/,
-    '$1 style="position:relative"'
-  ).replace(
-    /(<div class="ct-title")/,
-    '<div class="drag-handle" title="Drag to reorder">⠿</div><div class="ct-title"'
-  );
-}
-
-/* ── Build intervals table (extracted from renderSession) ── */
-function buildIntervalsTable(s) {
-  var html = '<div class="card dnd-card" data-card-id="intervals">';
-  html += '<div class="ct-title">Intervals</div>';
-  html += '<div class="tw" style="margin-bottom:0"><table>';
-  html += '<tr><th>#</th><th>Dist</th><th>Elapsed</th><th>Split</th><th>Speed</th><th>SR</th>';
-  if (s.hasHR) html += '<th>HR</th>';
-  html += '<th>Perf</th></tr>';
-  s.intervals.forEach(function(iv) {
-    var maxV  = Math.max.apply(null, s.intervals.map(function(x){ return x.v||0; }));
-    var w     = ((iv.v||0)/maxV*100).toFixed(0);
-    var col   = iv.v>5?'var(--mint-dk)':iv.v>4.5?'var(--plum)':'#c0406a';
-    var flag  = s.date==='20260507' && iv.n==='2';
-    html += '<tr'+(flag?' style="opacity:.55"':'')+'>'+
-      '<td style="color:var(--gm)">'+iv.n+(flag?' ⚠️':'')+'</td>'+
-      '<td>'+iv.d.toFixed(2)+' mi</td>'+
-      '<td>'+(iv.el||'').split('.')[0]+'</td>'+
-      '<td style="color:var(--gm)">'+(iv.sp||'—')+'</td>'+
-      '<td class="td-spd">'+iv.v.toFixed(2)+'</td>'+
-      '<td>'+iv.sr.toFixed(0)+' spm</td>'+
-      (s.hasHR?'<td class="td-hr">'+(iv.hr?iv.hr.toFixed(0)+' bpm':'—')+'</td>':'')+
-      '<td><div class="bb" style="width:110px"><div class="bf" style="width:'+w+'%;background:'+col+'"></div></div></td>'+
-      '</tr>';
-  });
-  html += '</table></div></div>';
-  return html;
-}
-
-/* ── Drag-and-drop handlers ── */
-var _dragSrc = null, _dragDate = null;
-
-function attachDragHandlers(container, s) {
-  var wraps = container.querySelectorAll('.dnd-card-wrap');
-  wraps.forEach(function(wrap) {
-    var handle = wrap.querySelector('.drag-handle');
-    if (!handle) return;
-
-    /* Desktop: mousedown on handle activates dragging */
-    handle.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-      startDrag(wrap, container, s, e.clientY);
-    });
-
-    /* Mobile: touchstart on handle */
-    handle.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      startDrag(wrap, container, s, e.touches[0].clientY);
-    }, { passive: false });
-  });
-}
-
-function startDrag(srcWrap, container, s, startY) {
-  _dragSrc  = srcWrap;
-  _dragDate = s.date;
-
-  var origIdx = Array.from(container.children).indexOf(srcWrap);
-  var srcRect = srcWrap.getBoundingClientRect();
-  var offsetY = startY - srcRect.top;
-
-  /* Visual: make source semi-transparent, create floating ghost */
-  srcWrap.classList.add('dnd-dragging');
-
-  var ghost = srcWrap.cloneNode(true);
-  ghost.id  = 'dnd-ghost';
-  ghost.style.cssText = 'position:fixed;z-index:9999;width:'+srcRect.width+'px;'
-    + 'opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.25);'
-    + 'border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;'
-    + 'transition:none';
-  document.body.appendChild(ghost);
-
-  function onMove(clientY) {
-    ghost.style.top = (clientY - offsetY) + 'px';
-
-    /* Find which wrap the cursor is over */
-    var wraps = Array.from(container.querySelectorAll('.dnd-card-wrap:not(.dnd-dragging)'));
-    var target = null;
-    wraps.forEach(function(w) {
-      var r = w.getBoundingClientRect();
-      if (clientY >= r.top && clientY <= r.bottom) target = w;
-    });
-    if (target && target !== srcWrap) {
-      var targetIdx = Array.from(container.children).indexOf(target);
-      var srcIdx    = Array.from(container.children).indexOf(srcWrap);
-      if (targetIdx > srcIdx) {
-        target.parentNode.insertBefore(srcWrap, target.nextSibling);
-      } else {
-        target.parentNode.insertBefore(srcWrap, target);
-      }
-    }
-  }
-
-  function onEnd() {
-    srcWrap.classList.remove('dnd-dragging');
-    var g = document.getElementById('dnd-ghost');
-    if (g) g.remove();
-
-    /* Save new order */
-    var newOrder = Array.from(container.querySelectorAll('.dnd-card-wrap'))
-      .map(function(w) { return w.dataset.cardId; })
-      .filter(Boolean);
-    if (newOrder.length) {
-      CARD_ORDER = newOrder;
-      saveLayout();
-    }
-
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup',   onMouseUp);
-    document.removeEventListener('touchmove', onTouchMove);
-    document.removeEventListener('touchend',  onTouchEnd);
-  }
-
-  function onMouseMove(e) { onMove(e.clientY); }
-  function onMouseUp()    { onEnd(); }
-  function onTouchMove(e) { e.preventDefault(); onMove(e.touches[0].clientY); }
-  function onTouchEnd()   { onEnd(); }
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup',   onMouseUp);
-  document.addEventListener('touchmove', onTouchMove,  { passive: false });
-  document.addEventListener('touchend',  onTouchEnd);
-}
-
-
-
-
-
-
-
-/* ── Overview widget drag-and-drop ── */
-var OV_WIDGET_KEY = 'clubby_ov_layout';
-var OV_WIDGET_ORDER = null;
-
-var OV_WIDGET_DEFS = [
-  { id:'week-plan',      label:"This Week's Program" },
-  { id:'stats',          label:'Summary Stats' },
-  { id:'speed-chart',    label:'Speed Chart' },
-  { id:'sessions-table', label:'Sessions Table' },
-];
-
-function defaultOvOrder() {
-  return OV_WIDGET_DEFS.map(function(w){ return w.id; });
-}
-function getOvOrder() {
-  return OV_WIDGET_ORDER || defaultOvOrder();
-}
-function loadOvLayout() {
-  try {
-    var raw = _store[OV_WIDGET_KEY];
-    if (raw) {
-      var stored  = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      var known   = defaultOvOrder();
-      var valid   = stored.filter(function(id){ return known.indexOf(id)>=0; });
-      var missing = known.filter(function(id){ return valid.indexOf(id)<0; });
-      OV_WIDGET_ORDER = valid.concat(missing);
-    }
-  } catch(e) { OV_WIDGET_ORDER = null; }
-}
-function saveOvLayout() {
-  _store[OV_WIDGET_KEY] = OV_WIDGET_ORDER;
-  sbScheduleWrite(OV_WIDGET_KEY, OV_WIDGET_ORDER);
-}
-
-/* ── Weekly program highlight ── */
-function renderWeekPlanWidget(ss) {
-  var today    = new Date();
-  var todayDow = today.getDay();
-  var ds = today.getFullYear()
-         + String(today.getMonth()+1).padStart(2,'0')
-         + String(today.getDate()).padStart(2,'0');
-  var weekKey  = isoWeek(ds);
-  var plan     = WEEKLY_PLANS[weekKey];
-  var dayOrder = [1,2,3,4,5,6,0];
-  var DOW_SHORT= ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  /* Sessions done this week, keyed by DOW */
-  var sessThisWeek = {};
-  ss.forEach(function(s){
-    if (isoWeek(s.date) === weekKey) sessThisWeek[getDOW(s.date)] = s;
-  });
-
-  var html = '<div class="week-plan-strip">'
-    + '<div class="wps-title">📅 This Week\'s Program'
-    + '<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);font-style:normal;'
-    + 'text-transform:none;letter-spacing:0;margin-left:6px">'
-    + weekMonday(weekKey) + '</span></div>';
-
-  if (!plan || !plan.days || !Object.keys(plan.days).length) {
-    html += '<div style="font-size:var(--fs-body);font-weight:600;color:var(--gm);text-align:center;padding:8px 0">'
-      + 'No program set for this week. '
-      + '<button onclick="nav(\'plans\')" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
-      + 'padding:4px 12px;border-radius:999px;border:1.5px solid var(--lav);'
-      + 'background:var(--lilac);color:var(--plum);cursor:pointer">Set up weekly plan →</button>'
-      + '</div></div>';
-    return html;
-  }
-
-  html += '<div class="week-plan-days">';
-  dayOrder.forEach(function(dow){
-    var dayPlan = (plan.days||{})[dow];
-    var sess    = sessThisWeek[dow];
-    var isToday = (dow === todayDow);
-    var base    = PROGRAM[dow] || {};
-    var opt     = (typeof FOCUS_OPTIONS!=='undefined' && dayPlan)
-                  ? FOCUS_OPTIONS.filter(function(o){ return o.id===dayPlan.id; })[0]||{} : {};
-    var sty     = (typeof FOCUS_STYLES!=='undefined' && dayPlan && FOCUS_STYLES[dayPlan.id])
-                  ? FOCUS_STYLES[dayPlan.id] : {};
-    var col     = sty.color   || base.color   || '#b09dd4';
-    var colLt   = sty.colorLt || base.colorLt || '#f0eaf9';
-    var icon    = opt.icon  || sty.icon  || base.icon  || '';
-    var label   = opt.label || base.shortLabel || '';
-
-    if (!dayPlan || !dayPlan.id) {
-      html += '<div class="wpd" style="background:var(--cloud);color:var(--gm)">'
-        + '<div class="wpd-dow">'+DOW_SHORT[dow]+(isToday?' ●':'')+'</div>'
-        + '<div class="wpd-icon" style="opacity:.25">—</div>'
-        + '<div class="wpd-label" style="opacity:.4">Rest</div>'
-        + '</div>';
-      return;
-    }
-
-    var dateAttr = sess ? ' onclick="selSess(\''+sess.date+'\')"' : '';
-    html += '<div class="wpd'+(sess?' has-session':'')+(isToday?' today':'')+'"'
-      + dateAttr
-      + ' style="background:'+colLt+';color:'+col+'">'
-      + '<div class="wpd-dow" style="color:'+col+'">'+DOW_SHORT[dow]+(isToday?' ●':'')+'</div>'
-      + '<div class="wpd-icon">'+icon+'</div>'
-      + '<div class="wpd-label">'+escHtml(label)+'</div>'
-      + (sess ? '<div class="wpd-speed">'+sess.avgSpeed.toFixed(2)+'</div>' : '')
-      + (sess ? '<div style="font-size:var(--fs-label);font-weight:700;margin-top:1px;opacity:.7">✓ done</div>' : '')
-      + '</div>';
-  });
-  html += '</div></div>';
-  return html;
-}
-
-/* ── Render overview widgets in stored order ── */
-function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist) {
-  var order     = getOvOrder();
-  var container = document.createElement('div');
-  container.id  = 'ov-widgets';
-
-  function widgetHTML(id) {
-    switch(id) {
-      case 'week-plan':
-        return renderWeekPlanWidget(ss);
-      case 'stats':
-        return '<div class="sg g4">'
-          +'<div class="sc"><div class="sl">Total Distance</div>'
-          +'<div class="sv">'+totalDist.toFixed(1)+'<span class="su2"> mi</span></div>'
-          +'<div class="sn">'+ss.length+' sessions</div></div>'
-          +'<div class="sc"><div class="sl">Best Non-Bungee</div>'
-          +'<div class="sv">'+(bestNB?bestNB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
-          +'<div class="sn">'+(bestNB?dateLabel(bestNB.date):'—')+'</div></div>'
-          +'<div class="sc"><div class="sl">Best Bungee</div>'
-          +'<div class="sv">'+(bestB?bestB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
-          +'<div class="sn">Thu only</div></div>'
-          +'<div class="sc"><div class="sl">HRM Sessions</div>'
-          +'<div class="sv">'+ss.filter(function(s){return s.hasHR;}).length
-          +'<span class="su2"> / '+ss.length+'</span></div></div>'
-          +'</div>';
-      case 'speed-chart':
-        return '<div class="card">'
-          +'<div class="ct-title">Session speed — coloured by focus type</div>'
-          +'<div class="ct-sub">🔴 diamonds = bungee Thursdays · dashed lines connect same focus type</div>'
-          +'<canvas id="ov-c" height="175"></canvas></div>';
-      case 'sessions-table':
-        return '<div class="tw"><table>'
-          +'<tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th>'
-          +'<th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Conditions</th>'
-          +'<th>Notes</th><th>Compare to</th><th style="width:32px"></th></tr>'
-          +rows+'</table></div>';
-    }
-    return '';
-  }
-
-  order.forEach(function(id){
-    var h = widgetHTML(id);
-    if (!h) return;
-    var wrap = document.createElement('div');
-    wrap.className        = 'ov-widget-wrap';
-    wrap.dataset.widgetId = id;
-    wrap.innerHTML = '<div class="drag-handle" title="Drag to reorder">⠿</div>' + h;
-    container.appendChild(wrap);
-  });
-
-  viewDiv.appendChild(container);
-  setTimeout(function(){ drawOvSpeed(ss); }, 30);
-  attachOvDrag(container);
-}
-
-/* ── Overview drag handlers ── */
-function attachOvDrag(container) {
-  Array.from(container.querySelectorAll('.ov-widget-wrap')).forEach(function(wrap){
-    var handle = wrap.querySelector(':scope > .drag-handle');
-    if (!handle) return;
-    handle.addEventListener('mousedown', function(e){
-      e.preventDefault(); startOvDrag(wrap, container, e.clientY);
-    });
-    handle.addEventListener('touchstart', function(e){
-      e.preventDefault(); startOvDrag(wrap, container, e.touches[0].clientY);
-    }, { passive:false });
-  });
-}
-
-function startOvDrag(srcWrap, container, startY) {
-  var srcRect = srcWrap.getBoundingClientRect();
-  var offsetY = startY - srcRect.top;
-  srcWrap.classList.add('dnd-dragging');
-  var ghost   = srcWrap.cloneNode(true);
-  ghost.id    = 'dnd-ghost';
-  ghost.style.cssText = 'position:fixed;z-index:9999;width:'+srcRect.width+'px;'
-    +'opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.2);'
-    +'border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;';
-  document.body.appendChild(ghost);
-
-  function onMove(y) {
-    ghost.style.top = (y-offsetY)+'px';
-    var target = null;
-    Array.from(container.querySelectorAll('.ov-widget-wrap:not(.dnd-dragging)')).forEach(function(w){
-      var r = w.getBoundingClientRect();
-      if (y>=r.top && y<=r.bottom) target=w;
-    });
-    if (target) {
-      var ti = Array.from(container.children).indexOf(target);
-      var si = Array.from(container.children).indexOf(srcWrap);
-      if (ti>si) container.insertBefore(srcWrap, target.nextSibling);
-      else       container.insertBefore(srcWrap, target);
-    }
-  }
-  function onEnd() {
-    srcWrap.classList.remove('dnd-dragging');
-    var g=document.getElementById('dnd-ghost'); if(g) g.remove();
-    var newOrder = Array.from(container.querySelectorAll('.ov-widget-wrap'))
-      .map(function(w){ return w.dataset.widgetId; }).filter(Boolean);
-    if (newOrder.length) { OV_WIDGET_ORDER=newOrder; saveOvLayout(); }
-    document.removeEventListener('mousemove',mm);
-    document.removeEventListener('mouseup',mu);
-    document.removeEventListener('touchmove',tm);
-    document.removeEventListener('touchend',tu);
-  }
-  function mm(e){ onMove(e.clientY); }
-  function mu(){ onEnd(); }
-  function tm(e){ e.preventDefault(); onMove(e.touches[0].clientY); }
-  function tu(){ onEnd(); }
-  document.addEventListener('mousemove',mm);
-  document.addEventListener('mouseup',mu);
-  document.addEventListener('touchmove',tm,{passive:false});
-  document.addEventListener('touchend',tu);
-}
-
-
-
-
-
-
-/* ═══════════════════════════════════════════
-   INSIGHTS STRIP — dynamic, reorderable, toggleable
-═══════════════════════════════════════════ */
-var STRIP_KEY = 'clubby_strip';
-
-var STRIP_DEFS = [
-  { id:'sessions',   label:'Sessions',         icon:'🏄' },
-  { id:'bungee',     label:'Thu Bungee Trend', icon:'🔴' },
-  { id:'intervals',  label:'Tue Intervals',    icon:'⚡' },
-  { id:'long-z2',    label:'Sat Long Z2',      icon:'🌊' },
-  { id:'hrm',        label:'HRM Sessions',     icon:'♥'  },
-  { id:'dist',       label:'Total Distance',   icon:'📏' },
-  { id:'race',       label:'Race Speed',       icon:'🏆' },
-  { id:'best',       label:'Best Session',     icon:'🚀' },
-];
-
-var STRIP_CONFIG = null;
-
-function defaultStripConfig() {
-  return { order:['sessions','bungee','intervals','long-z2','hrm'], hidden:['dist','race','best'] };
-}
-function getStripConfig(){ return STRIP_CONFIG || defaultStripConfig(); }
-
-function loadStripConfig() {
-  try {
-    var raw = _store[STRIP_KEY];
-    if (!raw) return;
-    var s = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    var all = STRIP_DEFS.map(function(d){ return d.id; });
-    var seen = (s.order||[]).concat(s.hidden||[]);
-    var novel = all.filter(function(id){ return seen.indexOf(id)<0; });
-    STRIP_CONFIG = {
-      order:  (s.order||[]).filter(function(id){ return all.indexOf(id)>=0; }),
-      hidden: (s.hidden||[]).filter(function(id){ return all.indexOf(id)>=0; }).concat(novel),
-    };
-  } catch(e){}
-}
-
-function saveStripConfig() {
-  _store[STRIP_KEY] = STRIP_CONFIG;
-  sbScheduleWrite(STRIP_KEY, STRIP_CONFIG);
-}
-
-function getStripCellData(id) {
-  var ss = SESSIONS;
-  switch(id) {
-    case 'sessions': {
-      if (!ss.length) return null;
-      return { label:'Sessions', value:String(ss.length),
-        sub: ss.length>1 ? dateLabel(ss[0].date)+' → '+dateLabel(ss[ss.length-1].date) : dateLabel(ss[0].date),
-        badge:null };
-    }
-    case 'bungee': {
-      var b = (COMPUTED&&COMPUTED.byFocus['bungee'])||[];
-      if (!b.length) return { label:'Thu Bungee', value:'—', sub:'no bungee sessions yet', badge:null };
-      var bl=b[b.length-1];
-      if (b.length<2) return { label:'Thu Bungee', value:bl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(bl.date)+' · 1 session', badge:null };
-      var bp=(bl.avgSpeed-b[0].avgSpeed)/b[0].avgSpeed*100;
-      return { label:'Thu Bungee', value:bl.avgSpeed.toFixed(2)+' mph', sub:'latest vs '+dateLabel(b[0].date),
-        badge:{cls:bp>=0?'b-up':'b-dn', text:(bp>=0?'▲ ':'▼ ')+Math.abs(bp).toFixed(1)+'%'} };
-    }
-    case 'intervals': {
-      var t=(COMPUTED&&COMPUTED.byFocus['intervals'])||[];
-      if (!t.length) return { label:'Tue Intervals', value:'—', sub:'no interval sessions yet', badge:null };
-      var tl=t[t.length-1];
-      return { label:'Tue Intervals', value:tl.avgSpeed.toFixed(2)+' mph',
-        sub:dateLabel(tl.date)+(t.length>1?' · '+t.length+' sessions':''), badge:null };
-    }
-    case 'long-z2': {
-      var sat=(COMPUTED&&COMPUTED.byFocus['long-z2'])||[];
-      if (!sat.length) return { label:'Sat Long Z2', value:'—', sub:'no long Z2 sessions yet', badge:null };
-      var sl=sat[sat.length-1];
-      return { label:'Sat Long Z2', value:sl.avgSpeed.toFixed(2)+' mph',
-        sub:dateLabel(sl.date)+(sat.length>1?' · '+sat.length+' sessions':''), badge:null };
-    }
-    case 'hrm': {
-      var hrSess=ss.filter(function(s){return s.hasHR;});
-      return { label:'HRM Sessions', value:hrSess.length+' / '+ss.length,
-        sub:hrSess.length?'♥ '+hrSess.map(function(s){return dateLabel(s.date);}).join(', '):'no HRM yet',
-        badge:null };
-    }
-    case 'dist': {
-      var td=ss.reduce(function(a,s){return a+s.totalDist;},0);
-      return { label:'Total Distance', value:td.toFixed(1)+' mi', sub:ss.length+' sessions', badge:null };
-    }
-    case 'race': {
-      var r=(COMPUTED&&COMPUTED.byFocus['race'])||[];
-      if (!r.length) return { label:'Race Speed', value:'—', sub:'no races yet', badge:null };
-      var rl=r[r.length-1];
-      return { label:'Race Speed', value:rl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(rl.date), badge:null };
-    }
-    case 'best': {
-      var nb=ss.filter(function(s){var f=getFocus(s);return !f||!f.bungee;});
-      if (!nb.length) return null;
-      var best=nb.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;});
-      return { label:'Best Session', value:best.avgSpeed.toFixed(2)+' mph', sub:dateLabel(best.date), badge:null };
-    }
-  }
-  return null;
-}
-
-function renderStrip() {
-  var strip = document.getElementById('istrip');
-  if (!strip) return;
-  var cfg = getStripConfig();
-  var html = '';
-  cfg.order.forEach(function(id) {
-    var data = getStripCellData(id);
-    if (!data) return;
-    html += '<div class="ic" data-cell-id="'+id+'">'
-      +'<button class="ic-handle" title="Drag to reorder">⠿</button>'
-      +'<div class="il">'+escHtml(data.label)+'</div>'
-      +'<div class="iv">'+data.value+'</div>'
-      +'<div class="is">'+escHtml(data.sub||'')+'</div>'
-      +(data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'')
-      +'</div>';
-  });
-  html += '<div class="ic-edit-end" onclick="openStripEditor()" title="Customise strip">✦</div>';
-  strip.innerHTML = html;
-  attachStripDrag(strip);
-}
-
-function attachStripDrag(strip) {
-  Array.from(strip.querySelectorAll('.ic[data-cell-id]')).forEach(function(cell) {
-    var h = cell.querySelector('.ic-handle');
-    if (!h) return;
-    h.addEventListener('mousedown', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.clientX); });
-    h.addEventListener('touchstart', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.touches[0].clientX); }, {passive:false});
-  });
-}
-
-function startStripDrag(src, strip, x0) {
-  var r0=src.getBoundingClientRect(), ox=x0-r0.left;
-  src.classList.add('ic-dragging');
-  var ghost=src.cloneNode(true);
-  ghost.id='strip-ghost';
-  ghost.style.cssText='position:fixed;z-index:9999;width:'+r0.width+'px;height:'+r0.height+'px;'
-    +'opacity:.85;pointer-events:none;box-shadow:0 4px 20px rgba(140,110,180,.3);'
-    +'background:var(--white);border-radius:10px;top:'+r0.top+'px;left:'+(x0-ox)+'px;padding:10px 16px;';
-  document.body.appendChild(ghost);
-
-  function move(x) {
-    ghost.style.left=(x-ox)+'px';
-    var tgt=null;
-    Array.from(strip.querySelectorAll('.ic[data-cell-id]:not(.ic-dragging)')).forEach(function(c){
-      var cr=c.getBoundingClientRect(); if(x>=cr.left&&x<=cr.right)tgt=c;
-    });
-    if (tgt) {
-      var ti=Array.from(strip.children).indexOf(tgt);
-      var si=Array.from(strip.children).indexOf(src);
-      if(ti>si)strip.insertBefore(src,tgt.nextSibling);else strip.insertBefore(src,tgt);
-    }
-  }
-  function end() {
-    src.classList.remove('ic-dragging');
-    var g=document.getElementById('strip-ghost');if(g)g.remove();
-    var cfg=getStripConfig();
-    cfg.order=Array.from(strip.querySelectorAll('.ic[data-cell-id]')).map(function(c){return c.dataset.cellId;}).filter(Boolean);
-    STRIP_CONFIG=cfg; saveStripConfig();
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',tu);
-  }
-  function mm(e){move(e.clientX);}function mu(){end();}
-  function tm(e){e.preventDefault();move(e.touches[0].clientX);}function tu(){end();}
-  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
-  document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',tu);
-}
-
-/* Strip editor */
-var _stripEditorOpen = false;
-function openStripEditor() {
-  if (_stripEditorOpen){closeStripEditor();return;}
-  _stripEditorOpen=true;
-  var cfg=getStripConfig();
-  var chips=STRIP_DEFS.map(function(def){
-    var on=cfg.order.indexOf(def.id)>=0;
-    return '<button class="strip-chip'+(on?' on':'')+'" id="chip-'+def.id+'" '
-      +'data-chip-id="'+def.id+'" onclick="toggleStripCell(this.dataset.chipId)">'
-      +(on?'✓':'＋')+' '+def.icon+' '+def.label+'</button>';
-  }).join('');
-  var ed=document.createElement('div');
-  ed.id='strip-editor';ed.className='strip-editor';
-  ed.innerHTML='<div class="strip-editor-title"><span>✦ Customise stats strip</span>'
-    +'<button onclick="closeStripEditor()" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
-    +'padding:5px 14px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
-    +'color:var(--plum);cursor:pointer">Done</button></div>'
-    +'<div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-bottom:10px">'
-    +'Tap to show/hide · drag ⠿ in the strip to reorder</div>'
-    +'<div class="strip-chips">'+chips+'</div>';
-  var hdr=document.querySelector('.hdr');
-  if(hdr&&hdr.parentNode)hdr.parentNode.insertBefore(ed,hdr.nextSibling);
-  else document.body.insertBefore(ed,document.body.firstChild);
-  setTimeout(function(){document.addEventListener('click',_stripOutside);},0);
-}
-function closeStripEditor(){
-  _stripEditorOpen=false;
-  var ed=document.getElementById('strip-editor');if(ed)ed.remove();
-  document.removeEventListener('click',_stripOutside);
-}
-function _stripOutside(e){
-  var ed=document.getElementById('strip-editor');if(!ed)return;
-  if(!ed.contains(e.target)&&!e.target.closest('.ic-edit-end'))closeStripEditor();
-}
-function toggleStripCell(id){
-  var cfg=getStripConfig();
-  var idx=cfg.order.indexOf(id);
-  if(idx>=0){
-    if(cfg.order.length<=1)return;
-    cfg.order.splice(idx,1);
-    if(cfg.hidden.indexOf(id)<0)cfg.hidden.push(id);
-  } else {
-    cfg.order.push(id);
-    cfg.hidden=cfg.hidden.filter(function(h){return h!==id;});
-  }
-  STRIP_CONFIG=cfg; saveStripConfig(); renderStrip();
-  var chip=document.getElementById('chip-'+id);
-  if(chip){var on=cfg.order.indexOf(id)>=0;chip.className='strip-chip'+(on?' on':'');chip.textContent=(on?'✓':'＋')+' '+chip.textContent.slice(2);}
-}
-
-
-
-
 
 
 </script>
