@@ -220,6 +220,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -994,7 +995,54 @@ function getDOW(dateStr){
   var y=+dateStr.slice(0,4),m=+dateStr.slice(4,6)-1,d=+dateStr.slice(6,8);
   return new Date(y,m,d).getDay();
 }
-function getFocus(s){return s?PROGRAM[getDOW(s.date)]||null:null;}
+function getFocus(s) {
+  if (!s) return null;
+  /* 1. Manual session tag override */
+  if (SESSION_TAGS && SESSION_TAGS.hasOwnProperty(s.date)) {
+    var ov = SESSION_TAGS[s.date];
+    if (ov === null || ov === '') return null;  /* explicitly untagged */
+    /* Check PROGRAM */
+    for (var d in PROGRAM) {
+      if (PROGRAM[d].id === ov) return PROGRAM[d];
+    }
+    /* Check FOCUS_OPTIONS for extra types (race, gym, etc.) */
+    if (typeof FOCUS_OPTIONS !== 'undefined') {
+      for (var i = 0; i < FOCUS_OPTIONS.length; i++) {
+        if (FOCUS_OPTIONS[i].id === ov) {
+          var opt = FOCUS_OPTIONS[i];
+          var sty = (typeof FOCUS_STYLES !== 'undefined' && FOCUS_STYLES[ov]) || {};
+          return {
+            id:         opt.id,
+            label:      opt.label,
+            shortLabel: opt.label,
+            icon:       opt.icon  || sty.icon  || '📅',
+            color:      sty.color   || '#9b8bb8',
+            colorLt:    sty.colorLt || '#f0eaf9',
+            bungee:     opt.bungee  || false,
+            srTargets:  null,
+            desc:       '',
+            note:       null,
+          };
+        }
+      }
+    }
+    return null;
+  }
+  /* 2. Weekly plan for this session's week */
+  if (typeof WEEKLY_PLANS !== 'undefined' && typeof isoWeek !== 'undefined') {
+    var wk   = isoWeek(s.date);
+    var plan = WEEKLY_PLANS[wk];
+    if (plan && plan.days) {
+      var dow = getDOW(s.date);
+      var day = plan.days[dow];
+      if (day && day.id && typeof buildFocusFromDay !== 'undefined') {
+        return buildFocusFromDay(day, dow);
+      }
+    }
+  }
+  /* 3. Base PROGRAM by day-of-week */
+  return PROGRAM[getDOW(s.date)] || null;
+}
 function dateLabel(d){
   if(DLABELS[d])return DLABELS[d];
   var months=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -3525,6 +3573,7 @@ function renderUserPrefs() {
     +'<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
     +'</div></div>';
 }
+
 
 
 
