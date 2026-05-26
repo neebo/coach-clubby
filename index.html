@@ -329,6 +329,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -438,7 +440,7 @@ function sbToken() { return SB_SESSION ? SB_SESSION.access_token : null; }
 function sbSignUp(email, password, cb) {
   fetch(SUPABASE_URL + '/auth/v1/signup', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ email: email, password: password })
   })
   .then(function(r) {
@@ -460,7 +462,7 @@ function sbSignUp(email, password, cb) {
 function sbSignIn(email, password, cb) {
   fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ email: email, password: password })
   })
   .then(function(r) {
@@ -503,7 +505,7 @@ function sbSignOut(cb) {
 function sbRefresh(refreshToken, cb) {
   fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ refresh_token: refreshToken })
   })
   .then(function(r) { return r.json(); })
@@ -640,7 +642,7 @@ function sbRestoreSession(cb) {
         /* Token looks valid — verify with Supabase by fetching the user */
         fetch(SUPABASE_URL + '/auth/v1/user', {
           headers: {
-            'apikey':        SUPABASE_KEY,
+            'apikey':        SUPABASE_AUTH,
             'Authorization': 'Bearer ' + sess.access_token,
           }
         })
@@ -1084,7 +1086,7 @@ function resendVerification(email, btn) {
 
   fetch(SUPABASE_URL + '/auth/v1/resend', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ type: 'signup', email: email })
   }).then(function() {
     var btn = event.target;
@@ -1097,7 +1099,7 @@ function authForgot() {
   if (!email) { authError('Enter your email address first.'); return; }
   fetch(SUPABASE_URL + '/auth/v1/recover', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ email: email })
   }).then(function() {
     authError('✓ Check your email for a password reset link.');
@@ -4092,6 +4094,8 @@ function fitDataToSession(data, filename) {
     _source:       'fit',
   };
 }
+
+
 
 
 
