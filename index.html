@@ -20,7 +20,7 @@
 .btn-up{display:inline-flex;align-items:center;gap:6px;background:var(--lav);color:var(--plum);font-family:var(--font);font-weight:800;font-size:12px;padding:8px 16px;border-radius:var(--r-pill);border:none;cursor:pointer;transition:all .18s;}
 .btn-up:hover{background:#b09dd4;color:var(--white);transform:translateY(-1px);}#fi{display:none;}
 .storage-badge{display:none;align-items:center;font-size:10px;font-weight:800;padding:4px 10px;border-radius:var(--r-pill);background:var(--mint);color:#2e7a4a;}
-.istrip{display:flex;background:var(--lilac);border-bottom:2px solid var(--lav-lt);}
+
 .ic{flex:1;padding:12px 18px;border-right:1.5px solid var(--lav-lt);}.ic:last-child{border-right:none;}
 .il{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:3px;}
 .iv{font-size:19px;font-weight:900;color:var(--plum);line-height:1.1;}.is{font-size:10px;font-weight:600;color:var(--gm);margin-top:2px;}
@@ -112,7 +112,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   .btn-up{display:none;}          /* replaced by FAB */
 
   /* Stats strip: scroll horizontally */
-  .istrip{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;}
+  
   .ic{min-width:100px;padding:10px 12px;flex-shrink:0;}
   .il{font-size:8px;}
   .iv{font-size:16px;}
@@ -184,7 +184,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   .nb-label,.nb-meta,.sb-title,.si,.add-sess,.clear-btn,.sb-div{display:none;}
   .ct{padding:20px 20px;}
   .g4{grid-template-columns:repeat(2,1fr);}
-  .istrip{overflow-x:auto;flex-wrap:nowrap;}
+  
   .ic{min-width:110px;flex-shrink:0;}
 }
 
@@ -213,11 +213,32 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   60%     { transform:translateX(-4px); }
   80%     { transform:translateX(4px); }
 }
+
+/* ── Insights strip dynamic cells ── */
+.istrip{display:flex;background:var(--lilac);border-bottom:2px solid var(--lav-lt);overflow-x:auto;-webkit-overflow-scrolling:touch;user-select:none;position:relative;}
+.ic{flex:0 0 auto;min-width:110px;padding:10px 16px;border-right:1.5px solid var(--lav-lt);position:relative;transition:background .15s;cursor:default;}
+.ic:last-child{border-right:none;}
+.ic.ic-dragging{opacity:.3;}
+.ic-handle{position:absolute;top:6px;right:6px;font-size:11px;color:var(--lav-md);opacity:0;cursor:grab;transition:opacity .15s;line-height:1;border:none;background:none;padding:0;}
+.istrip:hover .ic-handle{opacity:.5;}
+.ic-handle:hover{opacity:1!important;color:var(--plum);}
+.ic-edit-end{flex:0 0 44px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.4;font-size:14px;transition:opacity .15s;}
+.ic-edit-end:hover{opacity:.9;}
+/* Strip editor */
+.strip-editor{position:fixed;top:62px;left:0;right:0;background:var(--white);border-bottom:2px solid var(--lav-lt);z-index:150;padding:14px 24px 18px;box-shadow:0 8px 32px rgba(140,110,180,.15);animation:su .18s ease;}
+.strip-editor-title{font-size:11px;font-weight:800;color:var(--plum);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.strip-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.strip-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;border:1.5px solid var(--lav);background:var(--lilac2);color:var(--plum);cursor:pointer;transition:all .15s;}
+.strip-chip.on{background:var(--plum);color:var(--white);border-color:var(--plum);}
+.strip-chip:hover{transform:translateY(-1px);}
+@media(max-width:640px){.ic-handle,.ic-edit-end{display:none;}.strip-editor{padding:10px 14px 14px;}}
+@keyframes auth-shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
 </style>
 </head>
 <body>
 <div class="hdr"><div style="font-size:24px">🦭</div><div><div class="logo">Coach Clubby</div><div class="logo-sub">Road 2 Worlds · Week 8</div></div><div class="hdr-r"><span class="storage-badge" id="storage-badge">💾 0 sessions saved</span><label class="btn-up" for="fi">＋ Upload Sessions (.csv / .fit)</label><input type="file" id="fi" accept=".csv,.fit" multiple></div></div>
-<div class="istrip"><div class="ic"><div class="il">Sessions</div><div class="iv" id="i-sess">—</div><div class="is" id="i-range">—</div></div><div class="ic"><div class="il">Thu Bungee Trend</div><div class="iv" id="i-bungee">—</div><div class="is" id="i-bungee-sub">within-type</div><span class="badge" id="i-bungee-badge"></span></div><div class="ic"><div class="il">Tue Interval Speed</div><div class="iv" id="i-tue">—</div><div class="is" id="i-tue-sub">Z2 intervals</div></div><div class="ic"><div class="il">Sat Long Z2</div><div class="iv" id="i-sat">—</div><div class="is" id="i-sat-sub">endurance</div></div><div class="ic"><div class="il">HRM Sessions</div><div class="iv" id="i-hrm">—</div><div class="is" id="i-hrm-sub">—</div></div></div>
+<div class="istrip" id="istrip"></div>
+
 <div class="body"><aside class="sb"><div class="sb-title">Views</div><button class="nb active" data-page="overview"><span class="nb-icon">🏠</span><div><div class="nb-label">Overview</div><div class="nb-meta">All sessions</div></div></button><button class="nb" data-page="by-focus"><span class="nb-icon">🎯</span><div><div class="nb-label">By Focus Type</div><div class="nb-meta">Compare like with like</div></div></button><button class="nb" data-page="segments"><span class="nb-icon">🗺️</span><div><div class="nb-label">Segment Compare</div><div class="nb-meta">Week over week</div></div></button>
 <button class="nb" data-page="plans"><span class="nb-icon">📋</span><div><div class="nb-label">Weekly Plans</div><div class="nb-meta">Upload workout schedules</div></div></button><div class="sb-div"></div><div class="sb-title">Sessions</div><div id="sess-list"></div><label class="add-sess" for="fi">🦭 Add more sessions</label><div class="clear-btn" onclick="clearAllStorage()">🗑 Reset saved data</div></aside><main class="ct" id="ct"></main></div>
 <nav class="mob-nav" id="mob-nav">
@@ -236,6 +257,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -657,7 +681,7 @@ function loadPersistedData(cb) {
 }
 
 function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY];
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY];
   var loaded = 0;
   _store = {};
   keys.forEach(function(k) {
@@ -718,7 +742,7 @@ function saveWeeklyPlans() {
 function clearAllStorage() {
   if (!confirm('Delete all your saved data and start fresh?')) return;
   /* Delete all known keys from Supabase */
-  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY];
+  var allKeys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY];
   allKeys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
   /* Delete per-session detail rows */
   SESSIONS.forEach(function(s) { deleteSessionDetail(s.date); });
@@ -1244,32 +1268,7 @@ function refresh(){
 }
 
 function updateInsights(){
-  var ss=SESSIONS;
-  if(!ss.length)return;
-  var hrSess=ss.filter(function(s){return s.hasHR;});
-  setEl('i-sess',ss.length);
-  setEl('i-range',dateLabel(ss[0].date)+' → '+dateLabel(ss[ss.length-1].date));
-  setEl('i-hrm',hrSess.length+' of '+ss.length);
-  setEl('i-hrm-sub',hrSess.length?'♥ '+hrSess.map(function(s){return dateLabel(s.date);}).join(', '):'connect HRM');
-  if(!COMPUTED)return;
-  var bungee=COMPUTED.byFocus['bungee']||[];
-  if(bungee.length>=2){
-    var bf=bungee[0],bl=bungee[bungee.length-1];
-    var bp=((bl.avgSpeed-bf.avgSpeed)/bf.avgSpeed*100);
-    setEl('i-bungee',bl.avgSpeed.toFixed(2)+' mph');
-    setEl('i-bungee-sub','latest · vs '+dateLabel(bf.date));
-    var bb=document.getElementById('i-bungee-badge');
-    if(bb){bb.className='badge '+(bp>=0?'b-up':'b-dn');bb.textContent=(bp>=0?'▲ ':'▼ ')+Math.abs(bp).toFixed(1)+'% bungee-to-bungee';}
-  } else if(bungee.length===1){
-    setEl('i-bungee',bungee[0].avgSpeed.toFixed(2)+' mph');
-    setEl('i-bungee-sub',dateLabel(bungee[0].date)+' · 1 session so far');
-    var bb2=document.getElementById('i-bungee-badge');
-    if(bb2){bb2.className='badge b-neu';bb2.textContent='need more Thu sessions';}
-  }
-  var tue=COMPUTED.byFocus['intervals']||[];
-  if(tue.length){setEl('i-tue',tue[tue.length-1].avgSpeed.toFixed(2)+' mph');setEl('i-tue-sub',dateLabel(tue[tue.length-1].date)+(tue.length>1?' · '+tue.length+' sessions':''));}
-  var sat=COMPUTED.byFocus['long-z2']||[];
-  if(sat.length){setEl('i-sat',sat[sat.length-1].avgSpeed.toFixed(2)+' mph');setEl('i-sat-sub',dateLabel(sat[sat.length-1].date)+(sat.length>1?' · '+sat.length+' sessions':''));}
+  renderStrip();
   updateStorageBadge();
 }
 
@@ -3683,6 +3682,8 @@ function renderUserPrefs() {
     if (r1) r1.onclick = function(){ CARD_ORDER=null; saveLayout(); refresh(); showToast('Session card layout reset','success'); };
     var r2 = document.getElementById('reset-ov-btn');
     if (r2) r2.onclick = function(){ OV_WIDGET_ORDER=null; saveOvLayout(); refresh(); showToast('Overview layout reset','success'); };
+    var r3=document.getElementById('reset-strip-btn');
+    if(r3) r3.onclick=function(){ STRIP_CONFIG=null; saveStripConfig(); renderStrip(); showToast('Stats strip reset','success'); };
   }, 0);
 
   var btnStyle = 'font-family:var(--font);font-size:11px;font-weight:800;padding:7px 16px;'
@@ -4412,6 +4413,229 @@ function startOvDrag(srcWrap, container, startY) {
   document.addEventListener('touchend',tu);
 }
 
+
+
+
+
+
+/* ═══════════════════════════════════════════
+   INSIGHTS STRIP — dynamic, reorderable, toggleable
+═══════════════════════════════════════════ */
+var STRIP_KEY = 'clubby_strip';
+
+var STRIP_DEFS = [
+  { id:'sessions',   label:'Sessions',         icon:'🏄' },
+  { id:'bungee',     label:'Thu Bungee Trend', icon:'🔴' },
+  { id:'intervals',  label:'Tue Intervals',    icon:'⚡' },
+  { id:'long-z2',    label:'Sat Long Z2',      icon:'🌊' },
+  { id:'hrm',        label:'HRM Sessions',     icon:'♥'  },
+  { id:'dist',       label:'Total Distance',   icon:'📏' },
+  { id:'race',       label:'Race Speed',       icon:'🏆' },
+  { id:'best',       label:'Best Session',     icon:'🚀' },
+];
+
+var STRIP_CONFIG = null;
+
+function defaultStripConfig() {
+  return { order:['sessions','bungee','intervals','long-z2','hrm'], hidden:['dist','race','best'] };
+}
+function getStripConfig(){ return STRIP_CONFIG || defaultStripConfig(); }
+
+function loadStripConfig() {
+  try {
+    var raw = _store[STRIP_KEY];
+    if (!raw) return;
+    var s = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    var all = STRIP_DEFS.map(function(d){ return d.id; });
+    var seen = (s.order||[]).concat(s.hidden||[]);
+    var novel = all.filter(function(id){ return seen.indexOf(id)<0; });
+    STRIP_CONFIG = {
+      order:  (s.order||[]).filter(function(id){ return all.indexOf(id)>=0; }),
+      hidden: (s.hidden||[]).filter(function(id){ return all.indexOf(id)>=0; }).concat(novel),
+    };
+  } catch(e){}
+}
+
+function saveStripConfig() {
+  _store[STRIP_KEY] = STRIP_CONFIG;
+  sbScheduleWrite(STRIP_KEY, STRIP_CONFIG);
+}
+
+function getStripCellData(id) {
+  var ss = SESSIONS;
+  switch(id) {
+    case 'sessions': {
+      if (!ss.length) return null;
+      return { label:'Sessions', value:String(ss.length),
+        sub: ss.length>1 ? dateLabel(ss[0].date)+' → '+dateLabel(ss[ss.length-1].date) : dateLabel(ss[0].date),
+        badge:null };
+    }
+    case 'bungee': {
+      var b = (COMPUTED&&COMPUTED.byFocus['bungee'])||[];
+      if (!b.length) return { label:'Thu Bungee', value:'—', sub:'no bungee sessions yet', badge:null };
+      var bl=b[b.length-1];
+      if (b.length<2) return { label:'Thu Bungee', value:bl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(bl.date)+' · 1 session', badge:null };
+      var bp=(bl.avgSpeed-b[0].avgSpeed)/b[0].avgSpeed*100;
+      return { label:'Thu Bungee', value:bl.avgSpeed.toFixed(2)+' mph', sub:'latest vs '+dateLabel(b[0].date),
+        badge:{cls:bp>=0?'b-up':'b-dn', text:(bp>=0?'▲ ':'▼ ')+Math.abs(bp).toFixed(1)+'%'} };
+    }
+    case 'intervals': {
+      var t=(COMPUTED&&COMPUTED.byFocus['intervals'])||[];
+      if (!t.length) return { label:'Tue Intervals', value:'—', sub:'no interval sessions yet', badge:null };
+      var tl=t[t.length-1];
+      return { label:'Tue Intervals', value:tl.avgSpeed.toFixed(2)+' mph',
+        sub:dateLabel(tl.date)+(t.length>1?' · '+t.length+' sessions':''), badge:null };
+    }
+    case 'long-z2': {
+      var sat=(COMPUTED&&COMPUTED.byFocus['long-z2'])||[];
+      if (!sat.length) return { label:'Sat Long Z2', value:'—', sub:'no long Z2 sessions yet', badge:null };
+      var sl=sat[sat.length-1];
+      return { label:'Sat Long Z2', value:sl.avgSpeed.toFixed(2)+' mph',
+        sub:dateLabel(sl.date)+(sat.length>1?' · '+sat.length+' sessions':''), badge:null };
+    }
+    case 'hrm': {
+      var hrSess=ss.filter(function(s){return s.hasHR;});
+      return { label:'HRM Sessions', value:hrSess.length+' / '+ss.length,
+        sub:hrSess.length?'♥ '+hrSess.map(function(s){return dateLabel(s.date);}).join(', '):'no HRM yet',
+        badge:null };
+    }
+    case 'dist': {
+      var td=ss.reduce(function(a,s){return a+s.totalDist;},0);
+      return { label:'Total Distance', value:td.toFixed(1)+' mi', sub:ss.length+' sessions', badge:null };
+    }
+    case 'race': {
+      var r=(COMPUTED&&COMPUTED.byFocus['race'])||[];
+      if (!r.length) return { label:'Race Speed', value:'—', sub:'no races yet', badge:null };
+      var rl=r[r.length-1];
+      return { label:'Race Speed', value:rl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(rl.date), badge:null };
+    }
+    case 'best': {
+      var nb=ss.filter(function(s){var f=getFocus(s);return !f||!f.bungee;});
+      if (!nb.length) return null;
+      var best=nb.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;});
+      return { label:'Best Session', value:best.avgSpeed.toFixed(2)+' mph', sub:dateLabel(best.date), badge:null };
+    }
+  }
+  return null;
+}
+
+function renderStrip() {
+  var strip = document.getElementById('istrip');
+  if (!strip) return;
+  var cfg = getStripConfig();
+  var html = '';
+  cfg.order.forEach(function(id) {
+    var data = getStripCellData(id);
+    if (!data) return;
+    html += '<div class="ic" data-cell-id="'+id+'">'
+      +'<button class="ic-handle" title="Drag to reorder">⠿</button>'
+      +'<div class="il">'+escHtml(data.label)+'</div>'
+      +'<div class="iv">'+data.value+'</div>'
+      +'<div class="is">'+escHtml(data.sub||'')+'</div>'
+      +(data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'')
+      +'</div>';
+  });
+  html += '<div class="ic-edit-end" onclick="openStripEditor()" title="Customise strip">✦</div>';
+  strip.innerHTML = html;
+  attachStripDrag(strip);
+}
+
+function attachStripDrag(strip) {
+  Array.from(strip.querySelectorAll('.ic[data-cell-id]')).forEach(function(cell) {
+    var h = cell.querySelector('.ic-handle');
+    if (!h) return;
+    h.addEventListener('mousedown', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.clientX); });
+    h.addEventListener('touchstart', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.touches[0].clientX); }, {passive:false});
+  });
+}
+
+function startStripDrag(src, strip, x0) {
+  var r0=src.getBoundingClientRect(), ox=x0-r0.left;
+  src.classList.add('ic-dragging');
+  var ghost=src.cloneNode(true);
+  ghost.id='strip-ghost';
+  ghost.style.cssText='position:fixed;z-index:9999;width:'+r0.width+'px;height:'+r0.height+'px;'
+    +'opacity:.85;pointer-events:none;box-shadow:0 4px 20px rgba(140,110,180,.3);'
+    +'background:var(--white);border-radius:10px;top:'+r0.top+'px;left:'+(x0-ox)+'px;padding:10px 16px;';
+  document.body.appendChild(ghost);
+
+  function move(x) {
+    ghost.style.left=(x-ox)+'px';
+    var tgt=null;
+    Array.from(strip.querySelectorAll('.ic[data-cell-id]:not(.ic-dragging)')).forEach(function(c){
+      var cr=c.getBoundingClientRect(); if(x>=cr.left&&x<=cr.right)tgt=c;
+    });
+    if (tgt) {
+      var ti=Array.from(strip.children).indexOf(tgt);
+      var si=Array.from(strip.children).indexOf(src);
+      if(ti>si)strip.insertBefore(src,tgt.nextSibling);else strip.insertBefore(src,tgt);
+    }
+  }
+  function end() {
+    src.classList.remove('ic-dragging');
+    var g=document.getElementById('strip-ghost');if(g)g.remove();
+    var cfg=getStripConfig();
+    cfg.order=Array.from(strip.querySelectorAll('.ic[data-cell-id]')).map(function(c){return c.dataset.cellId;}).filter(Boolean);
+    STRIP_CONFIG=cfg; saveStripConfig();
+    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+    document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',tu);
+  }
+  function mm(e){move(e.clientX);}function mu(){end();}
+  function tm(e){e.preventDefault();move(e.touches[0].clientX);}function tu(){end();}
+  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+  document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',tu);
+}
+
+/* Strip editor */
+var _stripEditorOpen = false;
+function openStripEditor() {
+  if (_stripEditorOpen){closeStripEditor();return;}
+  _stripEditorOpen=true;
+  var cfg=getStripConfig();
+  var chips=STRIP_DEFS.map(function(def){
+    var on=cfg.order.indexOf(def.id)>=0;
+    return '<button class="strip-chip'+(on?' on':'')+'" id="chip-'+def.id+'" '
+      +'data-chip-id="'+def.id+'" onclick="toggleStripCell(this.dataset.chipId)">'
+      +(on?'✓':'＋')+' '+def.icon+' '+def.label+'</button>';
+  }).join('');
+  var ed=document.createElement('div');
+  ed.id='strip-editor';ed.className='strip-editor';
+  ed.innerHTML='<div class="strip-editor-title"><span>✦ Customise stats strip</span>'
+    +'<button onclick="closeStripEditor()" style="font-family:var(--font);font-size:11px;font-weight:800;'
+    +'padding:5px 14px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
+    +'color:var(--plum);cursor:pointer">Done</button></div>'
+    +'<div style="font-size:11px;font-weight:600;color:var(--gm);margin-bottom:10px">'
+    +'Tap to show/hide · drag ⠿ in the strip to reorder</div>'
+    +'<div class="strip-chips">'+chips+'</div>';
+  var hdr=document.querySelector('.hdr');
+  if(hdr&&hdr.parentNode)hdr.parentNode.insertBefore(ed,hdr.nextSibling);
+  else document.body.insertBefore(ed,document.body.firstChild);
+  setTimeout(function(){document.addEventListener('click',_stripOutside);},0);
+}
+function closeStripEditor(){
+  _stripEditorOpen=false;
+  var ed=document.getElementById('strip-editor');if(ed)ed.remove();
+  document.removeEventListener('click',_stripOutside);
+}
+function _stripOutside(e){
+  var ed=document.getElementById('strip-editor');if(!ed)return;
+  if(!ed.contains(e.target)&&!e.target.closest('.ic-edit-end'))closeStripEditor();
+}
+function toggleStripCell(id){
+  var cfg=getStripConfig();
+  var idx=cfg.order.indexOf(id);
+  if(idx>=0){
+    if(cfg.order.length<=1)return;
+    cfg.order.splice(idx,1);
+    if(cfg.hidden.indexOf(id)<0)cfg.hidden.push(id);
+  } else {
+    cfg.order.push(id);
+    cfg.hidden=cfg.hidden.filter(function(h){return h!==id;});
+  }
+  STRIP_CONFIG=cfg; saveStripConfig(); renderStrip();
+  var chip=document.getElementById('chip-'+id);
+  if(chip){var on=cfg.order.indexOf(id)>=0;chip.className='strip-chip'+(on?' on':'');chip.textContent=(on?'✓':'＋')+' '+chip.textContent.slice(2);}
+}
 
 </script>
 </body>
