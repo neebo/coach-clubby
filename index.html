@@ -524,6 +524,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -4069,23 +4070,18 @@ function getCardOrder() {
 }
 
 function renderSessionCards(s, containerEl) {
-  var order = getCardOrder();
-  var __f   = getFocus(s);
+  var order      = getCardOrder();
+  var __f        = getFocus(s);
   var isDownwind = __f && __f.id === 'long-z2';
+  var mapCanvasEl = null; /* direct reference to map canvas after DOM insert */
 
-  /* Build each card's HTML */
   function cardHTML(id) {
     switch(id) {
-      case 'legs':
-        return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
-      case 'tide':
-        return renderTideCard(s);
-      case 'weather':
-        return renderWeatherCard(s);
-      case 'notes':
-        return renderNotesEditor(s);
-      case 'map':
-        return renderGPSMap(s);
+      case 'legs':      return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
+      case 'tide':      return renderTideCard(s);
+      case 'weather':   return renderWeatherCard(s);
+      case 'notes':     return renderNotesEditor(s);
+      case 'map':       return renderGPSMap(s);
       case 'speed':
         return '<div class="card dnd-card" data-card-id="speed">'
           + '<div class="ct-title">Speed profile</div>'
@@ -4100,70 +4096,77 @@ function renderSessionCards(s, containerEl) {
     }
   }
 
-  /* Clear container and re-render in order */
   containerEl.innerHTML = '';
   order.forEach(function(id) {
     var h = cardHTML(id);
     if (!h) return;
     var wrap = document.createElement('div');
-    wrap.className  = 'dnd-card-wrap';
-    wrap.dataset.cardId = id;
-    /* Inject handle as first direct child of the wrap */
-    var handleEl = document.createElement('div');
-    handleEl.className = 'drag-handle';
-    handleEl.title = 'Drag to reorder';
-    handleEl.textContent = '⠿';
+    wrap.className       = 'dnd-card-wrap';
+    wrap.dataset.cardId  = id;
+    var handleEl         = document.createElement('div');
+    handleEl.className   = 'drag-handle';
+    handleEl.title       = 'Drag to reorder';
+    handleEl.textContent = '⠇';
     wrap.appendChild(handleEl);
-    /* Card content — inserted directly so CSS card width is unobstructed */
-    var tmp = document.createElement('div');
-    tmp.innerHTML = h;
-    while (tmp.firstChild) wrap.appendChild(tmp.firstChild);
+    /* Move card nodes directly into wrap (no extra wrapper div) */
+    var frag = document.createElement('div');
+    frag.innerHTML = h;
+    while (frag.firstChild) wrap.appendChild(frag.firstChild);
     containerEl.appendChild(wrap);
+    /* Capture map canvas reference immediately after DOM insert */
+    if (id === 'map' && s._mapId) {
+      mapCanvasEl = wrap.querySelector('#' + s._mapId);
+    }
   });
 
-  /* Draw chart after render */
-  /* Draw charts after layout settles.
-     Use a two-pass approach: try at 80ms, fallback IntersectionObserver */
-  function tryDrawCharts() {
+  /* ── Draw canvases after layout ── */
+  function drawCharts() {
+    /* Speed chart */
     var sc = document.getElementById('sc-'+s.date) || document.getElementById('sc');
     if (sc) drawSessChart(s);
-    /* If _mapId not set yet (strokes were empty on first render),
-       try calling renderGPSMap now in case strokes have since loaded */
-    if (!s._mapId && s.strokes && s.strokes.length) {
-      var gpsStrokes = s.strokes.filter(function(st) {
-        return st.lt != null && st.ln != null && st.lt > -90 && st.lt < 90;
+
+    /* Map — if strokes weren't ready when renderGPSMap ran, try now */
+    if (!s._mapId && (s.strokes||[]).length) {
+      var gps = s.strokes.filter(function(st) {
+        return st.lt != null && st.ln != null && st.lt > -90 && st.lt < 90 && st.ln > -180 && st.ln < 180;
       });
-      if (gpsStrokes.length) {
-        s._mapId = 'sess-map-' + s.date;
-        s._mapStrokes = gpsStrokes;
-        /* Find the existing 'No GPS data' card and replace it */
-        var mapWrap = containerEl.querySelector('.dnd-card-wrap[data-card-id="map"]');
+      if (gps.length) {
+        /* Rebuild the map card in-place */
+        s._mapStrokes = gps;
+        s._mapId      = 'sess-map-' + s.date;
+        var mapWrap = containerEl.querySelector('[data-card-id="map"]');
         if (mapWrap) {
-          var tmp = document.createElement('div');
-          tmp.innerHTML = renderGPSMap(s);
-          while (mapWrap.children.length > 1) mapWrap.removeChild(mapWrap.lastChild);
-          while (tmp.firstChild) mapWrap.appendChild(tmp.firstChild);
+          /* Remove everything except the drag handle */
+          var handle = mapWrap.querySelector('.drag-handle');
+          mapWrap.innerHTML = '';
+          if (handle) mapWrap.appendChild(handle);
+          var frag2 = document.createElement('div');
+          frag2.innerHTML = renderGPSMap(s); /* sets s._mapId again, same value */
+          while (frag2.firstChild) mapWrap.appendChild(frag2.firstChild);
+          mapCanvasEl = mapWrap.querySelector('#' + s._mapId);
         }
       }
     }
+
     if (s._mapId && s._mapStrokes && s._mapStrokes.length) {
-      var mc = document.getElementById(s._mapId);
+      var mc = mapCanvasEl || document.getElementById(s._mapId);
       if (mc) drawGPSMap(s, s._mapStrokes, mc);
     }
   }
-  setTimeout(tryDrawCharts, 80);
-  /* Fallback for off-screen cards */
+
+  setTimeout(drawCharts, 80);
+
+  /* IntersectionObserver fallback for cards below the fold */
   if (window.IntersectionObserver) {
-    var sc2 = document.getElementById('sc-'+s.date) || document.getElementById('sc');
-    if (sc2) {
-      var chartObs = new IntersectionObserver(function(entries, o) {
-        if (entries[0].isIntersecting) { o.disconnect(); tryDrawCharts(); }
+    var scEl = document.getElementById('sc-'+s.date);
+    if (scEl) {
+      var obs = new IntersectionObserver(function(entries, o) {
+        if (entries[0].isIntersecting) { o.disconnect(); drawCharts(); }
       }, { threshold: 0.1 });
-      chartObs.observe(sc2);
+      obs.observe(scEl);
     }
   }
 
-  /* Attach drag behaviour */
   attachDragHandlers(containerEl, s);
 }
 
@@ -5299,6 +5302,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
