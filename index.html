@@ -10,7 +10,8 @@
 <link rel="icon" href="data:,">
 <link rel="canonical" href="https://neebo.github.io/coach-clubby/">
 <!-- Clubby v2026-05-25-build-1779730695 -->
-<style>
+<style>.istrip{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;background:var(--lilac);border-bottom:2px solid var(--lav-lt);overflow-x:auto;-webkit-overflow-scrolling:touch;user-select:none;position:relative;}
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{
   /* ── Type scale ── */
@@ -122,9 +123,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   .storage-badge{display:none !important;}
   .btn-up{display:none;}          /* replaced by FAB */
 
-  /* Stats strip: scroll horizontally */
+  /* Stats strip: explicitly horizontal on mobile */
   
-  
+  .ic{flex:0 0 auto;min-width:100px;}
   .il{font-size:8px;}
   .iv{font-size:16px;}
 
@@ -210,7 +211,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 }
 
 /* ── Insights strip dynamic cells ── */
-.istrip{display:flex;background:var(--lilac);border-bottom:2px solid var(--lav-lt);overflow-x:auto;-webkit-overflow-scrolling:touch;user-select:none;position:relative;}
+
 
 
 
@@ -431,6 +432,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -5214,6 +5217,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
