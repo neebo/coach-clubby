@@ -215,9 +215,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
-.ic-handle{position:absolute;top:6px;right:6px;font-size:11px;color:var(--lav-md);opacity:0;cursor:grab;transition:opacity .15s;line-height:1;border:none;background:none;padding:0;}
-.istrip:hover .ic-handle{opacity:.5;}
-.ic-handle:hover{opacity:1!important;color:var(--plum);}
+.istrip:hover 
 .ic-edit-end{flex:0 0 44px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.4;font-size:14px;transition:opacity .15s;}
 .ic-edit-end:hover{opacity:.9;}
 /* Strip editor */
@@ -227,7 +225,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 .strip-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:var(--fs-small);font-weight:700;border:1.5px solid var(--lav);background:var(--lilac2);color:var(--plum);cursor:pointer;transition:all .15s;}
 .strip-chip.on{background:var(--plum);color:var(--white);border-color:var(--plum);}
 .strip-chip:hover{transform:translateY(-1px);}
-@media(max-width:640px){.ic-handle,.ic-edit-end{display:none;}.strip-editor{padding:10px 14px 14px;}}
+@media(max-width:640px){.strip-editor{padding:10px 14px 14px;}}
 @keyframes auth-shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
 
 /* Week plan day tiles */
@@ -279,7 +277,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 /* The handle itself — identical style everywhere */
 .dnd-card-wrap > .drag-handle,
 .ov-widget-wrap > .drag-handle,
-.focus-group-wrap > .drag-handle {
+.focus-group-wrap > .drag-handle,
+.ic > .drag-handle {
   position: absolute;
   top: 14px;
   right: 14px;
@@ -298,14 +297,16 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 /* Show on parent hover */
 .dnd-card-wrap:hover > .drag-handle,
 .ov-widget-wrap:hover > .drag-handle,
-.focus-group-wrap:hover > .drag-handle {
+.focus-group-wrap:hover > .drag-handle,
+.ic:hover > .drag-handle {
   opacity: .5;
 }
 
 /* Highlight on handle hover */
 .dnd-card-wrap > .drag-handle:hover,
 .ov-widget-wrap > .drag-handle:hover,
-.focus-group-wrap > .drag-handle:hover {
+.focus-group-wrap > .drag-handle:hover,
+.ic > .drag-handle:hover {
   opacity: 1;
   color: var(--plum);
   background: var(--lilac2);
@@ -313,14 +314,16 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 .dnd-card-wrap > .drag-handle:active,
 .ov-widget-wrap > .drag-handle:active,
-.focus-group-wrap > .drag-handle:active {
+.focus-group-wrap > .drag-handle:active,
+.ic > .drag-handle:active {
   cursor: grabbing;
 }
 
 /* Dragging state */
 .dnd-card-wrap.dnd-dragging,
 .ov-widget-wrap.dnd-dragging,
-.focus-group-wrap.dnd-dragging {
+.focus-group-wrap.dnd-dragging,
+.ic.dnd-dragging {
   opacity: .35;
   outline: 2px dashed var(--lav-md);
   outline-offset: 2px;
@@ -432,6 +435,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -4507,26 +4511,47 @@ function renderStrip() {
   var strip = document.getElementById('istrip');
   if (!strip) return;
   var cfg = getStripConfig();
-  var h = '';
+  strip.innerHTML = '';
+
   cfg.order.forEach(function(id) {
     var data = getStripCellData(id);
     if (!data) return;
-    h += '<div class="ic" data-cell-id="'+id+'">'
-      +'<button class="ic-handle" title="Drag to reorder">\u2807</button>'
-      +'<div class="il">'+escHtml(data.label)+'</div>'
+
+    var cell = document.createElement('div');
+    cell.className = 'ic';
+    cell.dataset.cellId = id;
+
+    /* Handle — same pattern as session cards */
+    var handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    handle.title = 'Drag to reorder';
+    handle.textContent = '⠇';
+    cell.appendChild(handle);
+
+    /* Cell content */
+    var content = document.createElement('div');
+    content.innerHTML = '<div class="il">'+escHtml(data.label)+'</div>'
       +'<div class="iv">'+data.value+'</div>'
       +'<div class="is">'+escHtml(data.sub||'')+'</div>'
-      +(data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'')
-      +'</div>';
+      +(data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'');
+    cell.appendChild(content);
+    strip.appendChild(cell);
   });
-  h += '<div class="ic-edit-end" onclick="openStripEditor()" title="Customise strip">\u2736</div>';
-  strip.innerHTML = h;
+
+  /* Edit button at end */
+  var editBtn = document.createElement('div');
+  editBtn.className = 'ic-edit-end';
+  editBtn.title = 'Customise strip';
+  editBtn.textContent = '✶';
+  editBtn.onclick = openStripEditor;
+  strip.appendChild(editBtn);
+
   attachStripDrag(strip);
 }
 
 function attachStripDrag(strip) {
   Array.from(strip.querySelectorAll('.ic[data-cell-id]')).forEach(function(cell) {
-    var handle = cell.querySelector('.ic-handle');
+    var handle = cell.querySelector(':scope > .drag-handle');
     if (!handle) return;
     handle.addEventListener('mousedown', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.clientX); });
     handle.addEventListener('touchstart', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.touches[0].clientX); }, {passive:false});
@@ -5217,6 +5242,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
