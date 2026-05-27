@@ -200,20 +200,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 }
 
 /* ── Drag & Drop ── */
-.dnd-card-wrap { position:relative; }
 
 
 
-.dnd-card-wrap.dnd-dragging > * {
-  opacity:.35;
-  outline:2px dashed var(--lav-md);
-  outline-offset:2px;
-  border-radius:14px;
-}
-#dnd-ghost 
-
-@keyframes auth-shake {
-  0%,100%{ transform:translateX(0); }
   20%     { transform:translateX(-6px); }
   40%     { transform:translateX(6px); }
   60%     { transform:translateX(-4px); }
@@ -242,31 +231,20 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 /* Week plan day tiles */
 
-.wpd{border-radius:10px;padding:8px 6px;text-align:center;border:1.5px solid transparent;transition:all .15s;}
-.wpd.today{border-color:currentColor;box-shadow:0 2px 10px rgba(0,0,0,.08);transform:translateY(-2px);}
-.wpd.has-session{cursor:pointer;}
-.wpd.has-session:hover{transform:translateY(-2px);box-shadow:0 2px 8px rgba(0,0,0,.07);}
-.wpd-dow{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
-.wpd-icon{font-size:18px;line-height:1.2;margin-bottom:2px;}
-.wpd-label{font-size:var(--fs-caption);font-weight:700;line-height:1.3;}
-.wpd-speed{font-size:var(--fs-small);font-weight:900;margin-top:3px;}
 
-.week-plan-days {
-  display:flex;
-  flex-direction:row;
-  gap:6px;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  padding-bottom:4px;  /* room for scrollbar */
-  scrollbar-width:none;  /* hide scrollbar Firefox */
-}
-.week-plan-days::-webkit-scrollbar { display:none; }
-.week-plan-days .wpd {
-  flex:0 0 calc((100% - 6*6px) / 7);
-  min-width:72px;
-}
+
+
+
+
+
+
+
+
+
+
+
 @media(max-width:640px){
-  .week-plan-days .wpd { min-width:64px; }
+  
 }
 
 /* By Focus Type DnD */
@@ -277,19 +255,90 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 .focus-group-wrap > 
 .focus-group-wrap:hover > 
 .focus-group-wrap > 
-.focus-group-wrap.dnd-dragging > .card { opacity: .3; outline: 2px dashed var(--lav-md); border-radius: 14px; }
 
 /* ── Weekly program strip ── */
+
+
+
+#sess-map { width: 100%; display: block; }
+
+/* ── Drag handles ── */
+
+/* ══════════════════════════════════════════
+   DRAG AND DROP — unified across all views
+══════════════════════════════════════════ */
+
+/* All draggable wrappers */
+.dnd-card-wrap,
+.ov-widget-wrap,
+.focus-group-wrap {
+  position: relative;
+}
+
+/* The handle itself — identical style everywhere */
+.dnd-card-wrap > .drag-handle,
+.ov-widget-wrap > .drag-handle,
+.focus-group-wrap > .drag-handle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 20;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--lav-md);
+  cursor: grab;
+  user-select: none;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+/* Show on parent hover */
+.dnd-card-wrap:hover > .drag-handle,
+.ov-widget-wrap:hover > .drag-handle,
+.focus-group-wrap:hover > .drag-handle {
+  opacity: .5;
+}
+
+/* Highlight on handle hover */
+.dnd-card-wrap > .drag-handle:hover,
+.ov-widget-wrap > .drag-handle:hover,
+.focus-group-wrap > .drag-handle:hover {
+  opacity: 1;
+  color: var(--plum);
+  background: var(--lilac2);
+}
+
+.dnd-card-wrap > .drag-handle:active,
+.ov-widget-wrap > .drag-handle:active,
+.focus-group-wrap > .drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Dragging state */
+.dnd-card-wrap.dnd-dragging,
+.ov-widget-wrap.dnd-dragging,
+.focus-group-wrap.dnd-dragging {
+  opacity: .35;
+  outline: 2px dashed var(--lav-md);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+/* Hide handle in the floating ghost clone */
+#dnd-ghost > .drag-handle { display: none; }
+
+/* ══════════════════════════════════════
+   WEEKLY PROGRAM STRIP
+══════════════════════════════════════ */
 .week-plan-strip {
   background: linear-gradient(135deg, var(--lilac2) 0%, var(--white) 100%);
   border: 2px solid var(--lav-lt);
   border-radius: var(--r-lg);
-  padding: 14px 16px 12px;
+  padding: 14px 16px 14px;
   margin-top: 4px;
   margin-bottom: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 .wps-title {
   font-size: var(--fs-label);
@@ -300,34 +349,51 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  margin-bottom: 14px;  /* space between title and day tiles */
 }
-
-#sess-map { width: 100%; display: block; }
-
-/* ── Drag handles ── */
-.dnd-card-wrap {
-  position: relative;
+.week-plan-days {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 6px;  /* top padding so today's raised tile doesn't clip */
+  scrollbar-width: none;
 }
-.dnd-card-wrap > .drag-handle {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  z-index: 20;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--lav-md);
-  cursor: grab;
-  user-select: none;
-  opacity: 0;
-  transition: opacity .15s;
-  padding: 4px;
+.week-plan-days::-webkit-scrollbar { display: none; }
+.wpd {
+  flex: 0 0 calc((100% - 6 * 6px) / 7);
+  min-width: 68px;
+  border-radius: 10px;
+  padding: 8px 6px;
+  text-align: center;
+  border: 1.5px solid transparent;
+  transition: all .15s;
+  box-sizing: border-box;
 }
-.dnd-card-wrap:hover > .drag-handle { opacity: .55; }
-.dnd-card-wrap > .drag-handle:hover { opacity: 1 !important; color: var(--plum); }
-.dnd-card-wrap > .drag-handle:active { cursor: grabbing; }
-.dnd-card-wrap.dnd-dragging { opacity: .35; outline: 2px dashed var(--lav-md); border-radius: 14px; }
-#dnd-ghost > .drag-handle { display: none; }
+.wpd.today {
+  border-color: currentColor;
+  box-shadow: 0 2px 10px rgba(0,0,0,.1);
+  transform: translateY(-1px);  /* reduced from -2px */
+}
+.wpd.has-session { cursor: pointer; }
+.wpd.has-session:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.wpd-dow {
+  font-size: var(--fs-label);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 3px;
+}
+.wpd-icon  { font-size: 18px; line-height: 1.2; margin-bottom: 2px; }
+.wpd-label { font-size: var(--fs-caption); font-weight: 700; line-height: 1.3; }
+.wpd-speed { font-size: var(--fs-small); font-weight: 900; margin-top: 3px; }
+@media (max-width: 640px) {
+  .wpd { min-width: 60px; }
+}
 </style>
 </head>
 <body>
@@ -352,6 +418,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -1725,7 +1794,6 @@ function renderByFocus(el){
       var effTrend=effBase&&effLast?((effLast-effBase)/effBase*100).toFixed(1):null;
 
       html+='<div class="focus-group-wrap" data-focus-id="'+f.id+'">';
-      html+='<div class="drag-handle" title="Drag to reorder">⠇</div>';
       html+='<div class="card">';
       html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
       html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
@@ -1780,7 +1848,6 @@ function renderByFocus(el){
     /* ── All other focus types: existing speed trend ── */
     var trendPct=hasTrend?pct(sess[sess.length-1].avgSpeed,ref.avgSpeed):null;
     html+='<div class="focus-group-wrap" data-focus-id="'+f.id+'">';
-    html+='<div class="drag-handle" title="Drag to reorder">⠇</div>';
     html+='<div class="card">';
     html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
     html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
@@ -1829,6 +1896,16 @@ function renderByFocus(el){
     bfContainer.appendChild(w);
   });
   bfView.appendChild(bfContainer);
+  /* Replace string-injected handles with proper elements */
+  Array.from(bfContainer.querySelectorAll('.focus-group-wrap')).forEach(function(wrap) {
+    var old = wrap.querySelector('.drag-handle');
+    if (old) old.remove();
+    var fHandle = document.createElement('div');
+    fHandle.className = 'drag-handle';
+    fHandle.title = 'Drag to reorder';
+    fHandle.textContent = '⠇';
+    wrap.insertBefore(fHandle, wrap.firstChild);
+  });
   attachFocusDrag(bfContainer);
   /* Draw charts — use IntersectionObserver so off-screen canvases
      (Race, Tuesday etc.) draw when they scroll into view */
@@ -4273,7 +4350,14 @@ function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, to
     var wrap = document.createElement('div');
     wrap.className        = 'ov-widget-wrap';
     wrap.dataset.widgetId = id;
-    wrap.innerHTML = '<div class="drag-handle" title="Drag to reorder">\u2807</div>' + h;
+    var ovHandle = document.createElement('div');
+    ovHandle.className = 'drag-handle';
+    ovHandle.title = 'Drag to reorder';
+    ovHandle.textContent = '⠇';
+    wrap.appendChild(ovHandle);
+    var ovContent = document.createElement('div');
+    ovContent.innerHTML = h;
+    wrap.appendChild(ovContent);
     container.appendChild(wrap);
   });
   viewDiv.appendChild(container);
@@ -5116,6 +5200,9 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
+
 
 
 
