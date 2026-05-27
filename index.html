@@ -520,6 +520,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -4109,49 +4110,35 @@ function renderSessionCards(s, containerEl) {
     handleEl.title = 'Drag to reorder';
     handleEl.textContent = '⠿';
     wrap.appendChild(handleEl);
-    /* Card content */
-    var cardContent = document.createElement('div');
-    cardContent.innerHTML = h;
-    wrap.appendChild(cardContent);
+    /* Card content — inserted directly so CSS card width is unobstructed */
+    var tmp = document.createElement('div');
+    tmp.innerHTML = h;
+    while (tmp.firstChild) wrap.appendChild(tmp.firstChild);
     containerEl.appendChild(wrap);
   });
 
   /* Draw chart after render */
-  requestAnimationFrame(function() {
-    setTimeout(function() {
-      /* Draw speed chart */
-      var c = document.getElementById('sc-'+s.date) || document.getElementById('sc');
-      if (c && (c.offsetWidth > 0 || (c.parentElement && c.parentElement.offsetWidth > 0))) {
-        drawSessChart(s);
-      } else if (window.IntersectionObserver && c) {
-        var obs = new IntersectionObserver(function(entries, o) {
-          if (entries[0].isIntersecting) { o.disconnect(); drawSessChart(s); }
-        }, { threshold: 0.1 });
-        obs.observe(c);
-      } else if (c) {
-        setTimeout(function() { drawSessChart(s); }, 300);
-      }
-      /* Draw GPS map — look up by session-specific id so re-renders don't conflict */
-      if (s._mapId && s._mapStrokes) {
-        var mc = document.getElementById(s._mapId);
-        if (!mc) return; /* map canvas not in DOM yet */
-        function doDrawMap() {
-          var W = 0, el = mc;
-          while (el && W === 0) { W = el.offsetWidth; el = el.parentElement; }
-          if (W > 0) { drawGPSMap(s, s._mapStrokes, mc); }
-          else if (window.IntersectionObserver) {
-            var mobs = new IntersectionObserver(function(entries, o) {
-              if (entries[0].isIntersecting) { o.disconnect(); drawGPSMap(s, s._mapStrokes, mc); }
-            }, { threshold: 0.1 });
-            mobs.observe(mc);
-          } else {
-            setTimeout(function() { drawGPSMap(s, s._mapStrokes, mc); }, 300);
-          }
-        }
-        doDrawMap();
-      }
-    }, 50);
-  });
+  /* Draw charts after layout settles.
+     Use a two-pass approach: try at 80ms, fallback IntersectionObserver */
+  function tryDrawCharts() {
+    var sc = document.getElementById('sc-'+s.date) || document.getElementById('sc');
+    if (sc) drawSessChart(s);
+    if (s._mapId && s._mapStrokes && s._mapStrokes.length) {
+      var mc = document.getElementById(s._mapId);
+      if (mc) drawGPSMap(s, s._mapStrokes, mc);
+    }
+  }
+  setTimeout(tryDrawCharts, 80);
+  /* Fallback for off-screen cards */
+  if (window.IntersectionObserver) {
+    var sc2 = document.getElementById('sc-'+s.date) || document.getElementById('sc');
+    if (sc2) {
+      var chartObs = new IntersectionObserver(function(entries, o) {
+        if (entries[0].isIntersecting) { o.disconnect(); tryDrawCharts(); }
+      }, { threshold: 0.1 });
+      chartObs.observe(sc2);
+    }
+  }
 
   /* Attach drag behaviour */
   attachDragHandlers(containerEl, s);
@@ -5289,6 +5276,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
