@@ -571,6 +571,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -1179,7 +1180,31 @@ function showAuthScreen() {
     '<div style="font-size:40px">🦭</div>',
     '<div style="font-size:var(--fs-page-title);font-weight:900;color:var(--plum);margin-top:6px">Coach Clubby</div>',
     '<div style="font-size:var(--fs-small);font-weight:700;color:var(--gm);margin-top:2px;',
-    'text-transform:uppercase;letter-spacing:1px">Road 2 Worlds</div>',
+    'text-transform:uppercase;letter-spacing:1px">' + (function(){
+    var phrases = [
+      '🌊 Road 2 Worlds',
+      '🦭 Every stroke counts',
+      '🌊 Champions train in the dark',
+      '🦭 Catch water, not feelings',
+      '🌊 Your best paddle is still ahead',
+      '🦭 Sleek and speedy',
+      '🌊 The ocean is waiting',
+      '🦭 Arf arf, let\'s go',
+      '🌊 Low tide, high goals',
+      '🦭 Blubber up and paddle on',
+      '🌊 Swells make champions',
+      '🦭 One more stroke',
+      '🌊 Salt water heals everything',
+      '🦭 Honk if you love paddling',
+      '🌊 Wind in your whiskers',
+      '🦭 Training season never ends',
+      '🌊 Glide like nobody\'s watching',
+      '🦭 Fish faster than yesterday',
+      '🌊 Calm water is for sleeping',
+      '🦭 The podium smells like sunscreen',
+    ];
+    return phrases[Math.floor(Math.random() * phrases.length)];
+  }()) + '</div>',
     '</div>',
 
     /* Tabs */
@@ -5343,6 +5368,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
