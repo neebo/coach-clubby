@@ -512,6 +512,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -4697,15 +4699,35 @@ function renderGPSMap(s) {
     + '<canvas id="sess-map" height="260" style="border-radius:10px;margin-top:8px"></canvas>'
     + '</div>';
 
-  /* Schedule draw after DOM paint */
-  setTimeout(function() { drawGPSMap(s, strokes); }, 60);
+  /* Schedule draw after DOM paint using rAF + IntersectionObserver */
+  requestAnimationFrame(function() {
+    setTimeout(function() {
+      var c = document.getElementById('sess-map');
+      if (!c) return;
+      /* Walk up to find a parent with real width */
+      var W = 0, el = c;
+      while (el && W === 0) { W = el.offsetWidth; el = el.parentElement; }
+      if (W > 0) {
+        drawGPSMap(s, strokes);
+      } else if (window.IntersectionObserver) {
+        var obs = new IntersectionObserver(function(entries, o) {
+          if (entries[0].isIntersecting) { o.disconnect(); drawGPSMap(s, strokes); }
+        }, { threshold: 0.1 });
+        obs.observe(c);
+      } else {
+        setTimeout(function() { drawGPSMap(s, strokes); }, 400);
+      }
+    }, 60);
+  });
   return html;
 }
 
 function drawGPSMap(s, strokes) {
   var c = document.getElementById('sess-map');
   if (!c) return;
-  var W = Math.max(c.offsetWidth, (c.parentElement||{}).offsetWidth||0) || 600;
+  var W = 0, wEl = c;
+  while (wEl && W === 0) { W = wEl.offsetWidth; wEl = wEl.parentElement; }
+  if (W === 0) W = 600;
   var H = 260;
   c.width = W; c.height = H;
   var ctx = c.getContext('2d');
@@ -4975,8 +4997,8 @@ function fitDataToSession(data, filename) {
           position_long: lon,
           altitude:      r[2],
           heart_rate:    r[3],
-          cadence:       r[4],
-          stroke_rate:   r[4],
+          cadence:       (r[4] != null && r[4] > 0 && r[4] < 120) ? r[4] : null,
+          stroke_rate:   (r[4] != null && r[4] > 0 && r[4] < 120) ? r[4] : null,
           distance:      r[5],
           speed:         (spd != null && spd > 0 && spd < 50) ? spd : null,
           timestamp:     ts != null ? new Date(631065600000 + ts * 1000) : null,
@@ -5094,8 +5116,13 @@ function fitDataToSession(data, filename) {
     : (sum.avg_heart_rate || null);
   var hasHR  = recHRs.length > 0 || !!(sum.avg_heart_rate);
 
-  /* Stroke rate */
-  var avgSR = sum.avg_cadence || 0;
+  /* Stroke rate — compute from records since session summary is often 0 for Suunto */
+  var recCadences = rawRecords
+    .map(function(r) { return r.cadence != null ? r.cadence : (r.stroke_rate != null ? r.stroke_rate : null); })
+    .filter(function(v) { return v != null && v > 0 && v < 120; });
+  var avgSR = recCadences.length
+    ? Math.round(recCadences.reduce(function(a,b){return a+b;},0) / recCadences.length)
+    : (sum.avg_cadence || 0);
 
   /* Start GPS */
   var startLat = 0, startLon = 0;
@@ -5246,6 +5273,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
