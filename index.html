@@ -32,7 +32,7 @@
 .btn-up:hover{background:#b09dd4;color:var(--white);transform:translateY(-1px);}#fi{display:none;}
 .storage-badge{display:none;align-items:center;font-size:10px;font-weight:800;padding:4px 10px;border-radius:var(--r-pill);background:var(--mint);color:#2e7a4a;}
 
-.ic{flex:1;padding:12px 18px;border-right:1.5px solid var(--lav-lt);}.ic:last-child{border-right:none;}
+
 .il{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:3px;}
 .iv{font-size:var(--fs-insight);font-weight:900;color:var(--plum);line-height:1.1;}.is{font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:2px;}
 .badge{display:inline-flex;align-items:center;font-size:var(--fs-caption);font-weight:800;padding:2px 8px;border-radius:var(--r-pill);margin-top:3px;}
@@ -124,7 +124,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
   /* Stats strip: scroll horizontally */
   
-  .ic{min-width:100px;padding:10px 12px;flex-shrink:0;}
+  
   .il{font-size:8px;}
   .iv{font-size:16px;}
 
@@ -196,7 +196,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   .ct{padding:20px 20px;}
   .g4{grid-template-columns:repeat(2,1fr);}
   
-  .ic{min-width:110px;flex-shrink:0;}
+  
 }
 
 /* ── Drag & Drop ── */
@@ -211,9 +211,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 /* ── Insights strip dynamic cells ── */
 .istrip{display:flex;background:var(--lilac);border-bottom:2px solid var(--lav-lt);overflow-x:auto;-webkit-overflow-scrolling:touch;user-select:none;position:relative;}
-.ic{flex:0 0 auto;min-width:110px;padding:10px 16px;border-right:1.5px solid var(--lav-lt);position:relative;transition:background .15s;cursor:default;}
-.ic:last-child{border-right:none;}
-.ic.ic-dragging{opacity:.3;}
+
+
+
 .ic-handle{position:absolute;top:6px;right:6px;font-size:11px;color:var(--lav-md);opacity:0;cursor:grab;transition:opacity .15s;line-height:1;border:none;background:none;padding:0;}
 .istrip:hover .ic-handle{opacity:.5;}
 .ic-handle:hover{opacity:1!important;color:var(--plum);}
@@ -394,6 +394,19 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 @media (max-width: 640px) {
   .wpd { min-width: 60px; }
 }
+
+/* ── Insights strip cells ── */
+.ic {
+  flex: 0 0 auto;
+  min-width: 110px;
+  padding: 10px 16px;
+  border-right: 1.5px solid var(--lav-lt);
+  position: relative;
+  cursor: default;
+  transition: background .15s;
+}
+.ic:last-child { border-right: none; }
+.ic.ic-dragging { opacity: .3; }
 </style>
 </head>
 <body>
@@ -418,6 +431,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -5200,6 +5214,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
