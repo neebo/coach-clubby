@@ -523,6 +523,7 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -997,12 +998,12 @@ function loadAllSessionDetails(sessions, cb) {
         s.intervals = val.intervals || s.intervals || [];
         /* If this is the currently displayed session, re-render its cards
            so the speed chart and GPS map have data to draw */
+        /* Re-render session cards whenever the selected session's strokes arrive,
+           even if we're currently on overview — the user may navigate to session next */
         if (SEL === s.date && PAGE === 'session') {
           var ctEl = document.getElementById('ct');
-          if (ctEl) {
-            var cardsEl = ctEl.querySelector('#__cards');
-            if (cardsEl) renderSessionCards(s, cardsEl);
-          }
+          var cardsEl = ctEl && ctEl.querySelector('#__cards');
+          if (cardsEl) renderSessionCards(s, cardsEl);
         }
       }
       if (!--pending) cb();
@@ -4126,10 +4127,27 @@ function renderSessionCards(s, containerEl) {
   function tryDrawCharts() {
     var sc = document.getElementById('sc-'+s.date) || document.getElementById('sc');
     if (sc) drawSessChart(s);
-    console.log('[map] tryDrawCharts: _mapId='+s._mapId+' strokes='+((s._mapStrokes||[]).length));
+    /* If _mapId not set yet (strokes were empty on first render),
+       try calling renderGPSMap now in case strokes have since loaded */
+    if (!s._mapId && s.strokes && s.strokes.length) {
+      var gpsStrokes = s.strokes.filter(function(st) {
+        return st.lt != null && st.ln != null && st.lt > -90 && st.lt < 90;
+      });
+      if (gpsStrokes.length) {
+        s._mapId = 'sess-map-' + s.date;
+        s._mapStrokes = gpsStrokes;
+        /* Find the existing 'No GPS data' card and replace it */
+        var mapWrap = containerEl.querySelector('.dnd-card-wrap[data-card-id="map"]');
+        if (mapWrap) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = renderGPSMap(s);
+          while (mapWrap.children.length > 1) mapWrap.removeChild(mapWrap.lastChild);
+          while (tmp.firstChild) mapWrap.appendChild(tmp.firstChild);
+        }
+      }
+    }
     if (s._mapId && s._mapStrokes && s._mapStrokes.length) {
       var mc = document.getElementById(s._mapId);
-      console.log('[map] canvas found='+!!mc+(mc?' W='+mc.offsetWidth:''));
       if (mc) drawGPSMap(s, s._mapStrokes, mc);
     }
   }
@@ -5281,6 +5299,7 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
