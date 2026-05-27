@@ -299,6 +299,34 @@ canvas{display:block;width:100%;}
 .meta-text{font-size:var(--fs-caption);font-weight:600;color:var(--gm);}
 .divider{border-top:1.5px solid var(--lav-lt);margin:14px 0;}
 
+
+/* ── Mobile nav inner layout ── */
+.mob-nav-inner{display:flex;height:56px;}
+.mob-nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;font-size:var(--fs-label);font-weight:800;
+  color:var(--gm);cursor:pointer;padding:4px 8px;border-radius:var(--r-md);
+  transition:color .15s;border:none;background:none;font-family:var(--font);}
+.mob-nb.active{color:var(--plum);}
+.mob-nb-icon{font-size:20px;line-height:1;}
+.mob-nb-label{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── Sessions drawer (mobile) ── */
+.sess-drawer{
+  display:none;position:fixed;bottom:56px;left:0;right:0;
+  max-height:60vh;overflow-y:auto;background:var(--white);
+  border-top:2px solid var(--lav-lt);z-index:198;
+  box-shadow:0 -4px 20px rgba(140,110,180,.15);}
+
+/* ── Header right ── */
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:10px;}
+
+/* ── Sidebar nav items ── */
+.sb-title{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;
+  letter-spacing:1.5px;color:var(--gm);padding:10px 12px 4px;display:block;}
+.nb-icon{font-size:16px;line-height:1;flex-shrink:0;}
+.nb-label{font-size:var(--fs-body);font-weight:700;line-height:1.2;}
+.nb-meta{font-size:var(--fs-label);font-weight:600;color:var(--gm);}
 </style>
 </head>
 <body>
@@ -323,6 +351,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -5217,6 +5247,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
