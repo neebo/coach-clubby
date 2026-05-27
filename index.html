@@ -26,12 +26,12 @@
   --fs-insight: 19px;
 --lav:#c9b8e8;--lav-lt:#ede8f7;--lav-md:#b09dd4;--lilac:#f0eaf9;--lilac2:#faf7fe;--plum:#6b5c8c;--blush:#f5d6e0;--blush-dk:#e8a4bd;--mint:#d4eedf;--mint-dk:#5cb87a;--butter:#fdf0cc;--butter-dk:#c9973d;--cloud:#f7f4fb;--gt:#6e6080;--gm:#a898bb;--ink:#3d2f5a;--white:#ffffff;--sh:0 2px 12px rgba(140,110,180,.10);--r-pill:999px;--r-lg:18px;--r-md:12px;--font:'Nunito',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;}body{font-family:var(--font);background:var(--cloud);color:var(--ink);min-height:100vh;}
-.hdr{background:var(--white);border-bottom:2px solid var(--lav-lt);padding:0 28px;display:flex;align-items:center;gap:14px;height:62px;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(140,110,180,.08);}
-.logo{font-weight:900;font-size:18px;color:var(--plum);}.logo-sub{font-size:10px;font-weight:700;color:var(--gm);letter-spacing:1px;text-transform:uppercase;}
+
+.logo{font-weight:900;font-size:18px;color:var(--plum);}
 .hdr-r{margin-left:auto;display:flex;gap:10px;align-items:center;}
-.btn-up{display:inline-flex;align-items:center;gap:6px;background:var(--lav);color:var(--plum);font-family:var(--font);font-weight:800;font-size:12px;padding:8px 16px;border-radius:var(--r-pill);border:none;cursor:pointer;transition:all .18s;}
+
 .btn-up:hover{background:#b09dd4;color:var(--white);transform:translateY(-1px);}#fi{display:none;}
-.storage-badge{display:none;align-items:center;font-size:10px;font-weight:800;padding:4px 10px;border-radius:var(--r-pill);background:var(--mint);color:#2e7a4a;}
+
 
 
 .il{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:3px;}
@@ -39,33 +39,33 @@
 .badge{display:inline-flex;align-items:center;font-size:var(--fs-caption);font-weight:800;padding:2px 8px;border-radius:var(--r-pill);margin-top:3px;}
 .b-up{background:var(--mint);color:#2e7a4a;}.b-dn{background:var(--blush);color:#a03060;}.b-neu{background:var(--butter);color:var(--butter-dk);}.b-warn{background:#fef3dc;color:#b07000;}
 .body{display:flex;min-height:calc(100vh - 106px);}
-.sb{width:228px;flex-shrink:0;background:var(--white);border-right:2px solid var(--lav-lt);padding:14px 0;overflow-y:auto;}
+
 .sb-title{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);padding:10px 16px 6px;}
 .sb-div{height:1.5px;background:var(--lav-lt);margin:6px 0;}
 .nb{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;background:transparent;width:100%;border-top:none;border-right:none;border-bottom:none;font-family:var(--font);}
 .nb:hover{background:var(--lilac);}.nb.active{border-left-color:#b09dd4;background:var(--lilac2);}
 .nb-icon{font-size:15px;flex-shrink:0;}.nb-label{font-size:12px;font-weight:700;color:var(--ink);text-align:left;}.nb-meta{font-size:10px;font-weight:600;color:var(--gm);}
-.si{padding:9px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+
 .si:hover{background:var(--lilac);}.si.active{border-left-color:#b09dd4;background:var(--lilac2);}
-.si-date{font-size:var(--fs-body);font-weight:800;color:var(--ink);}.si-spd{font-size:var(--fs-card-title);font-weight:900;float:right;}.si-meta{font-size:var(--fs-caption);font-weight:600;color:var(--gm);}
+.si-date{font-size:var(--fs-body);font-weight:800;color:var(--ink);}.si-meta{font-size:var(--fs-caption);font-weight:600;color:var(--gm);}
 .add-sess{margin:10px 12px 0;border:2px dashed var(--lav);border-radius:var(--r-md);padding:9px;text-align:center;font-size:11px;font-weight:700;color:#b09dd4;cursor:pointer;transition:all .15s;}
 .add-sess:hover{border-color:#9b8bb8;color:var(--plum);background:var(--lilac);}
 .clear-btn{margin:8px 12px 0;padding:8px;text-align:center;font-size:10px;font-weight:700;color:var(--gm);cursor:pointer;border-radius:var(--r-md);transition:all .15s;}
 .clear-btn:hover{background:var(--blush);color:#8a3055;}
 .ct{flex:1;padding:26px 30px;overflow-y:auto;min-width:0;}
 .view{animation:su .22s ease;}@keyframes su{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
-.pt{font-size:var(--fs-page-title);font-weight:900;color:var(--plum);margin-bottom:3px;}.ps{font-size:var(--fs-body);font-weight:600;color:var(--gm);margin-bottom:18px;line-height:1.6;}
+
 .notice{font-size:var(--fs-body);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;font-size:12px;font-weight:600;line-height:1.7;margin-bottom:16px;border-left:4px solid;}
 .n-purple{background:var(--lav-lt);color:var(--plum);border-color:#b09dd4;}.n-mint{background:var(--mint);color:#2e6e45;border-color:var(--mint-dk);}.n-blush{background:var(--blush);color:#8a3055;border-color:var(--blush-dk);}.n-butter{background:var(--butter);color:#7a5a1a;border-color:var(--butter-dk);}.n-orange{background:#fef3dc;color:#7a4a00;border-color:#f5a623;}
 .card{background:var(--white);border-radius:var(--r-lg);border:2px solid var(--lav-lt);padding:18px 20px;margin-bottom:16px;box-shadow:var(--sh);}
-.ct-title{font-size:var(--fs-card-title);font-weight:800;color:var(--plum);margin-bottom:2px;}.ct-sub{font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-bottom:14px;}
+
 canvas{display:block;width:100%;}
-.focus-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-pill);font-size:var(--fs-caption);font-weight:800;border:1.5px solid;}
-.sg{display:grid;gap:11px;margin-bottom:16px;}.g4{grid-template-columns:repeat(4,1fr);}.g3{grid-template-columns:repeat(3,1fr);}.g2{grid-template-columns:repeat(2,1fr);}
+
+.sg{display:grid;gap:11px;margin-bottom:16px;}
 .sc{background:var(--lilac2);border-radius:var(--r-md);border:1.5px solid var(--lav-lt);padding:14px;}
 .sl{font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:5px;}
 .sv{font-size:var(--fs-stat);font-weight:900;color:var(--plum);line-height:1;}.su2{font-size:11px;font-weight:600;color:var(--gm);}.sn{font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:3px;}
-.tw{background:var(--white);border-radius:var(--r-lg);border:2px solid var(--lav-lt);overflow:hidden;margin-bottom:16px;}
+
 table{width:100%;border-collapse:collapse;}
 th{padding:9px 13px;font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);background:var(--lilac);border-bottom:2px solid var(--lav-lt);text-align:left;white-space:nowrap;}
 td{padding:9px 13px;font-size:var(--fs-body);font-weight:600;border-bottom:1.5px solid var(--lav-lt);color:var(--ink);vertical-align:middle;}
@@ -73,11 +73,11 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:var(--lilac);}
 .td-spd{color:var(--plum);font-weight:900;}.td-hr{color:#c0406a;}
 .bb{height:5px;background:var(--lav-lt);border-radius:var(--r-pill);margin-top:4px;}.bf{height:100%;border-radius:var(--r-pill);transition:width .5s ease;}
 .leg{display:flex;flex-wrap:wrap;gap:11px;margin-bottom:12px;}.li{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--gt);cursor:pointer;}.ld{width:9px;height:9px;border-radius:50%;flex-shrink:0;}.li.dim{opacity:.3;}
-.tabs{display:flex;gap:3px;margin-bottom:16px;background:var(--lav-lt);padding:4px;border-radius:var(--r-pill);width:fit-content;}
-.tab{padding:6px 15px;font-size:11px;font-weight:800;border-radius:var(--r-pill);border:none;cursor:pointer;color:var(--gm);background:transparent;font-family:var(--font);transition:all .15s;}
-.tab.active{background:var(--white);color:var(--plum);box-shadow:0 1px 5px rgba(140,110,180,.14);}
+
+
+
 .pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--r-pill);font-size:10px;font-weight:800;}
-.compare-banner{border-radius:var(--r-md);padding:12px 16px;margin-bottom:16px;border:1.5px solid;display:flex;align-items:flex-start;gap:12px;}
+
 textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,212,.15);}
 
 /* ═══════════════════════
@@ -119,18 +119,18 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   /* Header */
   .hdr{padding:0 14px;height:52px;gap:10px;}
   .logo{font-size:15px;}
-  .logo-sub{display:none;}
+  .logo-sub{font-size:var(--fs-small);font-weight:700;color:var(--gm);letter-spacing:.3px;}
   .storage-badge{display:none !important;}
-  .btn-up{display:none;}          /* replaced by FAB */
+  .btn-up{background:none;border:none;font-family:var(--font);font-size:var(--fs-body);font-weight:800;color:var(--plum);cursor:pointer;padding:8px 16px;border-radius:var(--r-pill);transition:background .15s;}.btn-up.active{background:var(--white);box-shadow:0 1px 4px rgba(0,0,0,.08);}          /* replaced by FAB */
 
   /* Stats strip: explicitly horizontal on mobile */
   
-  .ic{flex:0 0 auto;min-width:100px;}
+  
   .il{font-size:8px;}
   .iv{font-size:16px;}
 
   /* Hide desktop sidebar, show bottom nav */
-  .sb{display:none;}
+  
   .mob-nav{display:block;}
   .mob-fab{display:flex;}
 
@@ -140,15 +140,15 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
   /* Typography */
   .pt{font-size:var(--fs-insight);}
-  .ps{font-size:12px;margin-bottom:14px;}
+  .ps{font-size:var(--fs-body);color:var(--gt);margin-bottom:14px;line-height:1.5;}
 
   /* Cards */
   .card{padding:14px 14px;border-radius:14px;}
-  .ct-title{font-size:13px;}
-  .ct-sub{font-size:10px;margin-bottom:10px;}
+  .ct-title{font-size:var(--fs-card-title);font-weight:800;color:var(--plum);margin-bottom:3px;}
+  .ct-sub{font-size:var(--fs-small);font-weight:600;color:var(--gt);margin-bottom:12px;}
 
   /* Stat grids: collapse to 2-col max */
-  .g4{grid-template-columns:repeat(2,1fr);}
+  
   .g3{grid-template-columns:repeat(2,1fr);}
   .g2{grid-template-columns:1fr;}      /* single col on phone */
 
@@ -169,11 +169,11 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   /* Session list items */
   .si{padding:11px 14px;}
   .si-date{font-size:13px;}
-  .si-spd{font-size:15px;}
+  .si-spd{font-size:var(--fs-card-title);font-weight:900;line-height:1;}
 
   /* Segment tabs */
-  .tabs{width:100%;}
-  .tab{flex:1;text-align:center;padding:6px 8px;font-size:10px;}
+  
+  
 
   /* Compare banner */
   .compare-banner{padding:10px 12px;gap:8px;}
@@ -411,6 +411,46 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 }
 .ic:last-child { border-right: none; }
 .ic.ic-dragging { opacity: .3; }
+
+/* ── Utility / shared component classes ── */
+.btn-pill {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  font-weight: 800;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--lav);
+  background: var(--white);
+  color: var(--plum);
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-pill:hover { opacity: .8; }
+.btn-pill-sm { font-size: var(--fs-caption); padding: 4px 12px; }
+.section-label {
+  font-size: var(--fs-label);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--plum);
+  margin-bottom: 8px;
+}
+.meta-text {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--gm);
+}
+.divider { border-top: 1.5px solid var(--lav-lt); margin: 14px 0; }
+
+/* ── Auth + nav tabs ── */
+.tabs{display:flex;background:var(--lav-lt);padding:4px;border-radius:var(--r-pill);width:100%;margin-bottom:24px;}
+.tab{flex:1;text-align:center;padding:9px 8px;font-size:var(--fs-body);font-weight:700;
+  color:var(--gm);background:none;border:none;border-radius:calc(var(--r-pill) - 3px);
+  cursor:pointer;font-family:var(--font);transition:all .15s;}
+.tab.active{background:var(--white);color:var(--plum);font-weight:800;
+  box-shadow:0 1px 5px rgba(140,110,180,.14);}
+.tab:hover:not(.active){color:var(--plum);}
+@media(max-width:640px){.tabs{margin-bottom:16px;} .tab{font-size:var(--fs-caption);padding:6px 8px;}}
 </style>
 </head>
 <body>
@@ -435,6 +475,10 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
 
 
 
@@ -790,7 +834,7 @@ function sbRefresh(refreshToken, cb) {
   .catch(function(e) { cb(e.message, null); });
 }
 
-/* Restore session from localStorage on page load */
+/* Restore auth session from localStorage on page load */
 function handleAuthRedirect(cb) {
   /* Supabase email confirmation lands with hash params:
      #access_token=...&refresh_token=...&type=signup  (or recovery) */
@@ -2442,7 +2486,6 @@ document.getElementById('fi').addEventListener('change',function(e){
 /* ═══════════════════════════════════════════
    BOOT
 ═══════════════════════════════════════════ */
-var SEED_SESSIONS = SESSIONS.slice();
 loadPersistedData(function(){
   loadFromStorage();
   loadTags();
@@ -2464,7 +2507,7 @@ loadPersistedData(function(){
    Free, no key needed, works for ocean coords
    Fetches hourly wind speed + direction + wave
    height for the hour matching session start.
-   Cached in localStorage under clubby_wx_<date>
+   Cached in sessionStorage per browser session
 ═══════════════════════════════════════════ */
 var WX_CACHE_PREFIX='clubby_wx_';
 
@@ -2473,7 +2516,7 @@ var WX_CACHE_PREFIX='clubby_wx_';
    Free, no key needed, works for ocean coords
    Fetches hourly wind speed + direction + wave
    height for the hour matching session start.
-   Cached in localStorage under clubby_wx_<date>
+   Cached in sessionStorage per browser session
 ═══════════════════════════════════════════ */
 var WX_CACHE_PREFIX='clubby_wx_';
 
@@ -2487,7 +2530,7 @@ function fetchWeather(session, callback){
   var cacheKey=WX_CACHE_PREFIX+session.date;
   // Check cache
   try{
-    var cached=localStorage.getItem(cacheKey);
+    var cached=sessionStorage.getItem(cacheKey);
     if(cached){var wx=JSON.parse(cached);callback(null,wx);return;}
   }catch(e){}
 
@@ -2544,7 +2587,7 @@ function fetchWeather(session, callback){
         fetchedAt: Date.now(),
       };
       // Cache
-      try{localStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
+      try{sessionStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
       callback(null,wx);
     })
     .catch(function(err){callback(err,null);});
@@ -2588,7 +2631,7 @@ function wxExposureNote(session){
 
 /* ═══════════════════════════════════════════
    SESSION TAGS — manual overrides
-   Stored in localStorage: clubby_tags
+   Stored in Supabase user_data: clubby_tags
    Structure: { "20260430": "bungee", "20260507": null }
    null = remove the auto-detected tag entirely
    string = override with this focus id
@@ -2681,7 +2724,7 @@ function renderWeatherCard(session){
    
    Fetches high/low tide times for the session
    date and finds the tide state at session start.
-   Cached in localStorage under clubby_tide_<date>
+   Cached in sessionStorage per browser session
 ═══════════════════════════════════════════ */
 var TIDE_CACHE_PREFIX = 'clubby_tide_';
 var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
@@ -2695,7 +2738,7 @@ var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
    
    Fetches high/low tide times for the session
    date and finds the tide state at session start.
-   Cached in localStorage under clubby_tide_<date>
+   Cached in sessionStorage per browser session
 ═══════════════════════════════════════════ */
 var TIDE_CACHE_PREFIX = 'clubby_tide_';
 var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
@@ -2710,7 +2753,7 @@ var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
    
    Fetches high/low tide times for the session
    date and finds the tide state at session start.
-   Cached in localStorage under clubby_tide_<date>
+   Cached in sessionStorage per browser session
 ═══════════════════════════════════════════ */
 var TIDE_CACHE_PREFIX = 'clubby_tide_';
 var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
@@ -2731,7 +2774,7 @@ function wxCell(session){
    
    Fetches high/low tide times for the session
    date and finds the tide state at session start.
-   Cached in localStorage under clubby_tide_<date>
+   Cached in sessionStorage per browser session
 ═══════════════════════════════════════════ */
 var TIDE_CACHE_PREFIX = 'clubby_tide_';
 var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
@@ -2742,7 +2785,7 @@ var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
 
 /* ═══════════════════════════════════════════
    SESSION NOTES
-   Stored in localStorage: clubby_notes
+   Stored in Supabase user_data: clubby_notes
    { "20260509": "Exceptional upwind resistance returning to shore..." }
 ═══════════════════════════════════════════ */
 
@@ -4209,7 +4252,6 @@ function buildIntervalsTable(s) {
 }
 
 /* ── Drag-and-drop handlers ── */
-var _dragSrc = null, _dragDate = null;
 
 function attachDragHandlers(container, s) {
   var wraps = container.querySelectorAll('.dnd-card-wrap');
@@ -4232,10 +4274,7 @@ function attachDragHandlers(container, s) {
 }
 
 function startDrag(srcWrap, container, s, startY) {
-  _dragSrc  = srcWrap;
-  _dragDate = s.date;
 
-  var origIdx = Array.from(container.children).indexOf(srcWrap);
   var srcRect = srcWrap.getBoundingClientRect();
   var offsetY = startY - srcRect.top;
 
@@ -4954,8 +4993,6 @@ function _parseFITBuffer(view, bytes, filename) {
   }
 
   /* FIT timestamp epoch: 1989-12-31 00:00:00 UTC in ms */
-  var FIT_EPOCH_MS = 631065600000;
-
   /* ── Parse messages ── */
   while (pos < end) {
     if (pos >= bytes.length) break;
@@ -5306,6 +5343,10 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
+
+
 
 
 
