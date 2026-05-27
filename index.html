@@ -514,6 +514,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -2134,7 +2137,7 @@ function renderSession(el){
 }
 
 function drawSessChart(s){
-  var c=document.getElementById('sc');if(!c)return;
+  var c=document.getElementById('sc-'+s.date)||document.getElementById('sc');if(!c)return;
   var ctx=c.getContext('2d');var W=Math.max(c.offsetWidth,(c.parentElement||{}).offsetWidth||0)||600;var H=175;c.width=W;c.height=H;
   var strokes=s.strokes.filter(function(x){return x.s&&x.s>0.3;});if(!strokes.length)return;
   var pad={t:20,r:18,b:26,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
@@ -4071,7 +4074,7 @@ function renderSessionCards(s, containerEl) {
           + '<div class="ct-title">Speed profile</div>'
           + '<div class="ct-sub">Per-stroke speed · interval dividers'
           + (s.hasHR ? ' · ♥ HR' : '') + '</div>'
-          + '<canvas id="sc" height="175"></canvas>'
+          + '<canvas id="sc-'+s.date+'" height="175"></canvas>'
           + '</div>';
       case 'intervals':
         if (!s.intervals || s.intervals.length < 2) return '';
@@ -4104,19 +4107,36 @@ function renderSessionCards(s, containerEl) {
   /* Draw chart after render */
   requestAnimationFrame(function() {
     setTimeout(function() {
+      /* Draw speed chart */
       var c = document.getElementById('sc');
       if (c && (c.offsetWidth > 0 || (c.parentElement && c.parentElement.offsetWidth > 0))) {
         drawSessChart(s);
-      } else {
-        /* Canvas not laid out yet — wait for intersection */
-        if (window.IntersectionObserver && c) {
-          var obs = new IntersectionObserver(function(entries, o) {
-            if (entries[0].isIntersecting) { o.disconnect(); drawSessChart(s); }
-          }, { threshold: 0.1 });
-          obs.observe(c);
-        } else {
-          setTimeout(function() { drawSessChart(s); }, 300);
+      } else if (window.IntersectionObserver && c) {
+        var obs = new IntersectionObserver(function(entries, o) {
+          if (entries[0].isIntersecting) { o.disconnect(); drawSessChart(s); }
+        }, { threshold: 0.1 });
+        obs.observe(c);
+      } else if (c) {
+        setTimeout(function() { drawSessChart(s); }, 300);
+      }
+      /* Draw GPS map — look up by session-specific id so re-renders don't conflict */
+      if (s._mapId && s._mapStrokes) {
+        var mc = document.getElementById(s._mapId);
+        if (!mc) return;
+        function doDrawMap() {
+          var W = 0, el = mc;
+          while (el && W === 0) { W = el.offsetWidth; el = el.parentElement; }
+          if (W > 0) { drawGPSMap(s, s._mapStrokes, mc); }
+          else if (window.IntersectionObserver) {
+            var mobs = new IntersectionObserver(function(entries, o) {
+              if (entries[0].isIntersecting) { o.disconnect(); drawGPSMap(s, s._mapStrokes, mc); }
+            }, { threshold: 0.1 });
+            mobs.observe(mc);
+          } else {
+            setTimeout(function() { drawGPSMap(s, s._mapStrokes, mc); }, 300);
+          }
         }
+        doDrawMap();
       }
     }, 50);
   });
@@ -4693,37 +4713,21 @@ function renderGPSMap(s) {
       + '</div>';
   }
 
+  var mapId = 'sess-map-' + s.date;
   var html = '<div class="card dnd-card" data-card-id="map">'
     + '<div class="ct-title">🗺️ GPS Track</div>'
     + '<div class="ct-sub">Route traced from stroke GPS coordinates</div>'
-    + '<canvas id="sess-map" height="260" style="border-radius:10px;margin-top:8px"></canvas>'
+    + '<canvas id="'+mapId+'" height="260" style="border-radius:10px;margin-top:8px;width:100%"></canvas>'
     + '</div>';
 
-  /* Schedule draw after DOM paint using rAF + IntersectionObserver */
-  requestAnimationFrame(function() {
-    setTimeout(function() {
-      var c = document.getElementById('sess-map');
-      if (!c) return;
-      /* Walk up to find a parent with real width */
-      var W = 0, el = c;
-      while (el && W === 0) { W = el.offsetWidth; el = el.parentElement; }
-      if (W > 0) {
-        drawGPSMap(s, strokes);
-      } else if (window.IntersectionObserver) {
-        var obs = new IntersectionObserver(function(entries, o) {
-          if (entries[0].isIntersecting) { o.disconnect(); drawGPSMap(s, strokes); }
-        }, { threshold: 0.1 });
-        obs.observe(c);
-      } else {
-        setTimeout(function() { drawGPSMap(s, strokes); }, 400);
-      }
-    }, 60);
-  });
+  /* Store strokes keyed by canvas ID so renderSessionCards can draw after DOM insert */
+  s._mapStrokes = strokes;
+  s._mapId = mapId;
   return html;
 }
 
-function drawGPSMap(s, strokes) {
-  var c = document.getElementById('sess-map');
+function drawGPSMap(s, strokes, canvasEl) {
+  var c = canvasEl || document.getElementById(s._mapId || ('sess-map-'+s.date));
   if (!c) return;
   var W = 0, wEl = c;
   while (wEl && W === 0) { W = wEl.offsetWidth; wEl = wEl.parentElement; }
@@ -5273,6 +5277,9 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
+
 
 
 
