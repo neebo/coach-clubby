@@ -525,6 +525,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -608,18 +610,21 @@ function loadStripConfig() {
 }
 
 function saveLayout() {
-  _store[LAYOUT_KEY] = CARD_ORDER;
-  sbScheduleWrite(LAYOUT_KEY, CARD_ORDER);
+  var val = CARD_ORDER || defaultCardOrder();
+  _store[LAYOUT_KEY] = val;
+  sbScheduleWrite(LAYOUT_KEY, val);
 }
 
 function saveOvLayout() {
-  _store[OV_WIDGET_KEY] = OV_WIDGET_ORDER;
-  sbScheduleWrite(OV_WIDGET_KEY, OV_WIDGET_ORDER);
+  var val = OV_WIDGET_ORDER || defaultOvOrder();
+  _store[OV_WIDGET_KEY] = val;
+  sbScheduleWrite(OV_WIDGET_KEY, val);
 }
 
 function saveStripConfig() {
-  _store[STRIP_KEY] = STRIP_CONFIG;
-  sbScheduleWrite(STRIP_KEY, STRIP_CONFIG);
+  var val = STRIP_CONFIG || defaultStripConfig();
+  _store[STRIP_KEY] = val;
+  sbScheduleWrite(STRIP_KEY, val);
 }
 
 
@@ -956,6 +961,7 @@ function sbRestoreSession(cb) {
 /* Debounced save: batch rapid changes into one write per key */
 var _sbPendingWrites = {};
 function sbScheduleWrite(key, value) {
+  if (value === null || value === undefined) return; /* never write null */
   _sbPendingWrites[key] = value;
   clearTimeout(_sbSavePending);
   _sbSavePending = setTimeout(function() {
@@ -1634,19 +1640,7 @@ function updateInsights(){
    SIDEBAR
 ═══════════════════════════════════════════ */
 function renderSidebar(){
-  var html='';
-  SESSIONS.slice().reverse().forEach(function(s){
-    var f=getFocus(s);var fc=f?f.color:'#9b8bb8';
-    var active=(SEL===s.date&&PAGE==='session')?'active':'';
-    html+='<div class="si '+active+'" data-date="'+s.date+'">';
-    html+='<span class="si-spd" style="color:'+fc+'">'+s.avgSpeed.toFixed(2)+'</span>';
-    html+='<div class="si-date">'+dateLabel(s.date)+'</div>';
-    html+='<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+' · <b>'+getCraft(s)+'</b></div>';
-    html+='<div class="si-meta">'+s.totalDist.toFixed(1)+' mi · '+s.elapsed.split('.')[0]+'</div>';
-    if(f&&f.bungee)html+='<div style="font-size:var(--fs-label);font-weight:800;color:#f5a623;margin-top:2px">🔴 lower speed by design</div>';
-    html+='</div>';
-  });
-  document.getElementById('sess-list').innerHTML=html;
+  /* sess-list element removed from sidebar — nothing to render */
 }
 
 /* ═══════════════════════════════════════════
@@ -2556,15 +2550,25 @@ function fetchWeather(session, callback){
     .catch(function(err){callback(err,null);});
 }
 function fetchAllWeather(callback){
-  var pending=SESSIONS.length;
-  if(!pending){callback();return;}
-  SESSIONS.forEach(function(s){
-    fetchWeather(s,function(err,wx){
-      if(!err&&wx) s._wx=wx;
-      pending--;
-      if(pending===0)callback();
+  var sessions=SESSIONS.filter(function(s){return !s._wx;});
+  if(!sessions.length){callback();return;}
+  var BATCH=3,DELAY=400,done=0,total=sessions.length;
+  function runBatch(start){
+    var batch=sessions.slice(start,start+BATCH);
+    if(!batch.length){callback();return;}
+    var batchDone=0;
+    batch.forEach(function(s){
+      fetchWeather(s,function(err,wx){
+        if(!err&&wx) s._wx=wx;
+        done++;batchDone++;
+        if(batchDone===batch.length){
+          if(done>=total)callback();
+          else setTimeout(function(){runBatch(start+BATCH);},DELAY);
+        }
+      });
     });
-  });
+  }
+  runBatch(0);
 }
 
 
@@ -5302,6 +5306,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
