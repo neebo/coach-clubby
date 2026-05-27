@@ -201,21 +201,16 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 /* ── Drag & Drop ── */
 .dnd-card-wrap { position:relative; }
-.drag-handle {
-  position:absolute; top:14px; right:14px; z-index:10;
-  font-size:18px; line-height:1; color:var(--lav-md);
-  cursor:grab; user-select:none; opacity:.5;
-  transition:opacity .15s;
-}
-.drag-handle:hover { opacity:1; color:var(--plum); }
-.drag-handle:active { cursor:grabbing; }
+
+
+
 .dnd-card-wrap.dnd-dragging > * {
   opacity:.35;
   outline:2px dashed var(--lav-md);
   outline-offset:2px;
   border-radius:14px;
 }
-#dnd-ghost .drag-handle { display:none; }
+#dnd-ghost 
 
 @keyframes auth-shake {
   0%,100%{ transform:translateX(0); }
@@ -279,22 +274,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   position: relative;
   margin-bottom: 0;
 }
-.focus-group-wrap > .drag-handle {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 10;
-  font-size: var(--fs-body);
-  color: var(--lav-md);
-  cursor: grab;
-  opacity: 0;
-  transition: opacity .15s;
-  background: none;
-  border: none;
-  padding: 0;
-}
-.focus-group-wrap:hover > .drag-handle { opacity: .6; }
-.focus-group-wrap > .drag-handle:hover { opacity: 1; color: var(--plum); }
+.focus-group-wrap > 
+.focus-group-wrap:hover > 
+.focus-group-wrap > 
 .focus-group-wrap.dnd-dragging > .card { opacity: .3; outline: 2px dashed var(--lav-md); border-radius: 14px; }
 
 /* ── Weekly program strip ── */
@@ -320,6 +302,32 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
   gap: 8px;
   flex-shrink: 0;
 }
+
+#sess-map { width: 100%; display: block; }
+
+/* ── Drag handles ── */
+.dnd-card-wrap {
+  position: relative;
+}
+.dnd-card-wrap > .drag-handle {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 20;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--lav-md);
+  cursor: grab;
+  user-select: none;
+  opacity: 0;
+  transition: opacity .15s;
+  padding: 4px;
+}
+.dnd-card-wrap:hover > .drag-handle { opacity: .55; }
+.dnd-card-wrap > .drag-handle:hover { opacity: 1 !important; color: var(--plum); }
+.dnd-card-wrap > .drag-handle:active { cursor: grabbing; }
+.dnd-card-wrap.dnd-dragging { opacity: .35; outline: 2px dashed var(--lav-md); border-radius: 14px; }
+#dnd-ghost > .drag-handle { display: none; }
 </style>
 </head>
 <body>
@@ -344,6 +352,10 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
 
 
 
@@ -3914,6 +3926,16 @@ function renderUserPrefs() {
 
     + '</div>';
 }
+var CARD_DEFS = [
+  { id: 'legs',      label: 'Legs / Downwind',  icon: '🚣' },
+  { id: 'tide',      label: 'Tide',              icon: '🌊' },
+  { id: 'weather',   label: 'Weather',           icon: '🌤️' },
+  { id: 'notes',     label: 'Notes',             icon: '📝' },
+  { id: 'map',       label: 'GPS Track',         icon: '🗺️' },
+  { id: 'speed',     label: 'Speed Profile',     icon: '📈' },
+  { id: 'intervals', label: 'Intervals',         icon: '⚡' },
+];
+
 function defaultCardOrder() {
   return CARD_DEFS.map(function(c) { return c.id; });
 }
@@ -3938,6 +3960,8 @@ function renderSessionCards(s, containerEl) {
         return renderWeatherCard(s);
       case 'notes':
         return renderNotesEditor(s);
+      case 'map':
+        return renderGPSMap(s);
       case 'speed':
         return '<div class="card dnd-card" data-card-id="speed">'
           + '<div class="ct-title">Speed profile</div>'
@@ -3960,12 +3984,38 @@ function renderSessionCards(s, containerEl) {
     var wrap = document.createElement('div');
     wrap.className  = 'dnd-card-wrap';
     wrap.dataset.cardId = id;
-    wrap.innerHTML  = addDragHandle(h);
+    /* Inject handle as first direct child of the wrap */
+    var handleEl = document.createElement('div');
+    handleEl.className = 'drag-handle';
+    handleEl.title = 'Drag to reorder';
+    handleEl.textContent = '⠿';
+    wrap.appendChild(handleEl);
+    /* Card content */
+    var cardContent = document.createElement('div');
+    cardContent.innerHTML = h;
+    wrap.appendChild(cardContent);
     containerEl.appendChild(wrap);
   });
 
   /* Draw chart after render */
-  setTimeout(function() { drawSessChart(s); }, 30);
+  requestAnimationFrame(function() {
+    setTimeout(function() {
+      var c = document.getElementById('sc');
+      if (c && (c.offsetWidth > 0 || (c.parentElement && c.parentElement.offsetWidth > 0))) {
+        drawSessChart(s);
+      } else {
+        /* Canvas not laid out yet — wait for intersection */
+        if (window.IntersectionObserver && c) {
+          var obs = new IntersectionObserver(function(entries, o) {
+            if (entries[0].isIntersecting) { o.disconnect(); drawSessChart(s); }
+          }, { threshold: 0.1 });
+          obs.observe(c);
+        } else {
+          setTimeout(function() { drawSessChart(s); }, 300);
+        }
+      }
+    }, 50);
+  });
 
   /* Attach drag behaviour */
   attachDragHandlers(containerEl, s);
@@ -3973,14 +4023,8 @@ function renderSessionCards(s, containerEl) {
 
 /* Wrap card HTML with a drag handle */
 function addDragHandle(cardHTML) {
-  /* Inject drag handle as first child of .card */
-  return cardHTML.replace(
-    /(<div class="card[^"]*")/,
-    '$1 style="position:relative"'
-  ).replace(
-    /(<div class="ct-title")/,
-    '<div class="drag-handle" title="Drag to reorder">⠿</div><div class="ct-title"'
-  );
+  /* No-op: handle is now prepended directly on the dnd-card-wrap in renderSessionCards */
+  return cardHTML;
 }
 
 /* ── Build intervals table (extracted from renderSession) ── */
@@ -4017,7 +4061,7 @@ var _dragSrc = null, _dragDate = null;
 function attachDragHandlers(container, s) {
   var wraps = container.querySelectorAll('.dnd-card-wrap');
   wraps.forEach(function(wrap) {
-    var handle = wrap.querySelector('.drag-handle');
+    var handle = wrap.querySelector(':scope > .drag-handle');
     if (!handle) return;
 
     /* Desktop: mousedown on handle activates dragging */
@@ -4501,6 +4545,185 @@ function parseFIT(arrayBuffer, filename, cb) {
   }
 }
 
+
+/* ── GPS Track Map — canvas-based, no external API ── */
+function renderGPSMap(s) {
+  var strokes = (s.strokes || []).filter(function(st) {
+    return st.lt != null && st.ln != null &&
+           st.lt > -90 && st.lt < 90 &&
+           st.ln > -180 && st.ln < 180;
+  });
+
+  if (!strokes.length) {
+    return '<div class="card dnd-card" data-card-id="map">'
+      + '<div class="ct-title">🗺️ GPS Track</div>'
+      + '<div class="ct-sub" style="padding:20px 0;text-align:center;color:var(--gm)">No GPS data for this session</div>'
+      + '</div>';
+  }
+
+  var html = '<div class="card dnd-card" data-card-id="map">'
+    + '<div class="ct-title">🗺️ GPS Track</div>'
+    + '<div class="ct-sub">Route traced from stroke GPS coordinates</div>'
+    + '<canvas id="sess-map" height="260" style="border-radius:10px;margin-top:8px"></canvas>'
+    + '</div>';
+
+  /* Schedule draw after DOM paint */
+  setTimeout(function() { drawGPSMap(s, strokes); }, 60);
+  return html;
+}
+
+function drawGPSMap(s, strokes) {
+  var c = document.getElementById('sess-map');
+  if (!c) return;
+  var W = Math.max(c.offsetWidth, (c.parentElement||{}).offsetWidth||0) || 600;
+  var H = 260;
+  c.width = W; c.height = H;
+  var ctx = c.getContext('2d');
+
+  /* Background */
+  ctx.fillStyle = '#e8f0f8';
+  ctx.fillRect(0, 0, W, H);
+
+  /* Get lat/lon bounds with padding */
+  var lats = strokes.map(function(st) { return st.lt; });
+  var lons = strokes.map(function(st) { return st.ln; });
+  var minLat = Math.min.apply(null, lats);
+  var maxLat = Math.max.apply(null, lats);
+  var minLon = Math.min.apply(null, lons);
+  var maxLon = Math.max.apply(null, lons);
+
+  /* Expand bounds to square with padding */
+  var latSpan = maxLat - minLat || 0.001;
+  var lonSpan = maxLon - minLon || 0.001;
+  var aspectRatio = W / H;
+  /* Correct lon for lat (Mercator approximation) */
+  var latRad = (minLat + maxLat) / 2 * Math.PI / 180;
+  var lonScale = Math.cos(latRad);
+  var geographicAspect = (lonSpan * lonScale) / latSpan;
+
+  if (geographicAspect > aspectRatio) {
+    /* Width-limited: expand lat range */
+    var newLatSpan = (lonSpan * lonScale) / aspectRatio;
+    var latMid = (minLat + maxLat) / 2;
+    minLat = latMid - newLatSpan / 2;
+    maxLat = latMid + newLatSpan / 2;
+    latSpan = newLatSpan;
+  } else {
+    /* Height-limited: expand lon range */
+    var newLonSpan = (latSpan * aspectRatio) / lonScale;
+    var lonMid = (minLon + maxLon) / 2;
+    minLon = lonMid - newLonSpan / 2;
+    maxLon = lonMid + newLonSpan / 2;
+    lonSpan = newLonSpan;
+  }
+
+  var pad = 28;
+  var drawW = W - pad * 2;
+  var drawH = H - pad * 2;
+
+  function toX(lon) { return pad + (lon - minLon) / lonSpan * drawW; }
+  function toY(lat) { return pad + (1 - (lat - minLat) / latSpan) * drawH; }
+
+  /* Draw water-style grid lines */
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  for (var gi = 0; gi <= 4; gi++) {
+    var gx = pad + gi * drawW / 4;
+    var gy = pad + gi * drawH / 4;
+    ctx.beginPath(); ctx.moveTo(gx, pad); ctx.lineTo(gx, pad + drawH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad, gy); ctx.lineTo(pad + drawW, gy); ctx.stroke();
+  }
+
+  /* Speed-coloured track */
+  var speeds = strokes.map(function(st) { return st.s || 0; });
+  var maxSpd = Math.max.apply(null, speeds) || 5;
+  var f = getFocus(s);
+  var baseCol = f ? f.color : '#7c6fa0';
+
+  /* Draw track outline (shadow) */
+  ctx.beginPath();
+  strokes.forEach(function(st, i) {
+    var x = toX(st.ln), y = toY(st.lt);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  /* Draw speed-coloured segments */
+  for (var i = 1; i < strokes.length; i++) {
+    var st0 = strokes[i-1], st1 = strokes[i];
+    var spd = (st0.s || 0);
+    var t = Math.min(1, spd / maxSpd);
+    /* Colour: slow=grey → fast=focus colour */
+    var r0=180, g0=180, b0=190;
+    var r1 = parseInt(baseCol.slice(1,3)||'7c',16);
+    var g1 = parseInt(baseCol.slice(3,5)||'6f',16);
+    var b1 = parseInt(baseCol.slice(5,7)||'a0',16);
+    var r = Math.round(r0 + (r1-r0)*t);
+    var g = Math.round(g0 + (g1-g0)*t);
+    var b = Math.round(b0 + (b1-b0)*t);
+    ctx.beginPath();
+    ctx.moveTo(toX(st0.ln), toY(st0.lt));
+    ctx.lineTo(toX(st1.ln), toY(st1.lt));
+    ctx.strokeStyle = 'rgb('+r+','+g+','+b+')';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  /* Start dot (green) */
+  var sx = toX(strokes[0].ln), sy = toY(strokes[0].lt);
+  ctx.beginPath();
+  ctx.arc(sx, sy, 6, 0, Math.PI*2);
+  ctx.fillStyle = '#4caf74';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  /* End dot (red) */
+  var ex = toX(strokes[strokes.length-1].ln), ey = toY(strokes[strokes.length-1].lt);
+  ctx.beginPath();
+  ctx.arc(ex, ey, 6, 0, Math.PI*2);
+  ctx.fillStyle = '#c0406a';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  /* Direction arrow at midpoint */
+  var mid = strokes[Math.floor(strokes.length/2)];
+  var mid2 = strokes[Math.min(Math.floor(strokes.length/2)+3, strokes.length-1)];
+  if (mid && mid2) {
+    var mx = toX(mid.ln), my = toY(mid.lt);
+    var mx2 = toX(mid2.ln), my2 = toY(mid2.lt);
+    var angle = Math.atan2(my2-my, mx2-mx);
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -5);
+    ctx.lineTo(-4, 5);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* Legend */
+  ctx.font = 'bold 9px Nunito, sans-serif';
+  ctx.fillStyle = '#4caf74';
+  ctx.textAlign = 'left';
+  ctx.fillText('▶ Start', sx + 9, sy + 4);
+  ctx.fillStyle = '#c0406a';
+  ctx.fillText('■ End', ex + 9, ey + 4);
+}
+
 function _parseFITBuffer(view, bytes, filename) {
   /* ── Header ── */
   var headerSize = bytes[0];
@@ -4893,6 +5116,10 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
+
+
 
 
 
