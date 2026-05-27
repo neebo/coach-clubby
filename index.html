@@ -510,6 +510,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -4880,10 +4882,9 @@ function _parseFITBuffer(view, bytes, filename) {
         if (b===0x83) {
           var v=view.getInt32(pos,!be); return v===0x7FFFFFFF?null:v;
         }
-        if (b===0x84) {
-          var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
-        }
-        if (b===0x86) return view.getFloat32(pos,!be);
+        /* base 0x84 (uint32) or 0x86 (float32): Suunto stores uint32 in
+           fields declared as float32, so always read 4-byte fields as uint32.
+           Genuine floats (altitude, temperature) are handled in normalization. */
         var v=view.getUint32(pos,!be); return v===0xFFFFFFFF?null:v;
       }
       if (size === 8) { return null; }
@@ -4956,15 +4957,19 @@ function _parseFITBuffer(view, bytes, filename) {
 }
 
 function fitDataToSession(data, filename) {
+
   /* ── Normalize raw field-number records (native parser output) ── */
   if (data._raw) {
     if (data.records) {
       data.records = data.records.map(function(r) {
         var lat = r[0], lon = r[1];
-        /* Convert unsigned to signed for position fields */
-        if (lat != null && lat > 0x7FFFFFFF) lat = lat - 0x100000000;
-        if (lon != null && lon > 0x7FFFFFFF) lon = lon - 0x100000000;
-        var spd = r[6]; /* raw speed: already /1000 applied in _parseFITBuffer readVal */
+        if (lat != null && lat > 0x7FFFFFFF) lat -= 0x100000000;
+        if (lon != null && lon > 0x7FFFFFFF) lon -= 0x100000000;
+        /* Speed field 6: Suunto stores in mm/s as uint16; divide by 1000 → m/s */
+        var spd = r[6];
+        if (spd != null && spd > 0) spd = spd / 1000;
+        /* Timestamp: uint32 FIT epoch seconds → JS Date */
+        var ts = r[253];
         return {
           position_lat:  lat,
           position_long: lon,
@@ -4973,18 +4978,27 @@ function fitDataToSession(data, filename) {
           cadence:       r[4],
           stroke_rate:   r[4],
           distance:      r[5],
-          speed:         (spd != null && spd < 50) ? spd : null,
-          timestamp:     r[253] != null ? new Date(631065600000 + r[253]*1000) : null,
+          speed:         (spd != null && spd > 0 && spd < 50) ? spd : null,
+          timestamp:     ts != null ? new Date(631065600000 + ts * 1000) : null,
         };
       });
     }
     if (data.sessions && data.sessions[0]) {
       var s0 = data.sessions[0];
+      /* Timestamps are uint32 FIT epoch seconds (base 0x86 now decoded as uint32) */
+      var startTs = s0[2] || null;
+      var endTs   = s0[253] || null;
+      /* Use timestamp diff for elapsed — more reliable than total_elapsed_time */
+      var elapsedSecs = (startTs && endTs && endTs > startTs)
+        ? (endTs - startTs)
+        : (s0[9] != null ? Math.round(s0[9] / 1000) : null);
+      /* avg_speed field 14: uint16 in mm/s → /1000 = m/s */
+      var avgSpd = s0[14] != null ? s0[14] / 1000 : null;
       data.sessions[0] = {
-        start_time:         s0[2]  != null ? new Date(631065600000 + s0[2]*1000) : null,
-        total_elapsed_time: s0[9]  != null ? s0[9]/1000  : null,
-        total_distance:     s0[11] != null ? s0[11]/100  : null,
-        avg_speed:          s0[14] != null ? s0[14]/1000 : null,
+        start_time:         startTs ? new Date(631065600000 + startTs * 1000) : null,
+        total_elapsed_time: elapsedSecs,
+        total_distance:     null,     /* compute from speed × time below */
+        avg_speed:          avgSpd,
         avg_heart_rate:     s0[16],
         avg_cadence:        s0[20],
         sport:              null,
@@ -5008,161 +5022,149 @@ function fitDataToSession(data, filename) {
   }
   function fitDateToKey(d) {
     if (!d) return String(Date.now());
-    var dt = (d instanceof Date) ? d : new Date(631065600000 + d*1000);
-    return String(dt.getFullYear())+String(dt.getMonth()+1).padStart(2,'0')+String(dt.getDate()).padStart(2,'0');
+    var dt = (d instanceof Date) ? d : new Date(631065600000 + d * 1000);
+    return String(dt.getFullYear())
+         + String(dt.getMonth()+1).padStart(2,'0')
+         + String(dt.getDate()).padStart(2,'0');
   }
   function fitDateToString(d) {
     if (!d) return '';
-    var dt = (d instanceof Date) ? d : new Date(631065600000 + d*1000);
+    var dt = (d instanceof Date) ? d : new Date(631065600000 + d * 1000);
     return String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getDate()).padStart(2,'0')+'/'+dt.getFullYear()
       +' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')+':'+String(dt.getSeconds()).padStart(2,'0');
   }
 
-  /* ── Summary from sessions[0] ── */
+  /* ── Summary ── */
   var sum = (data.sessions && data.sessions[0]) || {};
-  var startTime = sum.start_time || (data.activity && data.activity.timestamp) || null;
+
+  /* Start time */
+  var startTime = sum.start_time || null;
   var dateKey   = fitDateToKey(startTime);
 
-  /* Total elapsed time in seconds */
-  var totalSecs = sum.total_elapsed_time || sum.total_timer_time || 0;
-
-  /* Speed: prefer avg_speed, fall back to total_distance/total_timer_time */
-  var avgSpeedMs = sum.avg_speed || 0;
-  if (!avgSpeedMs && sum.total_distance && sum.total_timer_time) {
-    avgSpeedMs = sum.total_distance / sum.total_timer_time;
+  /* Elapsed — already in seconds for _raw; fit-file-parser returns ms */
+  var totalSecs = 0;
+  if (sum.total_elapsed_time != null && sum.total_elapsed_time > 0) {
+    totalSecs = data._raw ? sum.total_elapsed_time : sum.total_elapsed_time / 1000;
+  } else if (sum.total_timer_time != null && sum.total_timer_time > 0) {
+    totalSecs = data._raw ? sum.total_timer_time : sum.total_timer_time / 1000;
   }
+
+  /* ── Derive key stats from records (more accurate than session summary) ── */
+  var rawRecords = data.records || [];
+  var recSpeeds = [], recHRs = [], recTimestamps = [];
+  rawRecords.forEach(function(r) {
+    var spd = r.speed;
+    if (spd != null && spd > 0 && spd < 50) recSpeeds.push(spd);
+    var hr = r.heart_rate;
+    if (hr != null && hr > 0 && hr < 250) recHRs.push(hr);
+    var ts = r.timestamp;
+    if (ts instanceof Date) recTimestamps.push(ts.getTime());
+    else if (typeof ts === 'number' && ts > 0) recTimestamps.push(ts * 1000);
+  });
+
+  /* If record timestamps span more time than session summary, trust records */
+  if (recTimestamps.length >= 2) {
+    var recElapsed = (Math.max.apply(null,recTimestamps) - Math.min.apply(null,recTimestamps)) / 1000;
+    if (recElapsed > totalSecs) totalSecs = recElapsed;
+    /* Also use first record timestamp for start date if session start is missing */
+    if (!startTime && recTimestamps.length) {
+      startTime = new Date(Math.min.apply(null, recTimestamps));
+      dateKey   = fitDateToKey(startTime);
+    }
+  }
+
+  /* Average speed: prefer record-derived */
+  var avgSpeedMs = recSpeeds.length
+    ? recSpeeds.reduce(function(a,b){return a+b;},0) / recSpeeds.length
+    : (sum.avg_speed || 0);
   var avgSpeedMph = msToMph(avgSpeedMs);
 
-  var totalDistMi = mToMi(sum.total_distance || 0);
+  /* Distance: session summary is unreliable for Suunto — derive from speed × time */
+  var totalDistMi = 0;
+  if (sum.total_distance != null && sum.total_distance > 100) {
+    /* Non-raw: trust if > 100m (filter out the 2m Suunto artifact) */
+    totalDistMi = mToMi(sum.total_distance);
+  } else {
+    totalDistMi = avgSpeedMs * totalSecs / 1609.344;
+  }
 
   /* HR */
-  var avgHR = sum.avg_heart_rate || null;
-  var hasHR = !!(avgHR);
+  var avgHR  = recHRs.length
+    ? Math.round(recHRs.reduce(function(a,b){return a+b;},0)/recHRs.length)
+    : (sum.avg_heart_rate || null);
+  var hasHR  = recHRs.length > 0 || !!(sum.avg_heart_rate);
 
-  /* Stroke rate — FIT uses avg_cadence for paddle cadence */
+  /* Stroke rate */
   var avgSR = sum.avg_cadence || 0;
-  if (avgSR === 0 && sum.avg_stroke_count) avgSR = sum.avg_stroke_count;
 
   /* Start GPS */
   var startLat = 0, startLon = 0;
-  if (data.records && data.records.length) {
-    var firstGPS = data.records.find(function(r) {
-      return r.position_lat != null && r.position_long != null;
-    });
-    if (firstGPS) {
-      startLat = semicirclesToDeg(firstGPS.position_lat);
-      startLon = semicirclesToDeg(firstGPS.position_long);
-    }
+  var firstGPS = rawRecords.find(function(r) {
+    return r.position_lat != null && r.position_long != null;
+  });
+  if (firstGPS) {
+    startLat = semicirclesToDeg(firstGPS.position_lat) || 0;
+    startLon = semicirclesToDeg(firstGPS.position_long) || 0;
   }
 
-  /* ── Records → strokes ── */
-  /* FIT records are ~1/sec; SpeedCoach CSV is every 15 strokes (~every 15s).
-     We sample every ~15 records to match the density Coach Clubby expects. */
-  var rawRecords = data.records || [];
-  var SAMPLE_INTERVAL = Math.max(1, Math.round(rawRecords.length / 300)); /* target ~300 strokes */
+  /* ── Sample records → strokes ── */
+  var SAMPLE = Math.max(1, Math.round(rawRecords.length / 300));
   var strokes = [];
-  var intervalIdx = 0;
+  var recStart = recTimestamps.length ? Math.min.apply(null, recTimestamps) : 0;
 
   rawRecords.forEach(function(r, i) {
-    if (i % SAMPLE_INTERVAL !== 0) return;
-
-    var spd = (r.speed != null) ? msToMph(r.speed) : null;
-    var lt  = (r.position_lat  != null) ? semicirclesToDeg(r.position_lat)  : null;
-    var ln  = (r.position_long != null) ? semicirclesToDeg(r.position_long) : null;
-    var hr  = r.heart_rate || null;
-    /* Cadence in FIT = stroke rate for paddle sports */
+    if (i % SAMPLE !== 0) return;
+    var lt  = semicirclesToDeg(r.position_lat);
+    var ln  = semicirclesToDeg(r.position_long);
+    var spd = (r.speed != null && r.speed < 50) ? msToMph(r.speed) : null;
+    var hr  = (r.heart_rate && r.heart_rate < 250) ? r.heart_rate : null;
     var sr  = r.cadence || r.stroke_rate || null;
-    var elapsed = secsToElapsed(r.elapsed_time || (i * SAMPLE_INTERVAL));
-
-    /* Map lap index to interval number */
-    if (data.laps) {
-      for (var li = 0; li < data.laps.length; li++) {
-        var lap = data.laps[li];
-        var lapStart = lap.start_time ? new Date(lap.start_time).getTime() : 0;
-        var recTime  = r.timestamp   ? new Date(r.timestamp).getTime()    : 0;
-        if (lapStart && recTime && recTime >= lapStart) intervalIdx = li + 1;
-      }
-    }
-
-    strokes.push({
-      e:  elapsed,
-      s:  spd,
-      r:  sr,
-      h:  hr,
-      lt: lt,
-      ln: ln,
-      i:  intervalIdx || 1,
-    });
+    /* Elapsed from record timestamp */
+    var tsMs = 0;
+    if (r.timestamp instanceof Date) tsMs = r.timestamp.getTime();
+    else if (typeof r.timestamp === 'number') tsMs = r.timestamp * 1000;
+    var elapsedS = recStart > 0 && tsMs > 0 ? (tsMs - recStart) / 1000 : i * SAMPLE;
+    strokes.push({ e:secsToElapsed(elapsedS), s:spd, r:sr, h:hr, lt:lt, ln:ln, i:1 });
   });
 
   /* Midpoint GPS */
   var validStrokes = strokes.filter(function(s) { return s.lt && s.ln; });
   var mid = validStrokes.length ? validStrokes[Math.floor(validStrokes.length/2)] : null;
 
-  /* ── Laps → intervals ── */
-  var intervals = (data.laps || []).map(function(lap, li) {
-    var lapSpeedMs  = lap.avg_speed || 0;
-    var lapDistMi   = mToMi(lap.total_distance || 0);
-    var lapSecs     = lap.total_elapsed_time || lap.total_timer_time || 0;
-    var lapStartLat = lap.start_position_lat  ? semicirclesToDeg(lap.start_position_lat)  : 0;
-    var lapStartLon = lap.start_position_long ? semicirclesToDeg(lap.start_position_long) : 0;
-    return {
-      n:  String(li + 1),
-      d:  lapDistMi,
-      el: secsToElapsed(lapSecs),
-      sp: lapSpeedMs ? (mToMi(1000) / lapSpeedMs * 60).toFixed(1) + '/mi' : null,
-      v:  msToMph(lapSpeedMs),
-      sr: lap.avg_cadence || 0,
-      hr: lap.avg_heart_rate || null,
-      lt: lapStartLat,
-      ln: lapStartLon,
-    };
-  });
-
-  /* Determine session type from FIT sport field */
-  var sport  = (sum.sport  || '').toLowerCase();
-  var subSport = (sum.sub_sport || '').toLowerCase();
+  /* Session type from filename */
   var sessionType = 'Paddling';
-  if (sport === 'rowing' || sport === 'kayaking' || sport === 'stand_up_paddleboarding') {
-    sessionType = sport.charAt(0).toUpperCase() + sport.slice(1);
+  if (filename) {
+    var fn = filename.toLowerCase();
+    if (fn.indexOf('canoe') >= 0)       sessionType = 'Canoeing';
+    else if (fn.indexOf('kayak') >= 0)  sessionType = 'Kayaking';
+    else if (fn.indexOf('sup') >= 0)    sessionType = 'SUP';
+    else if (fn.indexOf('row') >= 0)    sessionType = 'Rowing';
   }
-  if (subSport) sessionType = subSport.charAt(0).toUpperCase() + subSport.slice(1);
+  var sport = (sum.sport || '').toLowerCase();
+  if (sport && sport !== 'generic') {
+    sessionType = sport.charAt(0).toUpperCase() + sport.slice(1).replace(/_/g,' ');
+  }
 
   return {
-    date:           dateKey,
-    startTime:      fitDateToString(startTime),
-    sessionType:    sessionType,
-    programName:    filename || '',
-    avgSpeed:       avgSpeedMph,
-    totalDist:      totalDistMi,
-    elapsed:        secsToElapsed(totalSecs),
-    avgStrokeRate:  avgSR,
-    avgHR:          avgHR,
-    startLat:       startLat,
-    startLon:       startLon,
-    midLat:         mid ? mid.lt : null,
-    midLon:         mid ? mid.ln : null,
-    hasHR:          hasHR,
-    intervals:      intervals,
-    strokes:        strokes,
-    _source:        'fit',
+    date:          dateKey,
+    startTime:     fitDateToString(startTime),
+    sessionType:   sessionType,
+    programName:   filename || '',
+    avgSpeed:      avgSpeedMph,
+    totalDist:     totalDistMi,
+    elapsed:       secsToElapsed(totalSecs),
+    avgStrokeRate: avgSR,
+    avgHR:         avgHR,
+    startLat:      startLat,
+    startLon:      startLon,
+    midLat:        mid ? mid.lt : null,
+    midLon:        mid ? mid.ln : null,
+    hasHR:         hasHR,
+    intervals:     [],
+    strokes:       strokes,
+    _source:       'fit',
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* ── By Focus Type drag-and-drop ── */
 var FOCUS_ORDER = null;  /* null = use natural order from sessions */
@@ -5244,6 +5246,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
