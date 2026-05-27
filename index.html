@@ -517,6 +517,9 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -989,6 +992,15 @@ function loadAllSessionDetails(sessions, cb) {
       if (!err && val && val.strokes) {
         s.strokes   = val.strokes;
         s.intervals = val.intervals || s.intervals || [];
+        /* If this is the currently displayed session, re-render its cards
+           so the speed chart and GPS map have data to draw */
+        if (SEL === s.date && PAGE === 'session') {
+          var ctEl = document.getElementById('ct');
+          if (ctEl) {
+            var cardsEl = ctEl.querySelector('#__cards');
+            if (cardsEl) renderSessionCards(s, cardsEl);
+          }
+        }
       }
       if (!--pending) cb();
     });
@@ -2139,7 +2151,7 @@ function renderSession(el){
 function drawSessChart(s){
   var c=document.getElementById('sc-'+s.date)||document.getElementById('sc');if(!c)return;
   var ctx=c.getContext('2d');var W=Math.max(c.offsetWidth,(c.parentElement||{}).offsetWidth||0)||600;var H=175;c.width=W;c.height=H;
-  var strokes=s.strokes.filter(function(x){return x.s&&x.s>0.3;});if(!strokes.length)return;
+  var strokes=(s.strokes||[]).filter(function(x){return x.s&&x.s>0.3;});if(!strokes.length)return;
   var pad={t:20,r:18,b:26,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
   var speeds=strokes.map(function(x){return x.s;});
   var hrs=strokes.map(function(x){return x.h;}).filter(function(h){return h!=null;});
@@ -4108,7 +4120,7 @@ function renderSessionCards(s, containerEl) {
   requestAnimationFrame(function() {
     setTimeout(function() {
       /* Draw speed chart */
-      var c = document.getElementById('sc');
+      var c = document.getElementById('sc-'+s.date) || document.getElementById('sc');
       if (c && (c.offsetWidth > 0 || (c.parentElement && c.parentElement.offsetWidth > 0))) {
         drawSessChart(s);
       } else if (window.IntersectionObserver && c) {
@@ -4122,7 +4134,7 @@ function renderSessionCards(s, containerEl) {
       /* Draw GPS map — look up by session-specific id so re-renders don't conflict */
       if (s._mapId && s._mapStrokes) {
         var mc = document.getElementById(s._mapId);
-        if (!mc) return;
+        if (!mc) return; /* map canvas not in DOM yet */
         function doDrawMap() {
           var W = 0, el = mc;
           while (el && W === 0) { W = el.offsetWidth; el = el.parentElement; }
@@ -5277,6 +5289,9 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
+
 
 
 
