@@ -521,6 +521,8 @@ textarea:focus{border-color:#b09dd4!important;box-shadow:0 0 0 3px rgba(176,157,
 
 
 
+
+
 /* ═══════════════════════════════════════════════════════════
    SUPABASE AUTH + STORAGE LAYER
    
@@ -1693,7 +1695,8 @@ function drawGrid(ctx,W,H,pad,minV,maxV,steps){
 }
 function xLbl(ctx,H,x,label){ctx.fillStyle='#a898bb';ctx.font='700 10px Nunito,sans-serif';ctx.textAlign='center';ctx.fillText(label,x,H-5);}
 function bungee_diamond(ctx,x,y,r){ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();}
-function datePill(date){var c=dateColor(date);return '<span class="pill" style="background:'+c+'22;color:'+c+'">'+dateLabel(date)+'</span>';}
+
+function diamond(ctx,x,y,r){bungee_diamond(ctx,x,y,r);}function datePill(date){var c=dateColor(date);return '<span class="pill" style="background:'+c+'22;color:'+c+'">'+dateLabel(date)+'</span>';}
 function focusPill(s){var f=getFocus(s);if(!f)return '<span class="pill" style="background:var(--lav-lt);color:var(--plum)">'+s.sessionType+'</span>';return '<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40">'+f.icon+' '+f.shortLabel+'</span>';}
 
 /* ═══════════════════════════════════════════
@@ -4123,8 +4126,10 @@ function renderSessionCards(s, containerEl) {
   function tryDrawCharts() {
     var sc = document.getElementById('sc-'+s.date) || document.getElementById('sc');
     if (sc) drawSessChart(s);
+    console.log('[map] tryDrawCharts: _mapId='+s._mapId+' strokes='+((s._mapStrokes||[]).length));
     if (s._mapId && s._mapStrokes && s._mapStrokes.length) {
       var mc = document.getElementById(s._mapId);
+      console.log('[map] canvas found='+!!mc+(mc?' W='+mc.offsetWidth:''));
       if (mc) drawGPSMap(s, s._mapStrokes, mc);
     }
   }
@@ -5276,6 +5281,8 @@ function startFocusDrag(srcWrap, container, startY) {
   document.addEventListener('touchmove', tm, { passive: false });
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
