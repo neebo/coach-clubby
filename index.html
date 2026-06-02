@@ -34,6 +34,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -399,6 +401,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -423,6 +427,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -936,6 +942,15 @@ var FOCUS_OPTIONS = [
   {id:'race',         label:'Race',             shortLabel:'Race',           icon:'🏆', color:'#e05c5c'},
   {id:'gym',          label:'Gym',              shortLabel:'Gym',            icon:'🏋️', color:'#8b8b8b'},
 ];
+var CRAFT_OPTIONS = ['OC1','OC2','OC6','SS1','SS2'];
+
+var USER_PREFS = { defaultCraft: 'OC1' };
+
+var SESSION_CRAFTS = {};  /* { date: craftString } */
+
+var WEEKLY_PLANS = {};    /* { 'YYYYWNN': { days: {...} } } */
+var ACTIVE_PLAN_WEEK = null; /* currently-editing week key */
+
 
 const ZONE_DEFS=[
   {id:'seg_S',label:'South Harbor',latLo:36.9545,latHi:36.9583,color:'#b8a9c9'},
@@ -4964,6 +4979,8 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
+
 
 
 
