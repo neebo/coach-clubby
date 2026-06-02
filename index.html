@@ -29,6 +29,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -389,6 +390,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -413,6 +415,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -910,6 +913,18 @@ const PROGRAM={
   6:{id:'long-z2',label:'Saturday · Long Z2',shortLabel:'Sat Long Z2',icon:'🌊',color:'#9bbdd4',colorLt:'#daeef8',zone:'Z2',bungee:false,srTargets:null,desc:'100–110 min Z2 sustained. Downwind: 5 min focus pieces. Flatwater: 5×20″ bursts every ~15 min.',note:null},
   0:{id:'easy-benchmark',label:'Sunday · Easy + Z3 Benchmark',shortLabel:'Sun Easy',icon:'😌',color:'#c08bc0',colorLt:'#f5e6f5',zone:'Z1–Z2',bungee:false,srTargets:null,desc:'50–60 min Z1–Z2. Last 5 min at Z3 pace to benchmark feel.',note:'Last 5 min Z3 may inflate avg speed slightly.'},
 };
+var FOCUS_OPTIONS = [
+  /* Weekly program focus types */
+  {id:'intervals',    label:'Z2 Intervals',    shortLabel:'Tue Intervals',  icon:'⚡',  color:'#7c6fa0'},
+  {id:'easy',         label:'Easy Paddle',      shortLabel:'Wed Easy',       icon:'🌿', color:'#5cb87a'},
+  {id:'bungee',       label:'Bungee Resistance',shortLabel:'Thu Bungee',     icon:'🔴', color:'#f5a623', bungee:true},
+  {id:'long-z2',      label:'Long Z2',          shortLabel:'Sat Long Z2',    icon:'🌊', color:'#9bbdd4'},
+  {id:'easy-benchmark',label:'Easy + Benchmark',shortLabel:'Sun Easy',       icon:'😌', color:'#c08bc0'},
+  /* Special overrides */
+  {id:'race',         label:'Race',             shortLabel:'Race',           icon:'🏆', color:'#e05c5c'},
+  {id:'gym',          label:'Gym',              shortLabel:'Gym',            icon:'🏋️', color:'#8b8b8b'},
+];
+
 const ZONE_DEFS=[
   {id:'seg_S',label:'South Harbor',latLo:36.9545,latHi:36.9583,color:'#b8a9c9'},
   {id:'seg_C',label:'Central Channel',latLo:36.9583,latHi:36.9621,color:'#9b8bb8'},
@@ -4918,6 +4933,7 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
 
 
 
