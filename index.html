@@ -37,6 +37,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -405,6 +406,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -429,6 +431,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -3031,11 +3034,13 @@ var CARD_ORDER   = null;   /* loaded from storage — null means default */
 
 var CARD_DEFS = [
   { id: 'legs',      label: 'Legs / Downwind',  icon: '🚣' },
-  { id: 'tide',      label: 'Tide',              icon: '🌊' },
-  { id: 'weather',   label: 'Weather',           icon: '🌤️' },
-  { id: 'notes',     label: 'Notes',             icon: '📝' },
-  { id: 'speed',     label: 'Speed Profile',     icon: '📈' },
-  { id: 'intervals', label: 'Intervals',         icon: '⚡' },
+  { id: 'tide',      label: 'Tide',             icon: '🌊' },
+  { id: 'weather',   label: 'Weather',          icon: '🌤️' },
+  { id: 'notes',     label: 'Notes',            icon: '📝' },
+  { id: 'map',       label: 'GPS Track',        icon: '🗺️' },
+  { id: 'trim',      label: 'Trim Session',     icon: '✂️' },
+  { id: 'speed',     label: 'Speed Profile',    icon: '📈' },
+  { id: 'intervals', label: 'Intervals',        icon: '⚡' },
 ];
 
 function defaultCardOrder() {
@@ -5028,6 +5033,14 @@ function saveOvLayout() {
 
 
 
+
+
+
+function fetchAllTides(cb) {
+  /* Compute harmonic tides for all sessions, then call cb */
+  computeAllTides();
+  if (cb) cb();
+}
 
 </script>
 </body>
