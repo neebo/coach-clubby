@@ -36,6 +36,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -403,6 +404,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -427,6 +429,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -950,6 +953,38 @@ var SESSION_CRAFTS = {};  /* { date: craftString } */
 
 var WEEKLY_PLANS = {};    /* { 'YYYYWNN': { days: {...} } } */
 var ACTIVE_PLAN_WEEK = null; /* currently-editing week key */
+
+/* ── Day / session state globals ── */
+var SEL      = null;   /* selected session date string */
+var SEG_TAB  = 'corridor'; /* active segments sub-tab */
+var WW_VIS   = {seg_S:true,seg_C:true,seg_N:true,seg_NE:true};
+
+/* ── Overview widget order ── */
+var OV_WIDGET_ORDER = null;  /* null = use defaultOvOrder() */
+
+/* ── Insights strip config ── */
+var STRIP_CONFIG = null;     /* null = use defaultStripConfig() */
+
+/* ── Day-of-week names ── */
+var DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+/* ── Weekly plan day keys ── */
+var PLAN_DAYS = [1,2,3,4,5,6,0]; /* Mon…Sun */
+
+/* ── Focus type styles (icon+colour for plan cards) ── */
+var FOCUS_STYLES = (function(){
+  var s = {};
+  (typeof FOCUS_OPTIONS !== 'undefined' ? FOCUS_OPTIONS : []).forEach(function(f){
+    s[f.id] = { icon: f.icon||'', color: f.color||'#9b8bb4', label: f.label||f.id };
+  });
+  /* Also index PROGRAM entries */
+  if (typeof PROGRAM !== 'undefined') {
+    Object.values(PROGRAM).forEach(function(p){
+      s[p.id] = { icon: p.icon||'', color: p.color||'#9b8bb4', label: p.shortLabel||p.label||p.id };
+    });
+  }
+  return s;
+}());
 
 
 const ZONE_DEFS=[
@@ -4979,6 +5014,7 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
 
 
 
