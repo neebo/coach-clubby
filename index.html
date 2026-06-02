@@ -19,6 +19,9 @@
 
 
 
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -369,6 +372,9 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
 </style>
 </head>
 <body>
@@ -393,6 +399,9 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -492,7 +501,7 @@ function sbSignUp(email, password, cb) {
 function sbSignIn(email, password, cb) {
   fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ email: email, password: password })
   })
   .then(function(r) { return r.json(); })
@@ -527,7 +536,7 @@ function sbSignOut(cb) {
 function sbRefresh(refreshToken, cb) {
   fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH },
     body: JSON.stringify({ refresh_token: refreshToken })
   })
   .then(function(r) { return r.json(); })
@@ -892,29 +901,31 @@ const DLABELS={};
    Embedded seed sessions (from CSV pre-parse)
    are saved on first load if storage is empty.
 ═══════════════════════════════════════════ */
-var STORAGE_KEY='pawddle_sessions';
-
+var STORAGE_KEY      = 'clubby_sessions';
+var TAGS_KEY         = 'clubby_tags';
+var NOTES_KEY        = 'clubby_notes';
+var PLAN_KEY         = 'clubby_weekly_plans';
+var PREFS_KEY        = 'clubby_prefs';
+var CRAFTS_KEY       = 'clubby_crafts';
+var LAYOUT_KEY       = 'clubby_layout';
+var OV_WIDGET_KEY    = 'clubby_ov_layout';
+var STRIP_KEY        = 'clubby_strip';
+var FOCUS_ORDER_KEY  = 'clubby_focus_order';
+var SESSION_KEY_PREFIX = 'clubby_session_';
 
 
 function loadFromStorage(){
+  /* Read from _store which was populated by _loadUserData from Supabase */
   try{
-    var raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      var stored=JSON.parse(raw);
-      if(stored&&stored.length){
-        // Merge: stored sessions take priority; seed sessions fill in any missing
-        var storedDates=new Set(stored.map(function(s){return s.date;}));
-        var seedOnly=SESSIONS.filter(function(s){return !storedDates.has(s.date);});
-        SESSIONS=stored.concat(seedOnly);
-        SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
-        return true;
-      }
+    var stored = _store[STORAGE_KEY];
+    if(stored && stored.length){
+      SESSIONS = stored.slice();
+      SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
+      return true;
     }
   }catch(e){
-    console.warn('localStorage load failed:',e);
+    console.warn('loadFromStorage failed:',e);
   }
-  // First load — save seeds to storage
-  saveToStorage();
   return false;
 }
 
@@ -1816,13 +1827,12 @@ var SESSION_TAGS={};
 
 function loadTags(){
   try{
-    var raw=localStorage.getItem(TAGS_KEY);
-    if(raw)SESSION_TAGS=JSON.parse(raw);
-  }catch(e){SESSION_TAGS={};}
+    var raw=_store[TAGS_KEY];
+    if(!raw)return;
+    var stored=typeof raw==='string'?JSON.parse(raw):raw;
+    if(stored){SESSION_TAGS=stored;}
+  }catch(e){}
 }
-
-
-
 function setSessionTag(date, focusId){
   // focusId = null removes override (back to auto), '' = untagged, or a PROGRAM id
   if(focusId===undefined||focusId==='auto'){
@@ -1903,10 +1913,14 @@ function wxCell(session){
 var NOTES_KEY = 'pawddle_notes';
 var SESSION_NOTES = {};
 
-function loadNotes() {
-  try { var r = localStorage.getItem(NOTES_KEY); if (r) SESSION_NOTES = JSON.parse(r); } catch(e) {}
+function loadNotes(){
+  try{
+    var raw=_store[NOTES_KEY];
+    if(!raw)return;
+    var stored=typeof raw==='string'?JSON.parse(raw):raw;
+    if(stored){SESSION_NOTES=stored;}
+  }catch(e){}
 }
-
 function setNote(date, text) {
   if (text && text.trim()) SESSION_NOTES[date] = text.trim();
   else delete SESSION_NOTES[date];
@@ -4793,6 +4807,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+
+
 
 
 
