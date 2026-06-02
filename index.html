@@ -23,6 +23,9 @@
 
 
 
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -377,6 +380,9 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
 </style>
 </head>
 <body>
@@ -401,6 +407,9 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -1428,9 +1437,10 @@ function renderSession(el){
 }
 
 function drawSessChart(s){
-  var c=document.getElementById('sc');if(!c)return;
-  var ctx=c.getContext('2d');var W=c.offsetWidth,H=175;c.width=W;c.height=H;
-  var strokes=s.strokes.filter(function(x){return x.s&&x.s>0.3;});if(!strokes.length)return;
+  var c=document.getElementById('sc-'+s.date)||document.getElementById('sc');if(!c)return;
+  var W=0,wEl=c;while(wEl&&W===0){W=wEl.offsetWidth;wEl=wEl.parentElement;}if(!W)W=600;
+  var ctx=c.getContext('2d');c.width=W;var H=175;c.height=H;
+  var strokes=(s.strokes||[]).filter(function(x){return x.s&&x.s>0.3;});if(!strokes.length)return;
   var pad={t:20,r:18,b:26,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
   var speeds=strokes.map(function(x){return x.s;});
   var hrs=strokes.map(function(x){return x.h;}).filter(function(h){return h!=null;});
@@ -2386,8 +2396,9 @@ function renderTideCard(session) {
   }
 
   // Full day tide table
-  html += '<div style="display:grid;grid-template-columns:repeat(' + Math.min(tide.events.length, 4) + ',1fr);gap:8px">';
-  tide.events.forEach(function(ev) {
+  var tideEvents = tide.events || [];
+  html += '<div style="display:grid;grid-template-columns:repeat(' + Math.min(tideEvents.length, 4) + ',1fr);gap:8px">';
+  tideEvents.forEach(function(ev) {
     var isNearest = tide.prevEvent && ev.time === tide.prevEvent.time;
     var col = ev.type === 'H' ? 'var(--plum)' : 'var(--gm)';
     html += '<div style="background:' + (isNearest ? 'var(--lilac)' : 'var(--lilac2)') + ';border-radius:8px;padding:10px 12px;border:1.5px solid ' + (isNearest ? 'var(--lav-md)' : 'var(--lav-lt)') + '">';
@@ -2946,27 +2957,25 @@ function saveLayout() {
 
 /* ── Render all session cards in the stored order ── */
 function renderSessionCards(s, containerEl) {
-  var order = getCardOrder();
-  var __f   = getFocus(s);
+  var order      = getCardOrder();
+  var __f        = getFocus(s);
   var isDownwind = __f && __f.id === 'long-z2';
+  var mapCanvasEl = null;
 
-  /* Build each card's HTML */
   function cardHTML(id) {
     switch(id) {
-      case 'legs':
-        return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
-      case 'tide':
-        return renderTideCard(s);
-      case 'weather':
-        return renderWeatherCard(s);
-      case 'notes':
-        return renderNotesEditor(s);
+      case 'legs':      return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
+      case 'tide':      return renderTideCard(s);
+      case 'weather':   return renderWeatherCard(s);
+      case 'notes':     return renderNotesEditor(s);
+      case 'map':       return renderGPSMap(s);
+      case 'trim':      return renderTrimCard(s);
       case 'speed':
         return '<div class="card dnd-card" data-card-id="speed">'
           + '<div class="ct-title">Speed profile</div>'
           + '<div class="ct-sub">Per-stroke speed · interval dividers'
           + (s.hasHR ? ' · ♥ HR' : '') + '</div>'
-          + '<canvas id="sc" height="175"></canvas>'
+          + '<canvas id="sc-'+s.date+'" height="175" style="width:100%;display:block"></canvas>'
           + '</div>';
       case 'intervals':
         if (!s.intervals || s.intervals.length < 2) return '';
@@ -2975,22 +2984,70 @@ function renderSessionCards(s, containerEl) {
     }
   }
 
-  /* Clear container and re-render in order */
   containerEl.innerHTML = '';
   order.forEach(function(id) {
     var h = cardHTML(id);
     if (!h) return;
     var wrap = document.createElement('div');
-    wrap.className  = 'dnd-card-wrap';
-    wrap.dataset.cardId = id;
-    wrap.innerHTML  = addDragHandle(h);
+    wrap.className       = 'dnd-card-wrap';
+    wrap.dataset.cardId  = id;
+    var handleEl         = document.createElement('div');
+    handleEl.className   = 'drag-handle';
+    handleEl.title       = 'Drag to reorder';
+    handleEl.textContent = '⠇';
+    wrap.appendChild(handleEl);
+    var frag = document.createElement('div');
+    frag.innerHTML = h;
+    while (frag.firstChild) wrap.appendChild(frag.firstChild);
     containerEl.appendChild(wrap);
+    if (id === 'map' && s._mapId) {
+      mapCanvasEl = wrap.querySelector('#' + s._mapId);
+    }
   });
 
-  /* Draw chart after render */
-  setTimeout(function() { drawSessChart(s); }, 30);
+  function drawCharts() {
+    /* Speed chart */
+    var sc = document.getElementById('sc-'+s.date);
+    if (sc) drawSessChart(s);
+    /* GPS map */
+    if (!s._mapId && (s.strokes||[]).length) {
+      var gps = (s.strokes||[]).filter(function(st) {
+        return st.lt!=null&&st.ln!=null&&st.lt>-90&&st.lt<90&&st.ln>-180&&st.ln<180;
+      });
+      if (gps.length) {
+        s._mapStrokes = gps; s._mapId = 'sess-map-'+s.date;
+        var mapWrap = containerEl.querySelector('[data-card-id="map"]');
+        if (mapWrap) {
+          var handle = mapWrap.querySelector('.drag-handle');
+          mapWrap.innerHTML = '';
+          if (handle) mapWrap.appendChild(handle);
+          var frag2 = document.createElement('div');
+          frag2.innerHTML = renderGPSMap(s);
+          while (frag2.firstChild) mapWrap.appendChild(frag2.firstChild);
+          mapCanvasEl = mapWrap.querySelector('#'+s._mapId);
+        }
+      }
+    }
+    if (s._mapId && s._mapStrokes && s._mapStrokes.length) {
+      var mc = mapCanvasEl || document.getElementById(s._mapId);
+      if (mc) drawGPSMap(s, s._mapStrokes, mc);
+    }
+    /* Trim chart */
+    drawTrimChart(s);
+    attachTrimHandlers(s);
+  }
 
-  /* Attach drag behaviour */
+  setTimeout(drawCharts, 80);
+  if (window.IntersectionObserver) {
+    var scEl = document.getElementById('sc-'+s.date);
+    if (scEl) {
+      var obs = new IntersectionObserver(function(entries, o) {
+        if (entries[0].isIntersecting) { o.disconnect(); drawCharts(); }
+      }, {threshold:0.1});
+      obs.observe(scEl);
+    }
+  }
+
   attachDragHandlers(containerEl, s);
 }
 
@@ -4831,6 +4888,9 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
+
+
 
 </script>
 </body>
