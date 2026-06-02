@@ -327,6 +327,32 @@ canvas{display:block;width:100%;}
 .nb-icon{font-size:16px;line-height:1;flex-shrink:0;}
 .nb-label{font-size:var(--fs-body);font-weight:700;line-height:1.2;}
 .nb-meta{font-size:var(--fs-label);font-weight:600;color:var(--gm);}
+
+/* ── Trim card ── */
+.trim-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.trim-stat { text-align: center; min-width: 60px; }
+.trim-stat-r { text-align: right; }
+.trim-stat-label {
+  display: block;
+  font-size: var(--fs-label);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gm);
+}
+.trim-stat-val {
+  font-size: var(--fs-card-title);
+  font-weight: 900;
+  color: var(--plum);
+}
+.trim-btns { display: flex; align-items: center; }
 </style>
 </head>
 <body>
@@ -351,6 +377,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -4008,6 +4035,7 @@ var CARD_DEFS = [
   { id: 'weather',   label: 'Weather',           icon: '🌤️' },
   { id: 'notes',     label: 'Notes',             icon: '📝' },
   { id: 'map',       label: 'GPS Track',         icon: '🗺️' },
+  { id: 'trim',      label: 'Trim Session',      icon: '✂️' },
   { id: 'speed',     label: 'Speed Profile',     icon: '📈' },
   { id: 'intervals', label: 'Intervals',         icon: '⚡' },
 ];
@@ -4033,6 +4061,7 @@ function renderSessionCards(s, containerEl) {
       case 'weather':   return renderWeatherCard(s);
       case 'notes':     return renderNotesEditor(s);
       case 'map':       return renderGPSMap(s);
+      case 'trim':      return renderTrimCard(s);
       case 'speed':
         return '<div class="card dnd-card" data-card-id="speed">'
           + '<div class="ct-title">Speed profile</div>'
@@ -4106,6 +4135,10 @@ function renderSessionCards(s, containerEl) {
   }
 
   setTimeout(drawCharts, 80);
+  setTimeout(function() {
+    drawTrimChart(s);
+    attachTrimHandlers(s);
+  }, 100);
 
   /* IntersectionObserver fallback for cards below the fold */
   if (window.IntersectionObserver) {
@@ -5292,6 +5325,270 @@ function startFocusDrag(srcWrap, container, startY) {
 
 
 
+
+
+
+/* ═══════════════════════════════════════════════════════
+   SESSION TRIM
+   Adds a "Trim session" card to session detail.
+   Shows the speed profile with draggable start/end handles.
+   Trimming slices s.strokes and recomputes avgSpeed,
+   totalDist, elapsed, avgHR, avgStrokeRate.
+═══════════════════════════════════════════════════════ */
+
+function renderTrimCard(s) {
+  if (!s.strokes || s.strokes.length < 4) return '';
+  var cardId = 'trim-' + s.date;
+  return '<div class="card dnd-card" data-card-id="trim">'
+    + '<div class="ct-title">✂️ Trim Session</div>'
+    + '<div class="ct-sub">Drag the handles to remove warm-up and cool-down</div>'
+    + '<canvas id="' + cardId + '" height="110" style="width:100%;display:block;border-radius:8px;cursor:crosshair"></canvas>'
+    + '<div class="trim-controls">'
+    +   '<div class="trim-stat"><span class="trim-stat-label">Start</span><span class="trim-stat-val" id="trim-start-' + s.date + '">0:00</span></div>'
+    +   '<div class="trim-btns">'
+    +     '<button class="btn-pill btn-pill-sm" onclick="applyTrim(\'' + s.date + '\')">✂️ Apply trim</button>'
+    +     '<button class="btn-pill btn-pill-sm" style="margin-left:6px" onclick="resetTrim(\'' + s.date + '\')">↺ Reset</button>'
+    +   '</div>'
+    +   '<div class="trim-stat trim-stat-r"><span class="trim-stat-label">End</span><span class="trim-stat-val" id="trim-end-' + s.date + '">—</span></div>'
+    + '</div>'
+    + '</div>';
+}
+
+/* Trim state per session date */
+var _trimState = {};  /* { date: { startIdx, endIdx } } */
+
+function getTrimState(s) {
+  if (!_trimState[s.date]) {
+    _trimState[s.date] = { startIdx: 0, endIdx: (s.strokes||[]).length - 1 };
+  }
+  return _trimState[s.date];
+}
+
+function drawTrimChart(s) {
+  var c = document.getElementById('trim-' + s.date);
+  if (!c) return;
+  var strokes = (s.strokes || []).filter(function(x) { return x.s && x.s > 0.1; });
+  if (!strokes.length) return;
+
+  var W = 0, el = c;
+  while (el && W === 0) { W = el.offsetWidth; el = el.parentElement; }
+  if (!W) W = 600;
+  var H = 110;
+  c.width = W; c.height = H;
+
+  var state = getTrimState(s);
+  /* Clamp to strokes length */
+  state.endIdx = Math.min(state.endIdx, strokes.length - 1);
+
+  var ctx = c.getContext('2d');
+  var pad = { t: 8, r: 12, b: 8, l: 12 };
+  var cW = W - pad.l - pad.r;
+  var cH = H - pad.t - pad.b;
+  var n = strokes.length;
+
+  var speeds = strokes.map(function(x) { return x.s; });
+  var maxSP = Math.max.apply(null, speeds) * 1.1 || 5;
+  var xOf = function(i) { return pad.l + (n < 2 ? cW / 2 : i / (n-1) * cW); };
+  var yOf = function(v) { return pad.t + cH - (v / maxSP) * cH; };
+
+  var f = getFocus(s);
+  var col = f ? f.color : '#9b8bb4';
+
+  /* Background */
+  ctx.fillStyle = '#f7f4fb';
+  ctx.fillRect(0, 0, W, H);
+
+  /* Trimmed-out zones (greyed) */
+  var x0 = xOf(0);
+  var xs = xOf(state.startIdx);
+  var xe = xOf(state.endIdx);
+  var x1 = xOf(n - 1);
+
+  ctx.fillStyle = 'rgba(180,170,200,0.25)';
+  ctx.fillRect(x0, pad.t, xs - x0, cH);
+  ctx.fillStyle = 'rgba(180,170,200,0.25)';
+  ctx.fillRect(xe, pad.t, x1 - xe, cH);
+
+  /* Speed gradient fill — full range, dimmed outside trim */
+  function drawSpeedLine(from, to, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    var gr = ctx.createLinearGradient(0, pad.t, 0, pad.t + cH);
+    gr.addColorStop(0, col + '44');
+    gr.addColorStop(1, col + '00');
+    ctx.beginPath();
+    for (var i = from; i <= to; i++) {
+      var x = xOf(i), y = yOf(strokes[i].s);
+      if (i === from) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(xOf(to), pad.t + cH);
+    ctx.lineTo(xOf(from), pad.t + cH);
+    ctx.closePath();
+    ctx.fillStyle = gr;
+    ctx.fill();
+    ctx.beginPath();
+    for (var i = from; i <= to; i++) {
+      var x = xOf(i), y = yOf(strokes[i].s);
+      if (i === from) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* Full line dim */
+  drawSpeedLine(0, n - 1, 0.3);
+  /* Active range bright */
+  if (state.startIdx <= state.endIdx) {
+    drawSpeedLine(state.startIdx, state.endIdx, 1);
+  }
+
+  /* Handle lines */
+  function drawHandle(xi, label, isStart) {
+    var x = xOf(xi);
+    ctx.strokeStyle = isStart ? '#5cb87a' : '#c0406a';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + cH); ctx.stroke();
+    ctx.setLineDash([]);
+    /* Knob */
+    var ky = H / 2;
+    ctx.fillStyle = isStart ? '#5cb87a' : '#c0406a';
+    ctx.beginPath(); ctx.arc(x, ky, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 8px Nunito,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, ky);
+  }
+
+  drawHandle(state.startIdx, '▶', true);
+  drawHandle(state.endIdx,   '■', false);
+
+  /* Update labels */
+  var startEl = document.getElementById('trim-start-' + s.date);
+  var endEl   = document.getElementById('trim-end-'   + s.date);
+  if (startEl) startEl.textContent = strokes[state.startIdx].e ? strokes[state.startIdx].e.split('.')[0] : '0:00';
+  if (endEl)   endEl.textContent   = strokes[state.endIdx].e   ? strokes[state.endIdx].e.split('.')[0]   : '—';
+}
+
+function attachTrimHandlers(s) {
+  var c = document.getElementById('trim-' + s.date);
+  if (!c) return;
+  var strokes = (s.strokes || []).filter(function(x) { return x.s && x.s > 0.1; });
+  if (!strokes.length) return;
+
+  var dragging = null; /* 'start' | 'end' */
+
+  function strokeIdxAt(clientX) {
+    var rect = c.getBoundingClientRect();
+    var pad = 12;
+    var cW = c.width - pad * 2;
+    var t = Math.max(0, Math.min(1, (clientX - rect.left - pad) / cW));
+    return Math.round(t * (strokes.length - 1));
+  }
+
+  function onDown(clientX) {
+    var state = getTrimState(s);
+    var rect  = c.getBoundingClientRect();
+    var pad2  = 12;
+    var cW    = c.width - pad2 * 2;
+    var n     = strokes.length;
+    var xOf   = function(i) { return rect.left + pad2 + (n < 2 ? cW / 2 : i / (n-1) * cW); };
+    var xs    = xOf(state.startIdx);
+    var xe    = xOf(state.endIdx);
+    /* Pick nearest handle */
+    dragging = Math.abs(clientX - xs) < Math.abs(clientX - xe) ? 'start' : 'end';
+  }
+
+  function onMove(clientX) {
+    if (!dragging) return;
+    var state = getTrimState(s);
+    var idx   = strokeIdxAt(clientX);
+    if (dragging === 'start') {
+      state.startIdx = Math.min(idx, state.endIdx - 1);
+    } else {
+      state.endIdx = Math.max(idx, state.startIdx + 1);
+    }
+    drawTrimChart(s);
+  }
+
+  function onUp() { dragging = null; }
+
+  c.addEventListener('mousedown',  function(e) { onDown(e.clientX); });
+  window.addEventListener('mousemove', function(e) { if (dragging) onMove(e.clientX); });
+  window.addEventListener('mouseup',   onUp);
+  c.addEventListener('touchstart', function(e) { e.preventDefault(); onDown(e.touches[0].clientX); }, { passive: false });
+  window.addEventListener('touchmove', function(e) { if (dragging) { e.preventDefault(); onMove(e.touches[0].clientX); } }, { passive: false });
+  window.addEventListener('touchend',  onUp);
+}
+
+function applyTrim(date) {
+  var s = SESSIONS.find(function(x) { return x.date === date; });
+  if (!s || !s.strokes) return;
+  var strokes = s.strokes.filter(function(x) { return x.s && x.s > 0.1; });
+  var state   = getTrimState(s);
+
+  var trimmed = strokes.slice(state.startIdx, state.endIdx + 1);
+  if (trimmed.length < 2) { showToast('Trim range too short', 'warn'); return; }
+
+  /* Recompute session stats from trimmed strokes */
+  var speeds = trimmed.map(function(x) { return x.s; }).filter(Boolean);
+  var hrs    = trimmed.map(function(x) { return x.h; }).filter(function(h) { return h != null && h > 0; });
+  var srs    = trimmed.map(function(x) { return x.r; }).filter(function(r) { return r != null && r > 0; });
+
+  s.strokes       = trimmed;
+  s.avgSpeed      = speeds.length ? speeds.reduce(function(a,b){return a+b;},0)/speeds.length : s.avgSpeed;
+  s.avgHR         = hrs.length   ? Math.round(hrs.reduce(function(a,b){return a+b;},0)/hrs.length) : s.avgHR;
+  s.avgStrokeRate = srs.length   ? Math.round(srs.reduce(function(a,b){return a+b;},0)/srs.length) : s.avgStrokeRate;
+  s.hasHR         = hrs.length > 0;
+
+  /* Elapsed from first/last stroke elapsed time */
+  var firstE = trimmed[0].e || '0:00:00.0';
+  var lastE  = trimmed[trimmed.length-1].e || firstE;
+  function parseSecs(eStr) {
+    var p = (eStr||'0:00:00.0').split(':');
+    return parseInt(p[0]||0)*3600 + parseInt(p[1]||0)*60 + parseFloat(p[2]||0);
+  }
+  var durationSecs = parseSecs(lastE) - parseSecs(firstE);
+  if (durationSecs > 0) {
+    var h=Math.floor(durationSecs/3600), m=Math.floor((durationSecs%3600)/60), ss2=Math.floor(durationSecs%60);
+    s.elapsed = h+':'+String(m).padStart(2,'0')+':'+String(ss2).padStart(2,'0')+'.0';
+    s.totalDist = s.avgSpeed * durationSecs / 3600;
+  }
+
+  /* Recompute midpoint GPS */
+  var gps = trimmed.filter(function(x) { return x.lt && x.ln; });
+  if (gps.length) {
+    var mid = gps[Math.floor(gps.length/2)];
+    s.midLat = mid.lt; s.midLon = mid.ln;
+  }
+
+  /* Reset trim state and save */
+  delete _trimState[date];
+  saveToStorage();
+  recompute();
+  refresh();
+  showToast('Session trimmed ✓', 'success');
+}
+
+function resetTrim(date) {
+  delete _trimState[date];
+  var s = SESSIONS.find(function(x) { return x.date === date; });
+  if (!s) return;
+  /* Reload original strokes from Supabase */
+  sbGet(sessionDetailKey(date), sbToken(), function(err, val) {
+    if (!err && val && val.strokes) {
+      s.strokes   = val.strokes;
+      s.intervals = val.intervals || s.intervals || [];
+    }
+    recompute();
+    refresh();
+    showToast('Session reset to original', 'success');
+  });
+}
 
 </script>
 </body>
