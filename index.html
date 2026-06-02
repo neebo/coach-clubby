@@ -27,6 +27,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -385,6 +387,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -409,6 +413,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1876,9 +1882,9 @@ function renderTagEditor(session){
 
   var options='<option value="auto">'+(autoFocus?'Auto: '+autoFocus.shortLabel:'Auto: untagged')+'</option>';
   options+='<option value="">— No focus tag —</option>';
-  Object.keys(PROGRAM).forEach(function(dow){
-    var p=PROGRAM[dow];
-    options+='<option value="'+p.id+'">'+ p.icon+' '+p.shortLabel+'</option>';
+  FOCUS_OPTIONS.forEach(function(p){
+    if (!p.id) return;
+    options+='<option value="'+p.id+'">'+(p.icon?p.icon+' ':'')+p.label+'</option>';
   });
 
   var currentVal=hasOverride?(SESSION_TAGS[session.date]===null?'':SESSION_TAGS[session.date]):'auto';
@@ -3451,26 +3457,42 @@ function renderStrip() {
   var strip = document.getElementById('istrip');
   if (!strip) return;
   var cfg = getStripConfig();
-  var h = '';
+  strip.innerHTML = '';
   cfg.order.forEach(function(id) {
     var data = getStripCellData(id);
     if (!data) return;
-    h += '<div class="ic" data-cell-id="'+id+'">'
-      +'<button class="ic-handle" title="Drag to reorder">\u2807</button>'
-      +'<div class="il">'+escHtml(data.label)+'</div>'
-      +'<div class="iv">'+data.value+'</div>'
-      +'<div class="is">'+escHtml(data.sub||'')+'</div>'
-      +(data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'')
-      +'</div>';
+    var cell = document.createElement('div');
+    cell.className = 'ic';
+    cell.dataset.cellId = id;
+    /* Handle — identical to session/overview/focus DnD */
+    var handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    handle.title = 'Drag to reorder';
+    handle.textContent = '⠇';
+    cell.appendChild(handle);
+    /* Content */
+    var content = document.createElement('div');
+    content.innerHTML =
+        '<div class="il">'+escHtml(data.label)+'</div>'
+      + '<div class="iv">'+data.value+'</div>'
+      + '<div class="is">'+escHtml(data.sub||'')+'</div>'
+      + (data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'');
+    cell.appendChild(content);
+    strip.appendChild(cell);
   });
-  h += '<div class="ic-edit-end" onclick="openStripEditor()" title="Customise strip">\u2736</div>';
-  strip.innerHTML = h;
+  /* Edit button */
+  var editBtn = document.createElement('div');
+  editBtn.className = 'ic-edit-end';
+  editBtn.title = 'Customise strip';
+  editBtn.textContent = '✶';
+  editBtn.onclick = openStripEditor;
+  strip.appendChild(editBtn);
   attachStripDrag(strip);
 }
 
 function attachStripDrag(strip) {
   Array.from(strip.querySelectorAll('.ic[data-cell-id]')).forEach(function(cell) {
-    var handle = cell.querySelector('.ic-handle');
+    var handle = cell.querySelector(':scope > .drag-handle');
     if (!handle) return;
     handle.addEventListener('mousedown', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.clientX); });
     handle.addEventListener('touchstart', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.touches[0].clientX); }, {passive:false});
@@ -4896,6 +4918,8 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
+
 
 
 
