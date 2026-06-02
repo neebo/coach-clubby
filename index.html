@@ -22,6 +22,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -375,6 +376,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -399,6 +401,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -861,10 +864,12 @@ function bootApp() {
   loadPersistedData(function() {
     loadFromStorage(); loadTags(); loadNotes(); loadWeeklyPlans();
     loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
-    loadStripConfig(); loadFocusOrder(); computeAllTides();
+    loadStripConfig(); loadFocusOrder();
     SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
     addSignOutButton();
     fetchAllWeather(function() { renderStrip(); refresh(); });
+    /* Compute tides after first render so UI isn't blocked */
+    setTimeout(computeAllTides, 200);
   });
 }
 
@@ -1822,7 +1827,7 @@ function wxExposureNote(session){
    null = remove the auto-detected tag entirely
    string = override with this focus id
 ═══════════════════════════════════════════ */
-var TAGS_KEY='pawddle_tags';
+
 var SESSION_TAGS={};
 
 function loadTags(){
@@ -1910,7 +1915,7 @@ function wxCell(session){
    Stored in localStorage: pawddle_notes
    { "20260509": "Exceptional upwind resistance returning to shore..." }
 ═══════════════════════════════════════════ */
-var NOTES_KEY = 'pawddle_notes';
+
 var SESSION_NOTES = {};
 
 function loadNotes(){
@@ -2177,8 +2182,8 @@ var WX_CACHE_PREFIX='pawddle_wx_';
    null = remove the auto-detected tag entirely
    string = override with this focus id
 ═══════════════════════════════════════════ */
-var TAGS_KEY='pawddle_tags';
-var SESSION_TAGS={};
+
+;
 
 
 
@@ -2355,7 +2360,7 @@ function renderTideCard(session) {
     + ' tide</div>';
   if (tide.interpHeight !== null) {
     html += '<div style="font-size:13px;font-weight:700;color:var(--ink)">~'
-      + tide.interpHeight.toFixed(1) + ' ft above MLLW at session start</div>';
+      + (tide.interpHeight != null ? tide.interpHeight.toFixed(1) : '—') + ' ft above MLLW at session start</div>';
   }
   if (tide.pctThrough !== null && tide.prevEvent && tide.nextEvent) {
     html += '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-top:2px">'
@@ -2388,7 +2393,7 @@ function renderTideCard(session) {
     html += '<div style="background:' + (isNearest ? 'var(--lilac)' : 'var(--lilac2)') + ';border-radius:8px;padding:10px 12px;border:1.5px solid ' + (isNearest ? 'var(--lav-md)' : 'var(--lav-lt)') + '">';
     html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:' + col + ';margin-bottom:4px">'
       + ev.label + (isNearest ? ' ◀ before session' : '') + '</div>';
-    html += '<div style="font-size:20px;font-weight:900;color:' + col + '">' + ev.height.toFixed(1) + '<span style="font-size:11px;font-weight:600;color:var(--gm)"> ft</span></div>';
+    html += '<div style="font-size:20px;font-weight:900;color:' + col + '">' + (ev.height != null ? ev.height.toFixed(1) : '—') + '<span style="font-size:11px;font-weight:600;color:var(--gm)"> ft</span></div>';
     html += '<div style="font-size:11px;font-weight:700;color:var(--ink);margin-top:3px">' + ev.timeStr + '</div>';
     html += '</div>';
   });
@@ -2419,7 +2424,7 @@ function tideCell(session) {
   if (!tide) return '…';
   return tideStateIcon(tide.state) + ' '
     + (tide.state === 'rising' ? 'Rising' : tide.state === 'falling' ? 'Falling' : '?')
-    + (tide.interpHeight !== null ? ' ' + tide.interpHeight.toFixed(1) + 'ft' : '');
+    + (tide.interpHeight != null && typeof tide.interpHeight === 'number' ? ' ' + tide.interpHeight.toFixed(1) + 'ft' : '');
 }
 
 
@@ -2428,7 +2433,7 @@ function tideCell(session) {
    Stored in localStorage: pawddle_notes
    { "20260509": "Exceptional upwind resistance returning to shore..." }
 ═══════════════════════════════════════════ */
-var NOTES_KEY = 'pawddle_notes';
+
 var SESSION_NOTES = {};
 
 
@@ -2900,7 +2905,7 @@ function clearDateFilter() { FILTER_FROM = null; FILTER_TO = null; render(); }
    Desktop: mouse drag with handle icon.
 ═══════════════════════════════════════════════════════════ */
 
-var LAYOUT_KEY   = 'clubby_layout';
+
 var CARD_ORDER   = null;   /* loaded from storage — null means default */
 
 var CARD_DEFS = [
@@ -4812,6 +4817,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+
+
+
+function saveStripConfig() {
+  var val = STRIP_CONFIG || defaultStripConfig();
+  _store[STRIP_KEY] = val;
+  sbScheduleWrite(STRIP_KEY, val);
+}
+
+function saveOvLayout() {
+  var val = OV_WIDGET_ORDER || defaultOvOrder();
+  _store[OV_WIDGET_KEY] = val;
+  sbScheduleWrite(OV_WIDGET_KEY, val);
+}
 
 </script>
 </body>
