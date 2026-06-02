@@ -38,6 +38,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -407,6 +408,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -431,6 +433,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1464,86 +1467,62 @@ function renderSession(el){
   var s=null;
   for(var i=0;i<SESSIONS.length;i++){if(SESSIONS[i].date===SEL){s=SESSIONS[i];break;}}
   if(!s)s=SESSIONS[SESSIONS.length-1];
-  if(!s){el.innerHTML='<div class="view"><div class="pt">Select a session</div></div>';return;}
+  if(!s){el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div></div>';return;}
   var f=getFocus(s);
   var _sCraft=getCraft(s);
-  var sameType=f?SESSIONS.filter(function(x){var xf=getFocus(x);return xf&&xf.id===f.id&&x.date!==s.date&&getCraft(x)===_sCraft;}).map(function(x){return{date:x.date,avgSpeed:x.avgSpeed};}):[];
+  var sameType=f?SESSIONS.filter(function(x){
+    var xf=getFocus(x);return xf&&xf.id===f.id&&x.date!==s.date&&getCraft(x)===_sCraft;
+  }).map(function(x){return{date:x.date,avgSpeed:x.avgSpeed};}):[];
+
+  /* ── Header HTML ── */
   var html='<div class="view">';
   html+='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:4px;flex-wrap:wrap;justify-content:space-between">';
   html+='<div><div class="pt">'+dateLabel(s.date)+'</div>';
-  html+='<div class="ps" style="margin-bottom:8px">'+s.startTime+' · '+s.totalDist.toFixed(2)+' mi · '+s.elapsed.split('.')[0]+'</div></div>';
+  html+='<div class="ps" style="margin-bottom:8px">'+s.startTime+' · '+s.totalDist.toFixed(2)+' mi · '+s.elapsed.split('.')[0]+'</div>';
   html+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-  if(f)html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:12px;padding:5px 14px">'+f.icon+' '+f.label+'</span>';
-  html+='<button class="del-sess" data-date="'+s.date+'" style="background:var(--blush);border:1.5px solid var(--blush-dk);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:800;color:#8a3055;cursor:pointer;font-family:Nunito,sans-serif;">🗑 Remove session</button>';
-  html+='</div></div>';
-  if(f){html+='<div class="notice" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'"><b>'+f.icon+' Program focus:</b> '+f.desc+(f.bungee?'<br><b>🔴 Bungee session:</b> Speed is intentionally lower. Compare to other Thursday bungee sessions only.':'')+(f.note?'<br>⚠ '+f.note:'')+'</div>';}
-  if(s.date==='20260507')html+='<div class="notice n-blush">⚠️ <b>Open water flag:</b> Interval 2 near 36.95°N/122.017°W — likely tide/wind affected.</div>';
-  if(s.hasHR)html+='<div class="notice n-mint">♥ <b>HRM connected:</b> Avg '+s.avgHR.toFixed(0)+' bpm at '+s.avgSpeed.toFixed(2)+' mph.</div>';
+  if(f)html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40">'+f.icon+' '+f.shortLabel+'</span>';
+  html+='<button class="del-sess" data-date="'+s.date+'" style="background:var(--blush);border:1.5px solid var(--blush-dk);color:#8a3055;border-radius:999px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:var(--font)">🗑 Remove</button>';
+  html+='</div></div></div>';
+
+  if(f&&f.note)html+='<div class="notice" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;margin-bottom:12px">'+f.note+'</div>';
+  if(s.hasHR)html+='<div class="notice n-mint">♥ <b>HRM connected:</b> Avg '+s.avgHR.toFixed(0)+' bpm</div>';
+
+  /* Compare banner */
   if(sameType.length&&f){
     html+='<div class="compare-banner" style="background:'+f.colorLt+';border-color:'+f.color+'40">';
     html+='<div style="font-size:22px;color:'+f.color+'">'+f.icon+'</div><div>';
-    html+='<div style="font-size:12px;font-weight:800;color:'+f.color+';margin-bottom:4px">Same focus type comparison</div>';
+    html+='<div style="font-size:12px;font-weight:800;color:'+f.color+';margin-bottom:4px">Same focus · same craft comparisons</div>';
     sameType.forEach(function(x){
       var p=pct(s.avgSpeed,x.avgSpeed);
       html+='<span style="font-size:12px;font-weight:700;color:var(--gt)">vs '+dateLabel(x.date)+': </span>';
-      html+='<span class="badge '+(+p>=0?'b-up':'b-dn')+'" style="font-size:11px">'+(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span> ';
-      html+='<span style="font-size:11px;color:var(--gm)">('+x.avgSpeed.toFixed(2)+' → '+s.avgSpeed.toFixed(2)+' mph) </span>';
+      html+='<span class="badge '+((+p>=0)?'b-up':'b-dn')+'" style="font-size:11px">'+((+p>=0)?'▲ ':'▼ ')+Math.abs(p)+'%</span> ';
+      html+='<span style="font-size:11px;color:var(--gm)">('+(x.avgSpeed.toFixed(2))+' → '+s.avgSpeed.toFixed(2)+' mph)</span><br>';
     });
     html+='</div></div>';
   }
+
+  /* Stat grid */
   html+='<div class="sg g4">';
-  html+='<div class="sc"><div class="sl">Avg Speed</div><div class="sv" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+'<span class="su2"> mph</span></div></div>';
+  html+='<div class="sc"><div class="sl">Avg Speed</div><div class="sv" style="color:'+((f?f.color:'var(--plum)'))+'">'+s.avgSpeed.toFixed(2)+'<span class="su2"> mph</span></div></div>';
   html+='<div class="sc"><div class="sl">Distance</div><div class="sv">'+s.totalDist.toFixed(2)+'<span class="su2"> mi</span></div></div>';
-  html+='<div class="sc"><div class="sl">Stroke Rate</div><div class="sv">'+s.avgStrokeRate.toFixed(0)+'<span class="su2"> spm</span></div>'+(f&&f.srTargets?'<div class="sn">target: '+f.srTargets.easy+'/'+f.srTargets.hard+' spm</div>':'')+'</div>';
-  html+='<div class="sc"><div class="sl">Heart Rate</div><div class="sv" style="'+(s.avgHR?'color:#c0406a':'')+'">'+(s.avgHR?s.avgHR.toFixed(0)+'<span class="su2"> bpm</span>':'<span style="color:var(--gm)">—</span>')+'</div>'+(s.hasHR?'':'<div class="sn">HRM not connected</div>')+'</div>';
+  html+='<div class="sc"><div class="sl">Stroke Rate</div><div class="sv">'+s.avgStrokeRate.toFixed(0)+'<span class="su2"> spm</span></div></div>';
+  html+='<div class="sc"><div class="sl">Heart Rate</div><div class="sv" style="'+((s.avgHR)?'color:#c0406a':'')+'">'+((s.avgHR)?s.avgHR.toFixed(0)+'<span class="su2"> bpm</span>':"—")+'</div></div>';
   html+='</div>';
-  html+='<div class="card"><div class="ct-title">Speed profile</div><div class="ct-sub">Per-stroke speed · interval markers'+(s.hasHR?' · ♥ heart rate':'')+'</div><canvas id="sc" height="175"></canvas></div>';
-  if(s.intervals.length>1){
-    html+='<div class="tw"><table><tr><th>#</th><th>Dist</th><th>Duration</th><th>Split</th><th>Speed</th><th>SR</th>'+(s.hasHR?'<th>HR</th>':'')+'<th>Perf</th></tr>';
-    s.intervals.forEach(function(iv){
-      var maxV=Math.max.apply(null,s.intervals.map(function(x){return x.v||0;}));
-      var w=((iv.v||0)/maxV*100).toFixed(0);
-      var col=iv.v>5?'var(--mint-dk)':iv.v>4.5?'var(--plum)':'#c0406a';
-      var flag=s.date==='20260507'&&iv.n==='2';
-      html+='<tr'+(flag?' style="opacity:.55"':'')+'>';
-      html+='<td style="color:var(--gm)">'+iv.n+(flag?' ⚠️':'')+'</td>';
-      html+='<td>'+(iv.d||0).toFixed(2)+' mi</td><td>'+(iv.el||'').split('.')[0]+'</td>';
-      html+='<td style="color:var(--gm)">'+(iv.sp||'—')+'</td>';
-      html+='<td class="td-spd">'+(iv.v||0).toFixed(2)+'</td><td>'+(iv.sr||0).toFixed(0)+' spm</td>';
-      if(s.hasHR)html+='<td class="td-hr">'+(iv.hr?iv.hr.toFixed(0)+' bpm':'—')+'</td>';
-      html+='<td><div class="bb" style="width:110px"><div class="bf" style="width:'+w+'%;background:'+col+'"></div></div></td></tr>';
-    });
-    html+='</table></div>';
-  }
+
+  /* Placeholders for tag editor, craft selector, draggable cards */
+  html+='<div id="__ts"></div>';
+  html+='<div id="__cards"></div>';
   html+='</div>';
-  // Insert tag editor before stat grid
-  html=html.replace('<div class="sg g4">','TAG_EDITOR_PLACEHOLDER<div class="sg g4">');
-  // Insert weather after stat grid (before speed profile card)
-  html=html.replace('<div class="card"><div class="ct-title">Speed profile</div>','WX_PLACEHOLDER<div class="card"><div class="ct-title">Speed profile</div>');
-  el.innerHTML=html;
-  // Now fill in dynamic pieces
-  var tagEl=el.querySelector('.tag-editor-slot');
-  if(tagEl)tagEl.outerHTML=renderTagEditor(s);
-  var wxEl=el.querySelector('.wx-slot');
-  if(wxEl)wxEl.outerHTML=renderWeatherCard(s);
-  // Fix: replace placeholders with actual rendered slots
-  el.innerHTML=el.innerHTML
-    .replace('TAG_EDITOR_PLACEHOLDER','<div class="tag-slot-inner"></div>')
-    .replace('WX_PLACEHOLDER','<div class="wx-slot-inner"></div>');
-  var tagSlotEl=el.querySelector('.tag-slot-inner');
-  if(tagSlotEl)tagSlotEl.outerHTML=renderTagEditor(s);
-  var wxSlotEl=el.querySelector('.wx-slot-inner');
-  if(wxSlotEl){
-    var legsHtml = (getFocus(s) && getFocus(s).id === 'long-z2')
-      ? renderDownwindCard(s)
-      : renderLegsCard(s);
-    wxSlotEl.insertAdjacentHTML('beforebegin',legsHtml);
-    wxSlotEl.insertAdjacentHTML('beforebegin',renderTideCard(s));
-    wxSlotEl.outerHTML=renderWeatherCard(s);
-  }
-  var profileCardEl=el.querySelector('canvas#sc');
-  if(profileCardEl){profileCardEl.closest('.card').insertAdjacentHTML('beforebegin',renderNotesEditor(s));}
-  setTimeout(function(){drawSessChart(s);},30);
+
+  el.innerHTML = html;
+
+  /* Inject tag editor + craft selector */
+  var tsEl = el.querySelector('#__ts');
+  if(tsEl) tsEl.outerHTML = renderTagEditor(s) + renderCraftSelector(s);
+
+  /* Inject draggable cards */
+  var cardsEl = el.querySelector('#__cards');
+  if(cardsEl) renderSessionCards(s, cardsEl);
 }
 
 function drawSessChart(s){
@@ -5041,6 +5020,7 @@ function fetchAllTides(cb) {
   computeAllTides();
   if (cb) cb();
 }
+
 
 </script>
 </body>
