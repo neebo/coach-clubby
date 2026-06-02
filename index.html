@@ -15,6 +15,9 @@
 
 
 
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -361,6 +364,9 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
 </style>
 </head>
 <body>
@@ -385,6 +391,9 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -465,7 +474,7 @@ function sbToken() { return SB_SESSION ? SB_SESSION.access_token : null; }
 function sbSignUp(email, password, cb) {
   fetch(SUPABASE_URL + '/auth/v1/signup', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
     body: JSON.stringify({ email: email, password: password })
   })
   .then(function(r) { return r.json(); })
@@ -480,7 +489,7 @@ function sbSignUp(email, password, cb) {
 function sbSignIn(email, password, cb) {
   fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
     body: JSON.stringify({ email: email, password: password })
   })
   .then(function(r) { return r.json(); })
@@ -515,7 +524,7 @@ function sbSignOut(cb) {
 function sbRefresh(refreshToken, cb) {
   fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
     body: JSON.stringify({ refresh_token: refreshToken })
   })
   .then(function(r) { return r.json(); })
@@ -646,8 +655,8 @@ function showAuthScreen() {
 
     /* Logo */
     '<div style="text-align:center;margin-bottom:28px">',
-    '<div style="font-size:40px">🐱</div>',
-    '<div style="font-size:22px;font-weight:900;color:var(--plum);margin-top:6px">Pawddle Progress</div>',
+    '<div style="font-size:40px">🦭</div>',
+    '<div style="font-size:22px;font-weight:900;color:var(--plum);margin-top:6px">Coach Clubby</div>',
     '<div style="font-size:11px;font-weight:700;color:var(--gm);margin-top:2px;',
     'text-transform:uppercase;letter-spacing:1px">' + (function(){
     var phrases = ['🌊 Road 2 Worlds','🦭 Every stroke counts','🌊 Champions train in the dark',
@@ -773,7 +782,7 @@ function authForgot() {
   if (!email) { authError('Enter your email address first.'); return; }
   fetch(SUPABASE_URL + '/auth/v1/recover', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
     body: JSON.stringify({ email: email })
   }).then(function() {
     authError('✓ Check your email for a password reset link.');
@@ -800,8 +809,40 @@ function addSignOutButton() {
 
 /* ── Boot ── */
 function bootApp() {
-  /* Reload the page properly — easier than trying to re-render after wiping body */
-  location.reload();
+  /* Rebuild the app shell and boot */
+  document.body.innerHTML = [
+    '<div class="app" id="app">',
+    '<div class="hdr" id="hdr">',
+    '<span class="logo">🦭 <span>Coach Clubby</span></span>',
+    '<span class="logo-sub" style="margin-left:4px">Road 2 Worlds</span>',
+    '<div class="hdr-r" id="hdr-r"></div>',
+    '</div>',
+    '<div id="istrip" class="istrip"></div>',
+    '<div class="body">',
+    '<aside class="sb" id="sb">',
+    '<div class="sb-title">Views</div>',
+    '<nav class="sb-nav" id="sb-nav"></nav>',
+    '<div class="sb-div"></div>',
+    '<button class="add-sess" onclick="document.getElementById(\'file-input\').click()">+ Upload session</button>',
+    '<input type="file" id="file-input" accept=".csv,.fit" multiple style="display:none" onchange="handleFileUpload(event)">',
+    '<button class="clear-btn" onclick="confirmClear()">Clear all data</button>',
+    '</aside>',
+    '<main class="ct" id="ct"></main>',
+    '</div>',
+    '</div>',
+    '<nav class="mob-nav" id="mob-nav"><div class="mob-nav-inner" id="mob-nav-inner"></div></nav>',
+    '<button class="mob-fab" id="mob-fab" onclick="document.getElementById(\'file-input2\').click()">+</button>',
+    '<input type="file" id="file-input2" accept=".csv,.fit" multiple style="display:none" onchange="handleFileUpload(event)">',
+    '<div id="sess-drawer" class="sess-drawer"></div>',
+  ].join('');
+  loadPersistedData(function() {
+    loadFromStorage(); loadTags(); loadNotes(); loadWeeklyPlans();
+    loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
+    loadStripConfig(); loadFocusOrder(); computeAllTides();
+    SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
+    addSignOutButton();
+    fetchAllWeather(function() { renderStrip(); refresh(); });
+  });
 }
 
 
@@ -1119,7 +1160,7 @@ function render(){
 ═══════════════════════════════════════════ */
 function renderOverview(el){
   var ss=filteredSessions().slice().reverse();
-  if(!ss.length){el.innerHTML='<div class="view"><div class="pt">🐱 Upload your first session!</div></div>';return;}
+  if(!ss.length){el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div></div>';return;}
   var nonB=ss.filter(function(s){return !getFocus(s)||!getFocus(s).bungee;});
   var bOnly=ss.filter(function(s){return getFocus(s)&&getFocus(s).bungee;});
   var bestNB=nonB.length?nonB.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}):null;
@@ -4458,7 +4499,7 @@ function resendVerification(email, btn) {
 
   fetch(SUPABASE_URL + '/auth/v1/resend', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
     body: JSON.stringify({ type: 'signup', email: email })
   }).then(function() {
     var btn = event.target;
@@ -4741,16 +4782,17 @@ function startFocusDrag(srcWrap, container, startY) {
 var _trimState = {};  /* { date: { startIdx, endIdx } } */
 
 
-
-
-
-
-
-
-
-
-
-
+/* ── App bootstrap ── */
+document.addEventListener('DOMContentLoaded', function() {
+  sbRestoreSession(function(err, sess) {
+    if (sess && sess.access_token) {
+      console.log('[auth] sbRestoreSession result: OK user=' + (sess.user && sess.user.email));
+      bootApp();
+    } else {
+      showAuthScreen();
+    }
+  });
+});
 
 
 </script>
