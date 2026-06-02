@@ -33,6 +33,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -397,6 +398,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -421,6 +423,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1231,6 +1234,7 @@ function render(){
   else if(PAGE==='session')renderSession(el);
   else if(PAGE==='by-focus')renderByFocus(el);
   else if(PAGE==='segments')renderSegments(el);
+  else if(PAGE==='plans')renderPlansPage(el);
 }
 
 /* ═══════════════════════════════════════════
@@ -4960,6 +4964,7 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
 
 
 
