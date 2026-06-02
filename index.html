@@ -30,6 +30,9 @@
 
 
 
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -391,6 +394,9 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
 </style>
 </head>
 <body>
@@ -415,6 +421,9 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -1014,7 +1023,22 @@ function getDOW(dateStr){
   var y=+dateStr.slice(0,4),m=+dateStr.slice(4,6)-1,d=+dateStr.slice(6,8);
   return new Date(y,m,d).getDay();
 }
-function getFocus(s){return s?PROGRAM[getDOW(s.date)]||null:null;}
+function getFocus(s){
+  if(!s) return null;
+  /* Session-level override takes priority */
+  if(SESSION_TAGS.hasOwnProperty(s.date)){
+    var ov=SESSION_TAGS[s.date];
+    if(ov===null||ov==='') return null; /* explicitly untagged */
+    /* Find in FOCUS_OPTIONS first, then PROGRAM */
+    var fo=FOCUS_OPTIONS.find(function(f){return f.id===ov;});
+    if(fo) return fo;
+    /* Fallback: search PROGRAM values */
+    var pv=Object.values(PROGRAM).find(function(p){return p.id===ov;});
+    if(pv) return pv;
+  }
+  /* Default: day-of-week from PROGRAM */
+  return PROGRAM[getDOW(s.date)]||null;
+}
 function dateLabel(d){
   if(DLABELS[d])return DLABELS[d];
   var months=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1891,31 +1915,34 @@ function setSessionTag(date, focusId){
 
 /* Tag editor UI — rendered inside session detail */
 function renderTagEditor(session){
-  var currentFocus=getFocus(session);
-  var hasOverride=SESSION_TAGS.hasOwnProperty(session.date);
-  var autoFocus=PROGRAM[getDOW(session.date)]||null;
+  var hasOverride = SESSION_TAGS.hasOwnProperty(session.date);
+  var autoFocus   = PROGRAM[getDOW(session.date)] || null;
+  var currentVal  = hasOverride
+    ? (SESSION_TAGS[session.date] === null ? '' : (SESSION_TAGS[session.date] || ''))
+    : 'auto';
 
-  var options='<option value="auto">'+(autoFocus?'Auto: '+autoFocus.shortLabel:'Auto: untagged')+'</option>';
-  options+='<option value="">— No focus tag —</option>';
-  FOCUS_OPTIONS.forEach(function(p){
+  function opt(val, label) {
+    return '<option value="'+escHtml(val)+'"'+(currentVal===val?' selected':'')+'>'+escHtml(label)+'</option>';
+  }
+
+  var options = opt('auto', autoFocus ? 'Auto: '+autoFocus.shortLabel : 'Auto: untagged');
+  options += opt('', '— No focus tag —');
+  FOCUS_OPTIONS.forEach(function(p) {
     if (!p.id) return;
-    options+='<option value="'+p.id+'">'+(p.icon?p.icon+' ':'')+p.label+'</option>';
+    options += opt(p.id, (p.icon ? p.icon+' ' : '')+p.label);
   });
 
-  var currentVal=hasOverride?(SESSION_TAGS[session.date]===null?'':SESSION_TAGS[session.date]):'auto';
-
+  var onchange = 'setSessionTag(\'' + session.date + '\',this.value)';
   return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
     +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🏷 Session tag:</span>'
-    +'<select id="tag-select" onchange="setSessionTag(\''+session.date+'\',this.value)" '
-    +'style="font-family:Nunito,sans-serif;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
-    +options
-    +'</select>'
-    +(hasOverride?'<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>':'<span style="font-size:10px;font-weight:600;color:var(--gm)">auto-detected</span>')
-    +'<script>document.getElementById("tag-select").value="'+currentVal+'";<\/script>'
+    +'<select id="tag-select" onchange="'+onchange+'" '
+    +'style="font-family:var(--font);font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
+    +options+'</select>'
+    +(hasOverride
+      ? '<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>'
+      : '<span style="font-size:10px;font-weight:600;color:var(--gm)">auto-detected</span>')
     +'</div>';
 }
-
-/* Weather card for session detail */
 function renderWeatherCard(session){
   var wx=session._wx;
   var isOpenWater=session.startLon<-122.01;
@@ -4933,6 +4960,9 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
+
+
 
 
 
