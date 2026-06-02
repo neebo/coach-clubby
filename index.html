@@ -26,6 +26,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -383,6 +384,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -407,6 +409,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -451,10 +454,10 @@ var SUPABASE_AUTH = 'sb_publishable_uvX8awTNtVI86e9Q0xcORw_xjP4qIC5';
 /* ── Supabase REST helpers (no SDK needed — plain fetch) ── */
 function sbHeaders(token) {
   var h = {
-    'Content-Type':  'application/json',
-    'apikey':        SUPABASE_KEY,
-    'Authorization': 'Bearer ' + (token || SUPABASE_KEY),
+    'Content-Type': 'application/json',
+    'apikey':       SUPABASE_KEY,
   };
+  if (token) h['Authorization'] = 'Bearer ' + token;
   return h;
 }
 
@@ -473,7 +476,12 @@ function sbSet(key, value, token, cb) {
     headers: Object.assign({}, sbHeaders(token), {
       'Prefer': 'resolution=merge-duplicates,return=minimal'
     }),
-    body: JSON.stringify({ key: key, value: value, updated_at: new Date().toISOString() })
+    body: JSON.stringify({
+      user_id:    SB_SESSION && SB_SESSION.user ? SB_SESSION.user.id : undefined,
+      key:        key,
+      value:      value,
+      updated_at: new Date().toISOString()
+    })
   })
   .then(function(r) { if (!r.ok) throw new Error(r.status); cb && cb(null); })
   .catch(function(e) { console.error('sbSet error:', e); cb && cb(e); });
@@ -4888,6 +4896,7 @@ function saveOvLayout() {
   _store[OV_WIDGET_KEY] = val;
   sbScheduleWrite(OV_WIDGET_KEY, val);
 }
+
 
 
 
