@@ -18,6 +18,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -367,6 +368,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -391,6 +393,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -582,23 +585,9 @@ function sbScheduleWrite(key, value) {
 
 /* Override the storage functions used throughout the app */
 function loadPersistedData(cb) {
-  sbRestoreSession(function(err, sess) {
-    if (err || !sess) {
-      /* Not logged in — show auth screen */
-      showAuthScreen();
-      return;
-    }
-    /* Logged in — load all user data in parallel */
-    var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
-    var loaded = 0;
-    _store = {};
-    keys.forEach(function(k) {
-      sbGet(k, sbToken(), function(err2, val) {
-        if (!err2 && val !== null) _store[k] = val;
-        if (++loaded === keys.length) cb();
-      });
-    });
-  });
+  /* Session token already restored by DOMContentLoaded bootstrap */
+  if (!sbToken()) { showAuthScreen(); return; }
+  _loadUserData(cb);
 }
 
 function persistData() {
@@ -835,6 +824,31 @@ function bootApp() {
     '<input type="file" id="file-input2" accept=".csv,.fit" multiple style="display:none" onchange="handleFileUpload(event)">',
     '<div id="sess-drawer" class="sess-drawer"></div>',
   ].join('');
+  /* Inject sidebar nav buttons */
+  var NAV_ITEMS = [
+    {page:'overview', icon:'🏠', label:'Overview',   meta:'Training stats'},
+    {page:'session',  icon:'📋', label:'Session',    meta:'Last session'},
+    {page:'by-focus', icon:'🎯', label:'By Focus',   meta:'Type comparison'},
+    {page:'segments', icon:'🗺️', label:'Segments',   meta:'Route analysis'},
+    {page:'plans',    icon:'📅', label:'Plans',      meta:'& Settings'},
+  ];
+  var sbNav = document.getElementById('sb-nav');
+  var mobNavInner = document.getElementById('mob-nav-inner');
+  if (sbNav) {
+    sbNav.innerHTML = NAV_ITEMS.map(function(n) {
+      return '<button class="nb" data-page="'+n.page+'" onclick="nav(\''+n.page+'\')">'  
+        +'<span class="nb-icon">'+n.icon+'</span>'
+        +'<div><div class="nb-label">'+n.label+'</div>'
+        +'<div class="nb-meta">'+n.meta+'</div></div></button>';
+    }).join('');
+  }
+  if (mobNavInner) {
+    mobNavInner.innerHTML = NAV_ITEMS.map(function(n) {
+      return '<button class="mob-nb" data-page="'+n.page+'" onclick="nav(\''+n.page+'\')">'  
+        +'<div class="mob-nb-icon">'+n.icon+'</div>'
+        +'<div class="mob-nb-label">'+n.label+'</div></button>';
+    }).join('');
+  }
   loadPersistedData(function() {
     loadFromStorage(); loadTags(); loadNotes(); loadWeeklyPlans();
     loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
@@ -1077,21 +1091,7 @@ function updateInsights(){
 /* ═══════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════ */
-function renderSidebar(){
-  var html='';
-  SESSIONS.slice().reverse().forEach(function(s){
-    var f=getFocus(s);var fc=f?f.color:'#9b8bb8';
-    var active=(SEL===s.date&&PAGE==='session')?'active':'';
-    html+='<div class="si '+active+'" data-date="'+s.date+'">';
-    html+='<span class="si-spd" style="color:'+fc+'">'+s.avgSpeed.toFixed(2)+'</span>';
-    html+='<div class="si-date">'+dateLabel(s.date)+'</div>';
-    html+='<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+'</div>';
-    html+='<div class="si-meta">'+s.totalDist.toFixed(1)+' mi · '+s.elapsed.split('.')[0]+'</div>';
-    if(f&&f.bungee)html+='<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:2px">🔴 lower speed by design</div>';
-    html+='</div>';
-  });
-  document.getElementById('sess-list').innerHTML=html;
-}
+function renderSidebar(){ /* session list handled by overview table / mob drawer */ }
 
 /* ═══════════════════════════════════════════
    EVENT DELEGATION
@@ -4552,7 +4552,7 @@ function handleAuthRedirect(cb) {
 }
 
 function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY];
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY, FOCUS_ORDER_KEY];
   var loaded = 0;
   _store = {};
   keys.forEach(function(k) {
@@ -4793,6 +4793,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
 
 
 </script>
