@@ -39,6 +39,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -409,6 +411,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -433,6 +437,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1297,53 +1303,57 @@ function render(){
    OVERVIEW
 ═══════════════════════════════════════════ */
 function renderOverview(el){
-  var ss=filteredSessions().slice().reverse();
-  if(!ss.length){el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div></div>';return;}
-  var nonB=ss.filter(function(s){return !getFocus(s)||!getFocus(s).bungee;});
-  var bOnly=ss.filter(function(s){return getFocus(s)&&getFocus(s).bungee;});
-  var bestNB=nonB.length?nonB.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}):null;
-  var bestB=bOnly.length?bOnly.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}):null;
-  var totalDist=ss.reduce(function(a,s){return a+s.totalDist;},0);
+  var ss = filteredSessions().slice().reverse();
+  if(!ss.length){
+    el.innerHTML='<div class="view"><div class="pt">🦭 Upload your first session!</div>'
+      +'<p style="color:var(--gm);margin-top:8px">Upload a SpeedCoach CSV or Suunto FIT file to get started.</p></div>';
+    return;
+  }
+
+  var nonB      = ss.filter(function(s){return !getFocus(s)||!getFocus(s).bungee;});
+  var bOnly     = ss.filter(function(s){return getFocus(s)&&getFocus(s).bungee;});
+  var bestNB    = nonB.length ? nonB.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}) : null;
+  var bestB     = bOnly.length? bOnly.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;}) : null;
+  var totalDist = ss.reduce(function(a,s){return a+s.totalDist;},0);
+
+  /* Build sessions table rows */
   var rows='';
   ss.forEach(function(s){
     var f=getFocus(s);
-    var sCraft=getCraft(s);var sameType=f?ss.filter(function(x){var xf=getFocus(x);return xf&&xf.id===f.id&&x.date!==s.date&&getCraft(x)===sCraft;}).map(function(x){return dateLabel(x.date);}):[];
+    var sCraft=getCraft(s);
+    var sameType=f?ss.filter(function(x){
+      var xf=getFocus(x);return xf&&xf.id===f.id&&x.date!==s.date&&getCraft(x)===sCraft;
+    }):[]; 
     rows+='<tr class="sess-row" data-date="'+s.date+'" style="cursor:pointer">';
     rows+='<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>';
     rows+='<td>'+focusPill(s)+'</td>';
+    rows+='<td>'+getCraft(s)+'</td>';
     rows+='<td>'+s.totalDist.toFixed(2)+' mi</td>';
     rows+='<td>'+s.elapsed.split('.')[0]+'</td>';
-    rows+='<td class="td-spd" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+' mph'+(f&&f.bungee?' 🔴':'')+'</td>';
+    rows+='<td class="td-spd" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+' mph</td>';
     rows+='<td>'+s.avgStrokeRate.toFixed(0)+' spm</td>';
     rows+='<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gt)">'+(s._tide?tideCell(s):'—')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gm)">'+(s._wx?wxCell(s):'—')+'</td>';
-    var noteSnip=getNote(s.date);
-    rows+='<td style="font-size:10px;color:var(--gt);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(noteSnip?'📝 '+escHtml(noteSnip.slice(0,60))+(noteSnip.length>60?'…':''):'')+'</td>';
-    var nSnip=getNote(s.date);
-    rows+='<td style="font-size:10px;color:var(--gt)">'+(nSnip?'\uD83D\uDCDD '+escHtml(nSnip.slice(0,50)):'')+'</td>';
-    rows+='<td style="font-size:10px;color:var(--gm)">'+(sameType.length?sameType.join(', '):'only one so far')+'</td>';
-    rows+='<td><button class="del-sess" data-date="'+s.date+'" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:.35;font-family:Nunito,sans-serif;" title="Remove session">🗑</button></td>';
+    rows+='<td>'+(sameType.length?sameType.map(function(x){
+      var p=pct(s.avgSpeed,x.avgSpeed);
+      return '<span class="badge '+(+p>=0?'b-up':'b-dn')+'" style="font-size:10px">'+(+p>=0?'▲':'▼')+Math.abs(p)+'%</span>';
+    }).join(' '):'—')+'</td>';
+    rows+='<td><button class="del-sess" data-date="'+s.date+'" style="background:var(--blush);border:1.5px solid var(--blush-dk);color:#8a3055;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:800;cursor:pointer;font-family:var(--font)">✕</button></td>';
     rows+='</tr>';
   });
-  el.innerHTML='<div class="view">'
-    +'<div class="pt">🐾 Training Overview</div>'
-    +'<div class="ps">Road 2 Worlds · Week 8 · Phase 2 — auto-tagged by day of week. Sessions are saved locally in your browser.</div>'
-    +renderDateFilter()
-    +'<div class="notice n-orange"><b>🔴 Bungee Thursdays:</b> Speed is intentionally lower. Apr 30 &amp; May 7 only compare to each other. Use "By Focus Type" for clean comparisons.</div>'
-    +'<div class="sg g4">'
-    +'<div class="sc"><div class="sl">Total Distance</div><div class="sv">'+totalDist.toFixed(1)+'<span class="su2"> mi</span></div><div class="sn">'+ss.length+' sessions</div></div>'
-    +'<div class="sc"><div class="sl">Best Non-Bungee</div><div class="sv">'+(bestNB?bestNB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div><div class="sn">'+(bestNB?dateLabel(bestNB.date):'—')+'</div></div>'
-    +'<div class="sc"><div class="sl">Best Bungee</div><div class="sv">'+(bestB?bestB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div><div class="sn">Thu sessions only</div></div>'
-    +'<div class="sc"><div class="sl">HRM Sessions</div><div class="sv">'+ss.filter(function(s){return s.hasHR;}).length+'<span class="su2"> / '+ss.length+'</span></div></div>'
-    +'</div>'
-    +'<div class="card"><div class="ct-title">Session speed — coloured by focus type</div>'
-    +'<div class="ct-sub">🔴 diamonds = bungee Thursdays · dashed lines connect same focus type</div>'
-    +'<canvas id="ov-c" height="175"></canvas></div>'
-    +'<div class="tw"><table><tr><th>Date</th><th>Focus</th><th>Dist</th><th>Elapsed</th><th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Wind</th><th>Notes</th><th>Compare to</th><th></th></tr>'
-    +rows+'</table></div></div>';
-  setTimeout(function(){drawOvSpeed(ss);},30);
+
+  /* Build view shell */
+  var viewDiv = document.createElement('div');
+  viewDiv.className = 'view';
+  viewDiv.innerHTML =
+    '<div class="pt">🦭 Training Overview</div>'
+    +'<div class="ps">Road 2 Worlds — sessions auto-tagged by day of week.</div>'
+    + renderWeekPlanWidget(ss);
+
+  el.innerHTML = '';
+  el.appendChild(viewDiv);
+
+  /* Draggable widgets */
+  renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist);
 }
 
 function drawOvSpeed(ss){
@@ -1379,53 +1389,130 @@ function drawOvSpeed(ss){
    BY FOCUS TYPE
 ═══════════════════════════════════════════ */
 function renderByFocus(el){
-  if(!COMPUTED||!SESSIONS.length){el.innerHTML='<div class="view"><div class="pt">🎯 By Focus Type</div><div class="ps">Upload sessions to see focus-type analysis.</div></div>';return;}
+  if(!COMPUTED||!SESSIONS.length){
+    el.innerHTML='<div class="view"><div class="pt">🎯 By Focus Type</div>'
+      +'<div class="ps">Upload sessions to see focus type comparisons.</div></div>';
+    return;
+  }
   var ss=filteredSessions().slice().reverse();
-  var seen={};var groupList=[];
-  ss.forEach(function(s){var f=getFocus(s);if(!f||seen[f.id])return;seen[f.id]=true;groupList.push({focus:f,sessions:ss.filter(function(x){var xf=getFocus(x);return xf&&xf.id===f.id;}).slice().reverse()});});
-  var html='<div class="view"><div class="pt">🎯 Sessions by Focus Type</div><div class="ps">Only compare sessions of the same type. Bungee Thursdays are isolated — a speed dip there is <em>by design</em>.</div>';
+
+  /* Group by focus+craft so OC1 race and SS1 race are separate */
+  var seen={},groupList=[];
+  ss.forEach(function(s){
+    var f=getFocus(s);if(!f)return;
+    var craft=getCraft(s),key=f.id+'|'+craft;
+    if(seen[key])return;seen[key]=true;
+    var groupSess=ss.filter(function(x){
+      var xf=getFocus(x);return xf&&xf.id===f.id&&getCraft(x)===craft;
+    });
+    var displayFocus=Object.assign({},f);
+    var allCrafts=[...new Set(ss.filter(function(x){var xf=getFocus(x);return xf&&xf.id===f.id;}).map(getCraft))];
+    if(allCrafts.length>1)displayFocus.label=f.label+' · '+craft;
+    groupList.push({focus:displayFocus,craft:craft,sessions:groupSess,key:key});
+  });
+
+  /* Apply saved focus order */
+  if(FOCUS_ORDER&&FOCUS_ORDER.length){
+    groupList.sort(function(a,b){
+      var ai=FOCUS_ORDER.indexOf(a.key),bi=FOCUS_ORDER.indexOf(b.key);
+      if(ai<0)ai=999;if(bi<0)bi=999;return ai-bi;
+    });
+  }
+
+  /* Build view shell */
+  el.innerHTML='<div class="view"><div class="pt">🎯 Sessions by Focus Type</div>'
+    +'<div class="ps">Only compare sessions of the same type and craft.</div></div>';
+  var bfView=el.querySelector('.view');
+
+  var bfContainer=document.createElement('div');
+  bfContainer.id='bf-container';
+
   groupList.forEach(function(g){
-    var f=g.focus,sess=g.sessions,ref=sess[0];
+    var f=g.focus,sess=g.sessions;
+    var isDownwind=f.id==='long-z2';
     var hasTrend=sess.length>=2;
-    var trendPct=hasTrend?pct(sess[sess.length-1].avgSpeed,ref.avgSpeed):null;
-    html+='<div class="card">';
-    html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
-    html+='<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-    html+='<span class="focus-tag" style="background:'+f.colorLt+';color:'+f.color+';border-color:'+f.color+'40;font-size:12px;padding:4px 12px">'+f.icon+' '+f.label+'</span>';
-    if(f.bungee)html+='<span class="badge b-warn">🔴 resistance — lower speed expected</span>';
-    html+='</div><div style="font-size:11px;font-weight:600;color:var(--gm);max-width:580px;line-height:1.6">'+f.desc+'</div>';
-    if(f.note)html+='<div style="font-size:11px;font-weight:700;color:'+f.color+';margin-top:4px">⚠ '+f.note+'</div>';
-    html+='</div>';
+    var ref=hasTrend?sess[sess.length-1]:null;
+
+    var wrap=document.createElement('div');
+    wrap.className='focus-group-wrap';
+    wrap.dataset.focusId=g.key;
+
+    /* Drag handle */
+    var handle=document.createElement('div');
+    handle.className='drag-handle';handle.title='Drag to reorder';handle.textContent='\u2807';
+    wrap.appendChild(handle);
+
+    /* Card content */
+    var card=document.createElement('div');
+    card.className='card';
+
+    var cardHtml='<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
+    cardHtml+='<div><div style="font-size:var(--fs-card-title);font-weight:800;color:'+f.color+'">'
+      +f.icon+' '+f.label+'</div>';
+    cardHtml+='<div style="font-size:var(--fs-small);color:var(--gm);margin-top:2px">'+sess.length+' session'+(sess.length!==1?'s':'')+'</div></div>';
     if(hasTrend){
-      html+='<div style="text-align:right;flex-shrink:0">';
-      html+='<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">Trend</div>';
-      html+='<span class="badge '+(+trendPct>=0?'b-up':'b-dn')+'" style="font-size:13px;padding:4px 12px">'+(+trendPct>=0?'▲ ':'▼ ')+Math.abs(trendPct)+'%</span>';
-      html+='<div style="font-size:10px;color:var(--gm);margin-top:3px">'+dateLabel(ref.date)+' → '+dateLabel(sess[sess.length-1].date)+'</div></div>';
+      cardHtml+='<div style="font-size:var(--fs-small);font-weight:700;color:var(--gm)">First: '
+        +sess[sess.length-1].avgSpeed.toFixed(2)+' mph → Latest: '+sess[0].avgSpeed.toFixed(2)+' mph</div>';
     }
-    html+='</div>';
-    if(hasTrend)html+='<canvas id="ft-'+f.id+'" height="125" style="margin:12px 0"></canvas>';
-    html+='<div class="tw" style="margin-bottom:0"><table>';
-    html+='<tr><th>#</th><th>Date</th><th>Dist</th><th>Duration</th><th>Avg Speed</th><th>SR</th><th>HR</th>'+(hasTrend?'<th>vs first</th>':'')+'</tr>';
+    cardHtml+='</div>';
+
+    /* Canvas for trend chart */
+    var canvasId='ft-'+f.id.replace(/[^a-z0-9]/gi,'-')+'-'+g.craft;
+    if(hasTrend)cardHtml+='<canvas id="'+canvasId+'" height="125" style="margin:12px 0"></canvas>';
+
+    /* Sessions table */
+    cardHtml+='<div class="tw" style="margin-bottom:0"><table>';
+    cardHtml+='<tr><th>#</th><th>Date</th><th>Dist</th><th>Duration</th><th>Avg Speed</th><th>SR</th><th>HR</th>'
+      +(hasTrend?'<th>vs first</th>':'')+'</tr>';
     sess.forEach(function(s,i){
       var p=hasTrend&&i>0?pct(s.avgSpeed,ref.avgSpeed):null;
-      var corrStr=COMPUTED.corridor[s.date]?' <span style="font-size:9px;color:var(--gm)">(corr. '+COMPUTED.corridor[s.date].avg.toFixed(2)+')</span>':'';
-      html+='<tr class="sess-row" data-date="'+s.date+'" style="cursor:pointer">';
-      html+='<td style="color:var(--gm)">'+(i+1)+'</td>';
-      html+='<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>';
-      html+='<td>'+s.totalDist.toFixed(2)+' mi</td>';
-      html+='<td>'+s.elapsed.split('.')[0]+'</td>';
-      html+='<td style="font-weight:900;color:'+f.color+'">'+s.avgSpeed.toFixed(2)+' mph'+corrStr+'</td>';
-      html+='<td>'+s.avgStrokeRate.toFixed(0)+' spm'+(f.srTargets?' <span style="font-size:9px;color:var(--gm)">tgt '+f.srTargets.easy+'/'+f.srTargets.hard+'</span>':'')+'</td>';
-      html+='<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>';
-      if(hasTrend)html+='<td><span class="badge '+(i===0?'b-neu':+p>=0?'b-up':'b-dn')+'">'+(i===0?'baseline':(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%')+'</span></td>';
-      html+='</tr>';
+      cardHtml+='<tr class="sess-row" data-date="'+s.date+'">'
+        +'<td style="color:var(--gm)">'+(i+1)+'</td>'
+        +'<td>'+datePill(s.date)+' '+dateLabel(s.date)+'</td>'
+        +'<td>'+s.totalDist.toFixed(2)+' mi</td>'
+        +'<td>'+s.elapsed.split('.')[0]+'</td>'
+        +'<td class="td-spd">'+s.avgSpeed.toFixed(2)+'</td>'
+        +'<td>'+s.avgStrokeRate.toFixed(0)+' spm</td>'
+        +'<td>'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>';
+      if(hasTrend)cardHtml+='<td>'+(i===0?'<span style="color:var(--gm)">baseline</span>'
+        :'<span class="badge '+(+p>=0?'b-up':'b-dn')+'">'+(+p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span>')+'</td>';
+      cardHtml+='</tr>';
     });
-    html+='</table></div></div>';
+    cardHtml+='</table></div>';
+
+    card.innerHTML=cardHtml;
+    wrap.appendChild(card);
+    bfContainer.appendChild(wrap);
+
+    /* Draw trend chart when visible */
+    if(hasTrend){
+      (function(gLocal,canvasIdLocal){
+        function drawWhenReady(){
+          var c=document.getElementById(canvasIdLocal);
+          if(!c)return;
+          if(c.offsetWidth>0){
+            if(gLocal.focus.id==='long-z2')drawDownwindTrend(gLocal);
+            else drawFocusTrend(gLocal,c);
+          } else if(window.IntersectionObserver){
+            var obs=new IntersectionObserver(function(entries,o){
+              if(entries[0].isIntersecting){o.disconnect();
+                if(gLocal.focus.id==='long-z2')drawDownwindTrend(gLocal);
+                else drawFocusTrend(gLocal,c);}
+            },{threshold:0.1});
+            obs.observe(c);
+          }
+        }
+        setTimeout(drawWhenReady,60);
+      }(g,canvasId));
+    }
   });
-  html+='</div>';
-  el.innerHTML=html;
-  setTimeout(function(){groupList.filter(function(g){return g.sessions.length>=2;}).forEach(function(g){drawFocusTrend(g);});},30);
+
+  bfView.appendChild(bfContainer);
+
+  /* Replace string-injected handles with proper elements, then attach DnD */
+  attachFocusDrag(bfContainer);
 }
+
 
 function drawFocusTrend(g){
   var c=document.getElementById('ft-'+g.focus.id);if(!c)return;
@@ -5020,6 +5107,8 @@ function fetchAllTides(cb) {
   computeAllTides();
   if (cb) cb();
 }
+
+
 
 
 </script>
