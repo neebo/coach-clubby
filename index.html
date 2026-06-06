@@ -48,6 +48,9 @@
 
 
 
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -427,6 +430,9 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
 </style>
 </head>
 <body>
@@ -451,6 +457,9 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -944,7 +953,7 @@ function bootApp() {
   loadPersistedData(function() {
     loadFromStorage(); loadTags(); loadNotes(); loadWeeklyPlans();
     loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
-    loadStripConfig(); loadFocusOrder();
+    loadStripConfig(); loadFocusOrder(); loadZones();
     SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
     addSignOutButton();
     fetchAllWeather(function() { renderStrip(); refresh(); });
@@ -4482,8 +4491,13 @@ function renderPlansPage(el) {
     html += '<div class="notice n-purple">No weekly plans saved yet. Click <b>Add week plan</b> to set up your first week.</div>';
   }
 
+  html += '<div id="seg-manager-slot"></div>';
   html += '</div>';
   el.innerHTML = html;
+
+  /* Render segment manager */
+  var segSlot = el.querySelector('#seg-manager-slot');
+  if (segSlot) renderSegmentManager(segSlot);
 
   /* If a plan was being edited, re-open it */
   if (ACTIVE_PLAN_WEEK) openPlanEditor(ACTIVE_PLAN_WEEK);
@@ -5219,6 +5233,296 @@ function fetchAllTides(cb) {
 
 
 
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════
+   USER SEGMENTS — custom zones stored in Supabase
+   Each zone: { id, label, color, latLo, latHi, lonLo, lonHi }
+   lonLo/lonHi optional — if absent, only lat bounds used
+═══════════════════════════════════════════════════════════ */
+
+var ZONES_COLORS = ['#7c6fa0','#c08bc0','#9bbdd4','#7dbfa8','#e8a4bd','#b09dd4','#e8c4a4','#a4c4e8','#c4e8a4','#e8d4a4'];
+
+function loadZones() {
+  try {
+    var raw = _store[ZONES_KEY];
+    if (!raw) { USER_ZONES = []; return; }
+    var arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    USER_ZONES = Array.isArray(arr) ? arr : [];
+    /* Rebuild WW_VIS for any new zones */
+    USER_ZONES.forEach(function(z) {
+      if (WW_VIS[z.id] === undefined) WW_VIS[z.id] = true;
+    });
+  } catch(e) { USER_ZONES = []; }
+}
+
+function saveZones() {
+  _store[ZONES_KEY] = USER_ZONES;
+  sbScheduleWrite(ZONES_KEY, USER_ZONES);
+}
+
+/* ── Detect launch location clusters from session GPS ──
+   Groups sessions whose startLat/startLon fall within a ~200m radius.
+   Returns clusters with ≥5 sessions as zone suggestions. */
+function detectLaunchClusters() {
+  var CLUSTER_DEG = 0.002; /* ~200m */
+  var sessions = SESSIONS.filter(function(s) {
+    return s.startLat && s.startLon && Math.abs(s.startLat) > 1;
+  });
+  if (sessions.length < 2) return [];
+
+  var clusters = [];
+  sessions.forEach(function(s) {
+    /* Find existing cluster within radius */
+    var found = null;
+    clusters.forEach(function(c) {
+      var dlat = c.lat - s.startLat, dlon = c.lon - s.startLon;
+      if (Math.sqrt(dlat*dlat + dlon*dlon) < CLUSTER_DEG) found = c;
+    });
+    if (found) {
+      found.sessions.push(s);
+      /* Update centroid */
+      found.lat = found.sessions.reduce(function(a,x){return a+x.startLat;},0) / found.sessions.length;
+      found.lon = found.sessions.reduce(function(a,x){return a+x.startLon;},0) / found.sessions.length;
+    } else {
+      clusters.push({ lat: s.startLat, lon: s.startLon, sessions: [s] });
+    }
+  });
+
+  /* Return clusters with ≥5 sessions, sorted by count descending */
+  return clusters.filter(function(c) { return c.sessions.length >= 5; })
+    .sort(function(a,b) { return b.sessions.length - a.sessions.length; });
+}
+
+/* ── Suggest zone bounds for a launch cluster ──
+   Looks at all strokes from sessions in the cluster and returns
+   a lat/lon bounding box that covers common GPS tracks. */
+function suggestZoneBounds(cluster) {
+  var PADDING = 0.003; /* ~300m padding around tracks */
+  var lats = [], lons = [];
+  cluster.sessions.forEach(function(s) {
+    (s.strokes||[]).forEach(function(st) {
+      if (st.lt && st.ln && Math.abs(st.lt) > 1) {
+        lats.push(st.lt); lons.push(st.ln);
+      }
+    });
+  });
+  if (!lats.length) {
+    /* Fall back to just the launch location */
+    return {
+      latLo: cluster.lat - PADDING, latHi: cluster.lat + PADDING,
+      lonLo: cluster.lon - PADDING*1.2, lonHi: cluster.lon + PADDING*1.2,
+    };
+  }
+  lats.sort(function(a,b){return a-b;}); lons.sort(function(a,b){return a-b;});
+  /* Use 5th–95th percentile to exclude GPS outliers */
+  var p5  = Math.floor(lats.length * 0.05);
+  var p95 = Math.floor(lats.length * 0.95);
+  return {
+    latLo: lats[p5]   - PADDING * 0.3,
+    latHi: lats[p95]  + PADDING * 0.3,
+    lonLo: lons[p5]   - PADDING * 0.4,
+    lonHi: lons[p95]  + PADDING * 0.4,
+  };
+}
+
+/* ── Render the My Segments section in Plans & Settings ── */
+function renderSegmentManager(el) {
+  var clusters = detectLaunchClusters();
+  /* Clusters that don't already have a zone */
+  var suggested = clusters.filter(function(c) {
+    return !USER_ZONES.some(function(z) {
+      return Math.abs(z.latLo - (c.lat - 0.003)) < 0.005;
+    });
+  });
+
+  var html = '<div class="card">';
+  html += '<div class="ct-title">🗺️ My Segments</div>';
+  html += '<div class="ct-sub">Custom GPS zones for speed comparison across sessions. Zones are matched by latitude/longitude bounds.</div>';
+
+  /* ── Suggestions from launch clusters ── */
+  if (suggested.length) {
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:8px">💡 Detected launch locations</div>';
+    suggested.forEach(function(c, i) {
+      var bounds = suggestZoneBounds(c);
+      var color  = ZONES_COLORS[i % ZONES_COLORS.length];
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;'
+            + 'background:var(--lilac2);border-radius:10px;border:1.5px solid var(--lav-lt);margin-bottom:6px;flex-wrap:wrap;gap:8px">';
+      html += '<div>';
+      html += '<div style="font-size:var(--fs-body);font-weight:800;color:var(--ink)">'
+            + c.sessions.length + ' sessions near ' + c.lat.toFixed(4) + ', ' + c.lon.toFixed(4) + '</div>';
+      html += '<div style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:2px">'
+            + 'Covers ' + ((bounds.latHi - bounds.latLo) * 111).toFixed(1) + ' km × '
+            + ((bounds.lonHi - bounds.lonLo) * 85).toFixed(1) + ' km</div>';
+      html += '</div>';
+      html += '<button onclick="createZoneFromCluster(' + i + ')" '
+            + 'style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:6px 14px;'
+            + 'border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">+ Add as zone</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  /* ── Existing user zones ── */
+  if (USER_ZONES.length) {
+    html += '<div style="font-size:var(--fs-label);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--gm);margin-bottom:8px">Your zones</div>';
+    USER_ZONES.forEach(function(z, i) {
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;'
+            + 'background:var(--white);border-radius:10px;border:2px solid ' + z.color + '44;margin-bottom:6px;flex-wrap:wrap">';
+      html += '<div style="width:12px;height:12px;border-radius:50%;background:' + z.color + ';flex-shrink:0"></div>';
+      html += '<div style="flex:1;min-width:120px">';
+      html += '<div style="font-size:var(--fs-body);font-weight:800;color:var(--ink)">' + escHtml(z.label) + '</div>';
+      html += '<div style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);margin-top:1px">'
+            + 'Lat ' + z.latLo.toFixed(4) + '–' + z.latHi.toFixed(4);
+      if (z.lonLo != null) html += ' · Lon ' + z.lonLo.toFixed(4) + '–' + z.lonHi.toFixed(4);
+      html += '</div></div>';
+      html += '<button onclick="editZone(' + i + ')" style="font-family:var(--font);font-size:var(--fs-caption);font-weight:800;'
+            + 'padding:4px 12px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Edit</button>';
+      html += '<button onclick="deleteZone(' + i + ')" style="font-family:var(--font);font-size:var(--fs-caption);font-weight:800;'
+            + 'padding:4px 12px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">✕</button>';
+      html += '</div>';
+    });
+  } else if (!suggested.length) {
+    html += '<div style="font-size:var(--fs-body);font-weight:600;color:var(--gm);padding:12px 0;text-align:center">'
+          + 'No zones yet. Upload 5+ sessions from the same location and a suggestion will appear here.</div>';
+  }
+
+  /* ── Add zone manually ── */
+  html += '<div style="margin-top:12px">';
+  html += '<button onclick="openZoneEditor(-1)" '
+        + 'style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:8px 18px;'
+        + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">+ Add zone manually</button>';
+  html += '</div>';
+
+  /* ── Zone editor slot ── */
+  html += '<div id="zone-editor-slot" style="margin-top:12px"></div>';
+  html += '</div>';
+
+  el.innerHTML = html;
+
+  /* Wire cluster data for createZoneFromCluster */
+  _pendingClusters = suggested;
+  el._clusters = suggested;
+}
+
+/* ── Store clusters on the element for button handlers ── */
+var _pendingClusters = [];
+
+function createZoneFromCluster(i) {
+  var el = document.querySelector('[id]'); /* find any element — we stored on body */
+  var c = _pendingClusters[i];
+  if (!c) return;
+  var bounds = suggestZoneBounds(c);
+  openZoneEditor(-1, {
+    label: 'Launch ' + (USER_ZONES.length + 1),
+    color: ZONES_COLORS[USER_ZONES.length % ZONES_COLORS.length],
+    latLo: +bounds.latLo.toFixed(5), latHi: +bounds.latHi.toFixed(5),
+    lonLo: +bounds.lonLo.toFixed(5), lonHi: +bounds.lonHi.toFixed(5),
+  });
+}
+
+function openZoneEditor(idx, prefill) {
+  var slot = document.getElementById('zone-editor-slot');
+  if (!slot) return;
+  var existing = idx >= 0 ? USER_ZONES[idx] : (prefill || {});
+  var color = existing.color || ZONES_COLORS[USER_ZONES.length % ZONES_COLORS.length];
+
+  var colorOpts = ZONES_COLORS.map(function(c) {
+    return '<option value="' + c + '"' + (c === color ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+
+  var html = '<div style="background:var(--lilac2);border:2px solid var(--lav-md);border-radius:12px;padding:14px 16px;margin-top:8px">';
+  html += '<div style="font-size:var(--fs-body);font-weight:800;color:var(--plum);margin-bottom:12px">'
+        + (idx >= 0 ? '✏️ Edit zone' : '+ New zone') + '</div>';
+
+  function field(label, id, val, ph) {
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+      + '<label style="font-size:var(--fs-caption);font-weight:800;color:var(--gm);width:80px;flex-shrink:0">' + label + '</label>'
+      + '<input id="ze-' + id + '" type="text" value="' + escHtml(String(val||'')) + '" placeholder="' + ph + '" '
+      + 'style="flex:1;font-family:var(--font);font-size:var(--fs-small);padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
+      + '</div>';
+  }
+
+  html += field('Name',   'label', existing.label || '', 'e.g. Main Channel');
+  html += field('Lat min','latLo', existing.latLo || '', '36.9540');
+  html += field('Lat max','latHi', existing.latHi || '', '36.9700');
+  html += field('Lon min','lonLo', existing.lonLo != null ? existing.lonLo : '', '-122.020 (optional)');
+  html += field('Lon max','lonHi', existing.lonHi != null ? existing.lonHi : '', '-122.000 (optional)');
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+        + '<label style="font-size:var(--fs-caption);font-weight:800;color:var(--gm);width:80px;flex-shrink:0">Colour</label>'
+        + '<select id="ze-color" style="font-family:var(--font);font-size:var(--fs-small);padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white)">'
+        + colorOpts + '</select>'
+        + '</div>';
+
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="saveZoneEditor(' + idx + ')" '
+        + 'style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:8px 18px;'
+        + 'border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save zone</button>';
+  html += '<button onclick="document.getElementById(\'zone-editor-slot\').innerHTML=\'\'" '
+        + 'style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;padding:8px 18px;'
+        + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Cancel</button>';
+  html += '</div></div>';
+
+  slot.innerHTML = html;
+  slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function saveZoneEditor(idx) {
+  var label = (document.getElementById('ze-label')||{}).value || '';
+  var latLo = parseFloat((document.getElementById('ze-latLo')||{}).value);
+  var latHi = parseFloat((document.getElementById('ze-latHi')||{}).value);
+  var lonLoRaw = (document.getElementById('ze-lonLo')||{}).value || '';
+  var lonHiRaw = (document.getElementById('ze-lonHi')||{}).value || '';
+  var color = (document.getElementById('ze-color')||{}).value || ZONES_COLORS[0];
+
+  if (!label || isNaN(latLo) || isNaN(latHi) || latHi <= latLo) {
+    showToast('Please enter a name and valid lat min/max (min < max)', 'warn');
+    return;
+  }
+
+  var zone = {
+    id:    'uz_' + Date.now(),
+    label: label.trim(),
+    color: color,
+    latLo: +latLo.toFixed(6),
+    latHi: +latHi.toFixed(6),
+    lonLo: lonLoRaw !== '' ? +parseFloat(lonLoRaw).toFixed(6) : null,
+    lonHi: lonHiRaw !== '' ? +parseFloat(lonHiRaw).toFixed(6) : null,
+  };
+
+  if (idx >= 0) {
+    zone.id = USER_ZONES[idx].id; /* preserve existing id */
+    USER_ZONES[idx] = zone;
+  } else {
+    USER_ZONES.push(zone);
+  }
+
+  /* Init WW_VIS for new zone */
+  if (WW_VIS[zone.id] === undefined) WW_VIS[zone.id] = true;
+
+  saveZones();
+  recompute();
+  renderPlansPage(document.getElementById('ct'));
+  showToast('Zone saved ✓', 'success');
+}
+
+function editZone(idx) {
+  openZoneEditor(idx);
+}
+
+function deleteZone(idx) {
+  if (!confirm('Remove zone "' + USER_ZONES[idx].label + '"?')) return;
+  delete WW_VIS[USER_ZONES[idx].id];
+  USER_ZONES.splice(idx, 1);
+  saveZones();
+  recompute();
+  renderPlansPage(document.getElementById('ct'));
+  showToast('Zone removed', 'success');
+}
 
 
 
