@@ -51,6 +51,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -433,6 +434,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -457,6 +459,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1330,6 +1333,10 @@ function focusPill(s){var f=getFocus(s);if(!f)return '<span class="pill" style="
 ═══════════════════════════════════════════ */
 function render(){
   var el=document.getElementById('ct');
+  /* Keep nav button active state in sync */
+  document.querySelectorAll('.nb,.mob-nb').forEach(function(b){
+    b.classList.toggle('active', b.dataset.page===PAGE);
+  });
   if(PAGE==='overview')renderOverview(el);
   else if(PAGE==='session')renderSession(el);
   else if(PAGE==='by-focus')renderByFocus(el);
@@ -1371,6 +1378,23 @@ function renderOverview(el){
     rows+='<td class="td-spd" style="color:'+(f?f.color:'var(--plum)')+'">'+s.avgSpeed.toFixed(2)+' mph</td>';
     rows+='<td>'+s.avgStrokeRate.toFixed(0)+' spm</td>';
     rows+='<td class="td-hr">'+(s.avgHR?s.avgHR.toFixed(0)+' bpm':'—')+'</td>';
+    /* Tide column */
+    var tideStr='—';
+    if(s._tide&&s._tide.interpHeight!=null){
+      tideStr=s._tide.interpHeight.toFixed(1)+'ft '+(s._tide.trend==='rising'?'↑':'↓');
+    }
+    rows+='<td style="font-size:10px;color:var(--gt)">'+tideStr+'</td>';
+    /* Conditions column */
+    var wxStr='—';
+    if(s._wx){
+      var wspd=s._wx.windSpeed!=null?Math.round(s._wx.windSpeed)+'mph':'?';
+      var wdir=s._wx.windDir!=null?windDirLabel(s._wx.windDir):'';
+      wxStr=wspd+(wdir?' '+wdir:'');
+    }
+    rows+='<td style="font-size:10px;color:var(--gt)">'+wxStr+'</td>';
+    /* Notes column */
+    var noteStr=getNote(s.date)||'';
+    rows+='<td style="font-size:10px;color:var(--gt);max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(noteStr.slice(0,40))+'</td>';
     rows+='<td>'+(sameType.length?sameType.map(function(x){
       var p=pct(s.avgSpeed,x.avgSpeed);
       return '<span class="badge '+(+p>=0?'b-up':'b-dn')+'" style="font-size:10px">'+(+p>=0?'▲':'▼')+Math.abs(p)+'%</span>';
@@ -5523,6 +5547,7 @@ function deleteZone(idx) {
   renderPlansPage(document.getElementById('ct'));
   showToast('Zone removed', 'success');
 }
+
 
 
 
