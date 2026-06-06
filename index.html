@@ -53,6 +53,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -437,6 +439,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -461,6 +465,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1917,27 +1923,61 @@ function parseCSV(text){
 /* ═══════════════════════════════════════════
    FILE UPLOAD
 ═══════════════════════════════════════════ */
-document.getElementById('fi').addEventListener('change',function(e){
-  var files=Array.from(e.target.files);var added=0;
-  function next(i){
-    if(i>=files.length){
-      if(added>0){
+function handleFileUpload(evtOrFiles) {
+  var files = evtOrFiles && evtOrFiles.target
+    ? Array.from(evtOrFiles.target.files)
+    : Array.isArray(evtOrFiles) ? evtOrFiles
+    : evtOrFiles ? Array.from(evtOrFiles) : [];
+  if (!files.length) return;
+  var added = 0;
+
+  function next(i) {
+    if (i >= files.length) {
+      if (added > 0) {
         SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
-        SEL=SESSIONS[SESSIONS.length-1].date;
+        SEL = SESSIONS[SESSIONS.length-1].date;
         saveToStorage();
-        showToast('🐾 '+added+' session'+(added>1?'s':'')+' saved! Fetching conditions…','success');
-        fetchAllWeather(function(){fetchAllTides(function(){refresh();});});
+        showToast('🦭 '+added+' session'+(added>1?'s':'')+' saved! Fetching conditions…','success');
+        fetchAllWeather(function(){ fetchAllTides(function(){ refresh(); }); });
       }
-      e.target.value='';return;
+      ['fi','file-input','file-input2'].forEach(function(id){
+        var el=document.getElementById(id); if(el)el.value='';
+      });
+      return;
     }
-    files[i].text().then(function(text){
-      try{var s=parseCSV(text);if(s&&!SESSIONS.some(function(x){return x.date===s.date;})){SESSIONS.push(s);added++;}else if(s){showToast('Session '+dateLabel(s.date)+' already saved','warn');}}
-      catch(err){console.error('Parse error',err);showToast('⚠️ Could not parse '+files[i].name,'error');}
-      next(i+1);
-    });
+    var file=files[i];
+    var name=(file.name||'').toLowerCase();
+    if (name.endsWith('.fit')) {
+      file.arrayBuffer().then(function(buf){
+        parseFIT(buf, file.name, function(err, s){
+          if(err){ showToast('⚠️ Could not parse '+file.name+': '+(err.message||err),'error'); }
+          else if(s){
+            if(!SESSIONS.some(function(x){return x.date===s.date;})){
+              SESSIONS.push(s); saveSessionDetail(s); added++;
+            } else { showToast('Session '+dateLabel(s.date)+' already saved','warn'); }
+          }
+          next(i+1);
+        });
+      }).catch(function(){showToast('⚠️ Could not read '+file.name,'error');next(i+1);});
+    } else {
+      file.text().then(function(text){
+        try{
+          var s=parseCSV(text);
+          if(s&&!SESSIONS.some(function(x){return x.date===s.date;})){SESSIONS.push(s);added++;}
+          else if(s){showToast('Session '+dateLabel(s.date)+' already saved','warn');}
+        }catch(err){console.error('CSV parse error',err);showToast('⚠️ Could not parse '+file.name,'error');}
+        next(i+1);
+      });
+    }
   }
   next(0);
-});
+}
+
+/* Wire static #fi input to handleFileUpload */
+(function(){
+  var fi = document.getElementById('fi');
+  if (fi) fi.addEventListener('change', handleFileUpload);
+}());
 
 /* ═══════════════════════════════════════════
    BOOT — load from storage, then render
@@ -5585,6 +5625,8 @@ function deleteZone(idx) {
   renderPlansPage(document.getElementById('ct'));
   showToast('Zone removed', 'success');
 }
+
+
 
 
 
