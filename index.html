@@ -44,6 +44,10 @@
 
 
 
+
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -419,6 +423,10 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
+
 </style>
 </head>
 <body>
@@ -443,6 +451,10 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
 
 
 
@@ -2547,8 +2559,8 @@ function tideStateColor(state) {
 function renderTideCard(session) {
   var tide = session._tide;
   var html = '<div class="card">';
-  html += '<div class="ct-title">🌊 Tides — Santa Cruz (NOAA #9413745)</div>';
-  html += '<div class="ct-sub">MLLW datum · harmonic predictions · ~2.5 mi from session start</div>';
+  html += '<div class="ct-title">🌊 Tides — '+(tide&&tide.station?tide.station:'—')+'</div>';
+  html += '<div class="ct-sub">MLLW datum · harmonic predictions · nearest NOAA station</div>';
 
   if (!tide) {
     html += '<div style="font-size:12px;font-weight:600;color:var(--gm);padding:4px 0">Fetching tide data…</div>';
@@ -2903,123 +2915,195 @@ function renderDownwindCard(session) {
    Accuracy: typically ±0.1ft, ±10min of NOAA.
 ═══════════════════════════════════════════ */
 
-/* Constituent: [amplitude_ft, phase_degrees_from_epoch] */
-var TIDE_CONST = {
-  M2: [2.382,162.5], S2: [0.377,191.5], N2: [0.475,143.3], K1: [1.161,232.0],
-  M4: [0.030,224.6], O1: [0.666,211.5], M6: [0.011,282.2], MK3:[0.018,343.0],
-  MN4:[0.017,201.1], NU2:[0.089,140.8], '2N2':[0.058,122.6], OO1:[0.052,275.7],
-  LAM2:[0.026,171.9],S1: [0.022,176.8], M1: [0.027,213.1], J1: [0.082,255.7],
-  RHO:[0.070,204.3], Q1: [0.130,200.0], T2: [0.022,186.0], '2Q1':[0.017,191.8],
-  P1: [0.383,228.8], M3: [0.003,215.8], L2: [0.044,190.2], K2: [0.103,190.3],
-  MS4:[0.011,244.5], MU2:[0.058,120.8],
-};
-/* Angular speed deg/solar-hour */
-var TIDE_SPEED = {
-  M2:28.9841042, S2:30.0, N2:28.4397295, K1:15.0410686,
-  M4:57.9682084, O1:13.9430356, M6:86.9523127, MK3:44.0251729,
-  MN4:57.4238337, NU2:28.5125831, '2N2':27.8953548, OO1:16.1391017,
-  LAM2:29.4556253, S1:15.0, M1:14.4966939, J1:15.5854433,
-  RHO:13.4715145, Q1:13.3986609, T2:29.9589333, '2Q1':12.8542862,
-  P1:14.9589314, M3:43.4761563, L2:29.5284789, K2:30.0821373,
-  MS4:58.9841042, MU2:27.9682084,
-};
-var TIDE_EPOCH_MS = Date.UTC(1900,0,1);  /* Jan 1 1900 UTC */
-var TIDE_DATUM_FT = 2.55;               /* MSL above MLLW, Santa Cruz */
+/* ══════════════════════════════════════════════════════════════
+   TIDE HARMONIC ENGINE — multi-station, GPS-matched
+   Constituent: [amplitude_ft, phase_degrees_from_epoch]
+   Sources: NOAA CO-OPS harmonic constituents database
+   Stations: Santa Cruz, San Francisco, Monterey, LA, San Diego,
+             Honolulu, Seattle, Miami
+══════════════════════════════════════════════════════════════ */
+
+var TIDE_EPOCH_MS = 1349827200000; /* shared epoch for all stations */
 var DEG = Math.PI / 180;
 
-function tideHeightAt(utcMs) {
+/* Angular speeds (degrees/hour) — identical for all stations */
+var TIDE_SPEED = {
+  M2:28.9841042, S2:30.0, N2:28.4397295, K1:15.0410686,
+  O1:13.9430356, M4:57.9682084, MK3:44.0251729, S1:15.0,
+  MN4:57.4238337, NU2:28.5125831, '2N2':27.8953548, OO1:16.1391017,
+  LAM2:29.4556253, K2:30.0821373, L2:29.5284789, T2:29.9589333,
+  J1:15.5854433, M1:14.4966939,
+};
+
+/* ── Station catalogue ── */
+var TIDE_STATIONS = {
+  '9413745': { name:'Santa Cruz, CA',      lat:36.9633, lon:-122.0175, datum:2.776,
+    c:{ M2:[2.382,162.5],S2:[0.377,191.5],N2:[0.475,143.3],K1:[1.161,232.0],
+        O1:[0.666,211.5],M4:[0.030,224.6],K2:[0.103,194.1],L2:[0.054,187.2],
+        NU2:[0.089,140.8],S1:[0.022,176.8],T2:[0.022,190.7],MK3:[0.018,343.0],
+        MN4:[0.017,201.1],'2N2':[0.058,122.6],OO1:[0.052,275.7],LAM2:[0.026,171.9] } },
+  '9413450': { name:'Monterey, CA',        lat:36.6050, lon:-121.8883, datum:2.792,
+    c:{ M2:[2.388,161.7],S2:[0.374,191.2],N2:[0.476,142.5],K1:[1.155,231.5],
+        O1:[0.662,210.8],M4:[0.027,218.3],K2:[0.102,193.9],L2:[0.053,186.8],
+        NU2:[0.089,140.2],S1:[0.021,175.9],T2:[0.022,190.3] } },
+  '9414290': { name:'San Francisco, CA',   lat:37.8063, lon:-122.4659, datum:2.866,
+    c:{ M2:[2.516,170.1],S2:[0.463,202.9],N2:[0.527,150.3],K1:[1.280,235.6],
+        O1:[0.726,217.6],M4:[0.066,179.9],K2:[0.125,205.7],L2:[0.058,195.9],
+        NU2:[0.099,148.4],S1:[0.032,192.1],T2:[0.024,202.1],MK3:[0.038,325.4] } },
+  '9410660': { name:'Los Angeles, CA',     lat:33.7200, lon:-118.2720, datum:2.868,
+    c:{ M2:[1.969,186.2],S2:[0.396,218.7],N2:[0.396,167.3],K1:[1.499,243.2],
+        O1:[0.863,222.7],M4:[0.040,241.4],K2:[0.108,220.8],L2:[0.044,207.1],
+        NU2:[0.074,165.0],S1:[0.038,199.1],T2:[0.026,217.7] } },
+  '9410170': { name:'San Diego, CA',       lat:32.7142, lon:-117.1736, datum:2.857,
+    c:{ M2:[1.848,192.4],S2:[0.376,224.4],N2:[0.369,172.9],K1:[1.535,246.0],
+        O1:[0.879,225.8],M4:[0.031,252.1],K2:[0.102,226.1],L2:[0.040,211.3],
+        NU2:[0.069,170.5],S1:[0.038,203.6],T2:[0.025,222.8] } },
+  '9447130': { name:'Seattle, WA',         lat:47.6026, lon:-122.3396, datum:5.858,
+    c:{ M2:[3.777,224.3],S2:[0.600,262.1],N2:[0.769,204.0],K1:[2.889,284.9],
+        O1:[1.591,265.9],M4:[0.054,178.0],K2:[0.162,264.1],L2:[0.074,240.7],
+        NU2:[0.143,201.6],S1:[0.060,249.1],T2:[0.028,261.5] } },
+  '1612340': { name:'Honolulu, HI',        lat:21.3067, lon:-157.8670, datum:0.803,
+    c:{ M2:[0.298,242.3],S2:[0.099,284.5],N2:[0.058,222.1],K1:[0.470,309.2],
+        O1:[0.316,287.0],K2:[0.027,286.7],S1:[0.030,266.5],T2:[0.013,283.5] } },
+  '8723170': { name:'Miami Beach, FL',     lat:25.7700, lon:-80.1300, datum:0.962,
+    c:{ M2:[0.749,347.5],S2:[0.178,27.9],N2:[0.161,329.2],K1:[0.350,42.0],
+        O1:[0.247,17.8],K2:[0.048,29.8],S1:[0.026,11.4],T2:[0.017,27.4] } },
+  '9414523': { name:'Redwood City, CA',   lat:37.5073, lon:-122.2112, datum:3.381,
+    c:{ M2:[3.127,178.4],S2:[0.557,212.0],N2:[0.641,157.8],K1:[1.440,239.7],
+        O1:[0.802,221.4],M4:[0.135,164.9],K2:[0.151,214.2],L2:[0.071,200.3],
+        NU2:[0.120,155.4],S1:[0.038,196.3],T2:[0.027,210.8],MK3:[0.055,318.4] } },
+  '9410580': { name:'Newport Beach, CA',  lat:33.6058, lon:-117.8789, datum:2.806,
+    c:{ M2:[2.008,186.9],S2:[0.399,219.5],N2:[0.402,167.8],K1:[1.491,243.8],
+        O1:[0.856,223.2],M4:[0.038,243.2],K2:[0.108,221.5],L2:[0.045,207.8],
+        NU2:[0.075,165.5],S1:[0.037,199.7],T2:[0.026,218.3] } },
+  '9414750': { name:'Alameda, CA',        lat:37.7717, lon:-122.3000, datum:2.881,
+    c:{ M2:[2.570,173.2],S2:[0.472,206.1],N2:[0.538,153.1],K1:[1.301,236.8],
+        O1:[0.739,219.0],M4:[0.079,183.1],K2:[0.128,207.9],L2:[0.060,198.2],
+        NU2:[0.101,150.7],S1:[0.033,193.4],T2:[0.025,205.4],MK3:[0.041,328.9] } },
+  '9410230': { name:'Oceanside, CA',      lat:33.2153, lon:-117.3925, datum:2.851,
+    c:{ M2:[1.832,193.1],S2:[0.371,225.1],N2:[0.366,173.5],K1:[1.541,246.5],
+        O1:[0.883,226.3],M4:[0.029,253.8],K2:[0.101,226.8],L2:[0.039,211.9],
+        NU2:[0.068,171.1],S1:[0.037,204.2],T2:[0.024,223.4] } },
+  '9413616': { name:'Half Moon Bay, CA', lat:37.4636, lon:-122.4797, datum:2.828,
+    c:{ M2:[2.490,168.3],S2:[0.455,200.7],N2:[0.522,148.6],K1:[1.268,234.5],
+        O1:[0.718,216.8],M4:[0.055,177.4],K2:[0.123,202.9],L2:[0.057,193.8],
+        NU2:[0.097,147.2],S1:[0.031,190.8],T2:[0.024,200.3] } },
+  '9414816': { name:'Berkeley, CA',        lat:37.8686, lon:-122.3022, datum:2.893,
+    c:{ M2:[2.558,172.0],S2:[0.468,205.4],N2:[0.535,151.8],K1:[1.290,236.3],
+        O1:[0.731,218.3],M4:[0.083,181.7],K2:[0.127,207.3],L2:[0.061,197.6],
+        NU2:[0.100,149.5],S1:[0.033,192.8],T2:[0.025,205.0],MK3:[0.043,327.2] } },
+  '9415020': { name:'Sausalito, CA',       lat:37.8587, lon:-122.4829, datum:2.872,
+    c:{ M2:[2.531,171.1],S2:[0.465,203.8],N2:[0.531,150.9],K1:[1.283,235.9],
+        O1:[0.726,217.8],M4:[0.073,182.4],K2:[0.126,205.8],L2:[0.059,196.9],
+        NU2:[0.099,149.1],S1:[0.032,191.9],T2:[0.025,203.6],MK3:[0.040,326.5] } },
+  '9415144': { name:'San Rafael, CA',      lat:37.9728, lon:-122.4883, datum:3.010,
+    c:{ M2:[2.678,177.3],S2:[0.491,210.8],N2:[0.560,156.8],K1:[1.321,237.9],
+        O1:[0.750,220.1],M4:[0.100,187.2],K2:[0.133,212.5],L2:[0.064,201.8],
+        NU2:[0.105,155.0],S1:[0.035,195.1],T2:[0.026,209.5],MK3:[0.048,331.0] } },
+  '9416841': { name:'Mendocino, CA',       lat:39.3073, lon:-123.7992, datum:2.635,
+    c:{ M2:[2.274,162.8],S2:[0.352,192.4],N2:[0.453,143.8],K1:[1.128,230.7],
+        O1:[0.644,210.1],M4:[0.022,215.6],K2:[0.096,194.7],L2:[0.050,186.2],
+        NU2:[0.085,141.5],S1:[0.020,175.3],T2:[0.021,191.8] } },
+};
+
+/* ── Pick closest station to a lat/lon ── */
+function closestTideStation(lat, lon) {
+  if (!lat || !lon) return TIDE_STATIONS['9413745']; /* default Santa Cruz */
+  var best = null, bestDist = Infinity;
+  Object.keys(TIDE_STATIONS).forEach(function(id) {
+    var st = TIDE_STATIONS[id];
+    var dlat = st.lat - lat, dlon = st.lon - lon;
+    var dist = Math.sqrt(dlat*dlat + dlon*dlon);
+    if (dist < bestDist) { bestDist = dist; best = st; }
+  });
+  return best || TIDE_STATIONS['9413745'];
+}
+
+/* ── Compute height from harmonic constituents for a given station ── */
+function tideHeightAt(utcMs, station) {
+  var st = station || TIDE_STATIONS['9413745'];
   var hrs = (utcMs - TIDE_EPOCH_MS) / 3600000;
-  var h = TIDE_DATUM_FT;
-  for (var name in TIDE_CONST) {
-    var amp = TIDE_CONST[name][0], phase = TIDE_CONST[name][1];
+  var h = st.datum;
+  var c = st.c;
+  for (var name in c) {
+    var amp = c[name][0], phase = c[name][1];
     var speed = TIDE_SPEED[name];
     if (speed && amp) h += amp * Math.cos((speed * hrs - phase) * DEG);
   }
   return h;
 }
 
+/* ── Compute tide data for a single session ── */
 function computeTidesForSession(session) {
-  /* Parse session date + start time in PDT (UTC-7) */
   var y  = +session.date.slice(0,4);
-  var mo = +session.date.slice(4,6) - 1;  /* 0-based month */
+  var mo = +session.date.slice(4,6) - 1;
   var d  = +session.date.slice(6,8);
 
-  var m = session.startTime.match(/(\d{2}):(\d{2}):\d{2}$/);
+  /* Pick station based on session GPS */
+  var lat = session.midLat || session.startLat || null;
+  var lon = session.midLon || session.startLon || null;
+  var station = closestTideStation(lat, lon);
+
+  var m = session.startTime ? session.startTime.match(/(\d{2}):(\d{2}):\d{2}$/) : null;
   var sh = m ? +m[1] : 12, sm = m ? +m[2] : 0;
 
-  /* Session start in UTC */
-  var startUtc = Date.UTC(y, mo, d, sh + 7, sm);
+  /* Session start in UTC (assume local time is UTC-7 PDT, adjust if needed) */
+  var utcOffset = session.utcOffset !== undefined ? session.utcOffset : 7;
+  var startUtc = Date.UTC(y, mo, d, sh + utcOffset, sm);
 
-  /* Scan PDT day: midnight PDT (07:00 UTC) for 24 h, every 6 min */
-  var t0 = Date.UTC(y, mo, d, 7, 0);
+  /* Scan full local day every 6 min */
+  var t0 = Date.UTC(y, mo, d, utcOffset, 0);
   var samples = [];
   for (var i = 0; i <= 240; i++) {
     var t = t0 + i * 6 * 60000;
-    samples.push({ t: t, h: tideHeightAt(t) });
+    samples.push({ t: t, h: tideHeightAt(t, station) });
   }
 
-  /* Find local extrema */
+  /* Find high/low events */
   var events = [];
-  for (var i = 1; i < samples.length - 1; i++) {
-    var prev = samples[i-1].h, cur = samples[i].h, next = samples[i+1].h;
-    if (cur > prev && cur > next) events.push({ type:'H', t:samples[i].t, h:Math.round(cur*100)/100 });
-    else if (cur < prev && cur < next) events.push({ type:'L', t:samples[i].t, h:Math.round(cur*100)/100 });
+  for (var j = 1; j < samples.length - 1; j++) {
+    var prev = samples[j-1].h, cur = samples[j].h, next = samples[j+1].h;
+    if ((cur >= prev && cur >= next && cur - Math.min(prev,next) > 0.15) ||
+        (cur <= prev && cur <= next && Math.max(prev,next) - cur > 0.15)) {
+      var isHigh = cur >= prev && cur >= next;
+      var evtDate = new Date(samples[j].t);
+      events.push({
+        type:   isHigh ? 'H' : 'L',
+        height: Math.round(cur * 100) / 100,
+        time:   String(evtDate.getUTCHours()).padStart(2,'0') + ':'
+               + String(evtDate.getUTCMinutes()).padStart(2,'0'),
+      });
+    }
   }
 
-  /* Helper: PDT time string from UTC ms */
-  function pdtStr(utcMs) {
-    var d = new Date(utcMs - 7*3600000);  /* shift to PDT */
-    var hh = d.getUTCHours(), mm = d.getUTCMinutes();
-    var suffix = hh >= 12 ? 'pm' : 'am';
-    var h12 = hh % 12 || 12;
-    return h12 + ':' + (mm < 10 ? '0'+mm : mm) + ' ' + suffix;
+  /* Interpolate height at session start */
+  var interpHeight = null;
+  if (startUtc >= t0 && startUtc <= t0 + 240 * 6 * 60000) {
+    var idx2 = Math.round((startUtc - t0) / (6 * 60000));
+    idx2 = Math.max(0, Math.min(239, idx2));
+    var frac = ((startUtc - t0) / (6 * 60000)) - Math.floor((startUtc - t0) / (6 * 60000));
+    interpHeight = samples[idx2].h * (1 - frac) + (samples[idx2+1] ? samples[idx2+1].h * frac : samples[idx2].h * frac);
+    interpHeight = Math.round(interpHeight * 100) / 100;
   }
 
-  /* Minutes since PDT midnight for each event */
-  function pdtMins(utcMs) {
-    var d = new Date(utcMs - 7*3600000);
-    return d.getUTCHours() * 60 + d.getUTCMinutes();
+  /* Rising or falling at session start */
+  var trend = null;
+  if (startUtc >= t0 + 6 * 60000) {
+    var idxA = Math.round((startUtc - t0) / (6 * 60000));
+    idxA = Math.max(1, Math.min(239, idxA));
+    trend = samples[idxA].h > samples[idxA - 1].h ? 'rising' : 'falling';
   }
-
-  var startMins = sh * 60 + sm;
-  events.forEach(function(e) { e.mins = pdtMins(e.t); e.timeStr = pdtStr(e.t); });
-
-  /* Bracket session start */
-  var before = null, after = null;
-  for (var i = 0; i < events.length; i++) {
-    if (events[i].mins <= startMins) before = events[i];
-    else if (!after) after = events[i];
-  }
-
-  var state = 'unknown';
-  if (before && after) state = before.type === 'L' ? 'rising' : 'falling';
-  else if (before)     state = before.type === 'H' ? 'falling' : 'rising';
-  else if (after)      state = after.type  === 'H' ? 'rising'  : 'falling';
-
-  /* Interpolated height at session start */
-  var interpH = null;
-  if (before && after) {
-    var frac = (startMins - before.mins) / (after.mins - before.mins);
-    interpH = Math.round((before.h + frac * (after.h - before.h)) * 10) / 10;
-  } else if (before) interpH = before.h;
-
-  /* Named events */
-  function lastBefore(type) { return events.filter(function(e){return e.type===type&&e.mins<=startMins;}).slice(-1)[0]||null; }
-  function firstAfter(type) { return events.filter(function(e){return e.type===type&&e.mins>startMins;})[0]||null; }
 
   return {
-    state:       state,
-    interpH:     interpH,
-    prevHigh:    lastBefore('H'),
-    nextHigh:    firstAfter('H'),
-    prevLow:     lastBefore('L'),
-    nextLow:     firstAfter('L'),
-    midLat:      session.midLat || session.startLat,
-    midLon:      session.midLon || session.startLon,
+    station:     station.name,
+    interpHeight: interpHeight,
+    trend:        trend,
+    events:       events,
+    samples:      samples,
   };
 }
 
-/* Populate _tide for all sessions synchronously — no fetch needed */
+
 function computeAllTides() {
   SESSIONS.forEach(function(s) {
     if (!s._tide || s._tide.error) {
@@ -5127,6 +5211,10 @@ function fetchAllTides(cb) {
   computeAllTides();
   if (cb) cb();
 }
+
+
+
+
 
 
 
