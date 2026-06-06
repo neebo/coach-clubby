@@ -52,6 +52,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -435,6 +436,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -459,6 +461,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -4124,9 +4127,40 @@ function applyTrim(date) {
     s.midLat = mid.lt; s.midLon = mid.ln;
   }
 
-  /* Reset trim state and save */
+  /* Use median speed for robustness against sprint/drift outliers */
+  if (speeds.length >= 3) {
+    var sorted = speeds.slice().sort(function(a,b){return a-b;});
+    var n = sorted.length;
+    s.avgSpeed = n % 2 ? sorted[Math.floor(n/2)] : (sorted[n/2-1]+sorted[n/2])/2;
+    s.totalDist = s.avgSpeed * durationSecs / 3600;
+  }
+
+  /* Update startTime to reflect trimmed start */
+  if (trimmed[0].e) {
+    var startElapsed = parseSecs(trimmed[0].e);
+    if (s.startTime && startElapsed > 0) {
+      /* Advance startTime by the trim offset */
+      try {
+        var origParts = s.startTime.match(/(\d+):(\d+):(\d+)$/);
+        if (origParts) {
+          var origSecs = (+origParts[1])*3600 + (+origParts[2])*60 + (+origParts[3]);
+          var newSecs  = origSecs + startElapsed;
+          var nh = Math.floor(newSecs/3600) % 24;
+          var nm = Math.floor((newSecs%3600)/60);
+          var ns = Math.floor(newSecs % 60);
+          s.startTime = s.startTime.replace(
+            /(\d+):(\d+):(\d+)$/,
+            String(nh).padStart(2,'0')+':'+String(nm).padStart(2,'0')+':'+String(ns).padStart(2,'0')
+          );
+        }
+      } catch(e) {}
+    }
+  }
+
+  /* Reset trim state, save index + detail */
   delete _trimState[date];
-  saveToStorage();
+  saveToStorage();        /* saves scalar fields (avgSpeed, elapsed, totalDist…) */
+  saveSessionDetail(s);   /* saves trimmed strokes to Supabase */
   recompute();
   refresh();
   showToast('Session trimmed ✓', 'success');
@@ -4442,8 +4476,12 @@ function renderCraftSelector(session) {
 }
 
 function saveSessionDetail(session) {
-  /* Save full session including strokes */
-  sbScheduleWrite(sessionDetailKey(session.date), session);
+  /* Save strokes + intervals only (scalar fields are in the main index) */
+  var detail = {
+    strokes:   session.strokes   || [],
+    intervals: session.intervals || [],
+  };
+  sbScheduleWrite(sessionDetailKey(session.date), detail);
 }
 
 function deleteSessionDetail(date) {
@@ -5547,6 +5585,7 @@ function deleteZone(idx) {
   renderPlansPage(document.getElementById('ct'));
   showToast('Zone removed', 'success');
 }
+
 
 
 
