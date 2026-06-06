@@ -41,6 +41,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -413,6 +414,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -437,6 +439,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -981,7 +984,15 @@ var STRIP_CONFIG = null;     /* null = use defaultStripConfig() */
 var DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 /* ── Weekly plan day keys ── */
-var PLAN_DAYS = [1,2,3,4,5,6,0]; /* Mon…Sun */
+var PLAN_DAYS = [
+  {dow:1, name:'Monday'},
+  {dow:2, name:'Tuesday'},
+  {dow:3, name:'Wednesday'},
+  {dow:4, name:'Thursday'},
+  {dow:5, name:'Friday'},
+  {dow:6, name:'Saturday'},
+  {dow:0, name:'Sunday'},
+];
 
 /* ── Focus type styles (icon+colour for plan cards) ── */
 var FOCUS_STYLES = (function(){
@@ -5107,6 +5118,7 @@ function fetchAllTides(cb) {
   computeAllTides();
   if (cb) cb();
 }
+
 
 
 
