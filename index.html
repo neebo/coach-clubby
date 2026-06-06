@@ -42,6 +42,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -415,6 +417,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -439,6 +443,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1525,8 +1531,9 @@ function renderByFocus(el){
 }
 
 
-function drawFocusTrend(g){
-  var c=document.getElementById('ft-'+g.focus.id);if(!c)return;
+function drawFocusTrend(g,c){
+  if(!c)c=document.getElementById('ft-'+g.focus.id.replace(/[^a-z0-9]/gi,'-')+'-'+(g.craft||''));
+  if(!c)return;
   var ctx=c.getContext('2d');var W=c.offsetWidth,H=125;c.width=W;c.height=H;
   var sess=g.sessions,n=sess.length,f=g.focus;
   var pad={t:18,r:18,b:28,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
@@ -4506,7 +4513,8 @@ function openPlanEditor(wk) {
   html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">';
   PLAN_DAYS.forEach(function(d) {
     var day = (plan.days||{})[d.dow] || {};
-    var focusOpts = FOCUS_OPTIONS.map(function(o) {
+    var focusOpts = '<option value=""'+((!day.id||day.id==='')?" selected":"")+'> — Rest / None —</option>';
+    focusOpts += FOCUS_OPTIONS.map(function(o) {
       return '<option value="'+o.id+'"'+(o.id===day.id?' selected':'')+'>'+o.icon+' '+o.label+'</option>';
     }).join('');
 
@@ -4855,8 +4863,9 @@ function _loadUserData(cb) {
   });
 }
 
-function drawDownwindTrend(g){
-  var c=document.getElementById('ft-'+g.focus.id);if(!c)return;
+function drawDownwindTrend(g,c){
+  if(!c)c=document.getElementById('ft-'+g.focus.id.replace(/[^a-z0-9]/gi,'-')+'-'+(g.craft||''));
+  if(!c)return;
   var ctx=c.getContext('2d'),W=c.offsetWidth,H=140;c.width=W;c.height=H;
   var f=g.focus;
   var sess=g.sessions; // oldest first
@@ -5118,6 +5127,8 @@ function fetchAllTides(cb) {
   computeAllTides();
   if (cb) cb();
 }
+
+
 
 
 
