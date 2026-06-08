@@ -74,6 +74,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -479,6 +481,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -503,6 +507,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -607,12 +613,13 @@ function sbHeaders(token) {
 }
 
 function sbGet(key, token, cb) {
-  fetch(SUPABASE_URL + '/rest/v1/user_data?key=eq.' + encodeURIComponent(key) + '&select=value', {
-    headers: sbHeaders(token)
-  })
+  var uid = SB_SESSION && SB_SESSION.user ? SB_SESSION.user.id : null;
+  var url = SUPABASE_URL + '/rest/v1/user_data?key=eq.' + encodeURIComponent(key) + '&select=value';
+  if (uid) url += '&user_id=eq.' + encodeURIComponent(uid);
+  fetch(url, { headers: sbHeaders(token) })
   .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
   .then(function(rows) { cb(null, rows.length ? rows[0].value : null); })
-  .catch(function(e)  { cb(e, null); });
+  .catch(function(e) { cb(e, null); });
 }
 
 function sbSet(key, value, token, cb) {
@@ -814,6 +821,15 @@ function saveTags() {
   sbScheduleWrite(TAGS_KEY, SESSION_TAGS);
 }
 
+function loadNotes() {
+  try {
+    var raw = _store[NOTES_KEY];
+    if (!raw) return;
+    var o = typeof raw==='string' ? JSON.parse(raw) : raw;
+    if (o) SESSION_NOTES = o;
+  } catch(e) {}
+}
+
 function saveNotes() {
   _store[NOTES_KEY] = SESSION_NOTES;
   sbScheduleWrite(NOTES_KEY, SESSION_NOTES);
@@ -828,9 +844,10 @@ function clearAllStorage() {
   if (!confirm('Reset all your saved sessions back to the 5 pre-loaded ones?')) return;
   var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY];
   keys.forEach(function(k) { sbDel(k, sbToken()); delete _store[k]; });
-  SESSIONS = SEED_SESSIONS.map(function(s) { return JSON.parse(JSON.stringify(s)); });
+  SESSIONS = [];
   SESSION_TAGS = {}; SESSION_NOTES = {}; WEEKLY_PLANS = {};
-  SEL = SESSIONS[SESSIONS.length-1].date;
+  SEL = null;
+  recompute();
   refresh();
 }
 
@@ -3341,7 +3358,11 @@ function _loadUserData(cb) {
   keys.forEach(function(k) {
     sbGet(k, sbToken(), function(err2, val) {
       if (!err2 && val !== null) _store[k] = val;
-      if (++loaded === keys.length) cb();
+      if (++loaded === keys.length) {
+        console.log('[boot] _loadUserData complete. Keys with data:',
+          Object.keys(_store).filter(function(k){var v=_store[k];return v!=null&&(Array.isArray(v)?v.length:Object.keys(v||{}).length)>0;}));
+        cb();
+      }
     });
   });
 }
@@ -4572,6 +4593,8 @@ function startDrag(srcWrap, containerEl, s, startY) {
   document.addEventListener('touchmove', tm, {passive: false});
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 </script>
