@@ -65,6 +65,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -461,6 +462,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -485,6 +487,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -731,6 +734,32 @@ function sbScheduleWrite(key, value) {
 }
 
 /* Override the storage functions used throughout the app */
+function sessionDetailKey(date) {
+  return 'clubby_session_' + date;
+}
+
+function saveSessionDetail(session) {
+  var detail = { strokes: session.strokes||[], intervals: session.intervals||[] };
+  sbScheduleWrite(sessionDetailKey(session.date), detail);
+}
+
+function loadAllSessionDetails(sessions, cb) {
+  if (!sessions || !sessions.length) { cb(); return; }
+  var pending = sessions.length;
+  sessions.forEach(function(s) {
+    sbGet(sessionDetailKey(s.date), sbToken(), function(err, detail) {
+      if (!err && detail) {
+        s.strokes   = detail.strokes   || [];
+        s.intervals = detail.intervals || [];
+      } else {
+        s.strokes   = s.strokes   || [];
+        s.intervals = s.intervals || [];
+      }
+      if (--pending === 0) cb();
+    });
+  });
+}
+
 function loadPersistedData(cb) {
   /* Session token already restored by DOMContentLoaded bootstrap */
   if (!sbToken()) { showAuthScreen(); return; }
@@ -997,14 +1026,17 @@ function bootApp() {
     }).join('');
   }
   loadPersistedData(function() {
-    loadFromStorage(); loadTags(); loadNotes(); loadWeeklyPlans();
-    loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
-    loadStripConfig(); loadFocusOrder(); loadZones();
-    SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
-    addSignOutButton();
-    fetchAllWeather(function() { renderStrip(); refresh(); });
-    /* Compute tides after first render so UI isn't blocked */
-    setTimeout(computeAllTides, 200);
+    loadFromStorage();
+    /* Load stroke details for all sessions */
+    loadAllSessionDetails(SESSIONS, function() {
+      loadTags(); loadNotes(); loadWeeklyPlans();
+      loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
+      loadStripConfig(); loadFocusOrder(); loadZones();
+      SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
+      addSignOutButton();
+      fetchAllWeather(function() { renderStrip(); refresh(); });
+      setTimeout(computeAllTides, 200);
+    });
   });
 }
 
@@ -1085,14 +1117,7 @@ var FOCUS_STYLES = (function(){
 }());
 
 
-const ZONE_DEFS=[
-  {id:'seg_S',label:'South Harbor',latLo:36.9545,latHi:36.9583,color:'#b8a9c9'},
-  {id:'seg_C',label:'Central Channel',latLo:36.9583,latHi:36.9621,color:'#9b8bb8'},
-  {id:'seg_N',label:'North Channel',latLo:36.9621,latHi:36.9659,color:'#7c6fa0'},
-  {id:'seg_NE',label:'North End',latLo:36.9659,latHi:36.9697,color:'#6b5c8c'},
-];
-const CORR_LAT_LO=36.955,CORR_LAT_HI=36.969;
-const GRID_LAT=0.00045,GRID_LON=0.00056;
+const GRID_LAT=0.00045,GRID_LON=0.00056;  /* ~50m grid cells */
 function cellKey(lt,ln){return((Math.round(lt/GRID_LAT)&0xFFFF)<<16)|(Math.round(ln/GRID_LON)&0xFFFF);}
 const DCOLS=['#7c6fa0','#c08bc0','#e8a4bd','#9bbdd4','#7dbfa8','#b09dd4','#e8c4a4','#a4c4e8'];
 const DLABELS={};
@@ -3292,21 +3317,14 @@ function drawDownwindTrend(g){
 }
 
 function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY];
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY,
+              CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY, FOCUS_ORDER_KEY, ZONES_KEY];
   var loaded = 0;
   _store = {};
   keys.forEach(function(k) {
     sbGet(k, sbToken(), function(err2, val) {
       if (!err2 && val !== null) _store[k] = val;
-      if (++loaded === keys.length) {
-        /* Now load full stroke data for each session */
-        var sessions = _store[STORAGE_KEY] || [];
-        loadAllSessionDetails(sessions, function() {
-          /* Merge strokes back into _store */
-          _store[STORAGE_KEY] = sessions;
-          cb();
-        });
-      }
+      if (++loaded === keys.length) cb();
     });
   });
 }
@@ -3752,6 +3770,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
 
 </script>
 </body>
