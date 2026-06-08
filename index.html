@@ -68,6 +68,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -467,6 +469,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -491,6 +495,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -4036,6 +4042,326 @@ function parseFIT(arrayBuffer, filename, cb) {
     var result=_parseFITBuffer(view, bytes, filename);
     cb(null, result);
   } catch(e) { cb(e, null); }
+}
+
+
+
+
+
+
+/* ── Notes: set/get ── */
+function setNote(date, text) {
+  if (!text || !text.trim()) { delete SESSION_NOTES[date]; }
+  else { SESSION_NOTES[date] = text.trim(); }
+  saveNotes();
+}
+
+/* ── Date filter UI ── */
+function renderDateFilter(ss) {
+  var total = SESSIONS.length;
+  var filtered = ss.length;
+  var html = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
+  html += '<span style="font-size:11px;font-weight:800;color:var(--plum)">📆 Filter:</span>';
+  html += '<input type="date" id="filter-from" value="'+(FILTER_FROM||'')+'" '
+        + 'onchange="FILTER_FROM=this.value||null;refresh()" '
+        + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">';
+  html += '<span style="font-size:11px;color:var(--gm)">→</span>';
+  html += '<input type="date" id="filter-to" value="'+(FILTER_TO||'')+'" '
+        + 'onchange="FILTER_TO=this.value||null;refresh()" '
+        + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">';
+  if (FILTER_FROM||FILTER_TO) {
+    html += '<button onclick="FILTER_FROM=null;FILTER_TO=null;refresh()" '
+          + 'style="font-family:var(--font);font-size:11px;font-weight:800;padding:4px 10px;'
+          + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">✕ Clear</button>';
+    html += '<span style="font-size:11px;font-weight:700;color:var(--gm)">'+filtered+' of '+total+' sessions</span>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ── Card HTML helper (used by renderSessionCards) ── */
+function cardHTML(s, id) {
+  var f=getFocus(s), isDownwind=f&&f.id==='long-z2';
+  switch(id) {
+    case 'legs':      return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
+    case 'tide':      return renderTideCard(s);
+    case 'weather':   return renderWeatherCard(s);
+    case 'notes':     return renderNotesEditor(s);
+    case 'map':       return renderGPSMap(s);
+    case 'trim':      return renderTrimCard(s);
+    case 'speed':
+      return '<div class="card dnd-card" data-card-id="speed">'
+        +'<div class="ct-title">Speed profile</div>'
+        +'<div class="ct-sub">Per-stroke speed'+(s.hasHR?' · ♥ HR':'')+'</div>'
+        +'<canvas id="sc-'+s.date+'" height="175" style="width:100%;display:block"></canvas></div>';
+    case 'intervals':
+      if (!s.intervals||s.intervals.length<2) return '';
+      return buildIntervalsTable(s);
+    default: return '';
+  }
+}
+
+/* ── Intervals table ── */
+function buildIntervalsTable(s) {
+  if (!s.intervals||!s.intervals.length) return '';
+  var rows = s.intervals.map(function(iv, i) {
+    return '<tr>'
+      +'<td style="font-weight:800;color:var(--plum)">#'+(i+1)+'</td>'
+      +'<td>'+iv.elapsed+'</td>'
+      +'<td style="font-weight:800;color:var(--plum)">'+(iv.avgSpeed||0).toFixed(2)+' mph</td>'
+      +'<td>'+(iv.avgSR||0).toFixed(0)+' spm</td>'
+      +'<td>'+(iv.avgHR?iv.avgHR.toFixed(0)+' bpm':'—')+'</td>'
+      +'<td style="font-size:10px;color:var(--gm)">'+(iv.dist||0).toFixed(2)+' mi</td>'
+      +'</tr>';
+  }).join('');
+  return '<div class="card dnd-card" data-card-id="intervals">'
+    +'<div class="ct-title">⚡ Intervals</div>'
+    +'<div class="ct-sub">'+s.intervals.length+' pieces detected</div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--font)">'
+    +'<thead><tr style="color:var(--gm);font-size:10px;font-weight:800;text-transform:uppercase">'
+    +'<th style="padding:4px 6px;text-align:left">#</th>'
+    +'<th style="padding:4px 6px;text-align:left">Elapsed</th>'
+    +'<th style="padding:4px 6px;text-align:left">Speed</th>'
+    +'<th style="padding:4px 6px;text-align:left">SR</th>'
+    +'<th style="padding:4px 6px;text-align:left">HR</th>'
+    +'<th style="padding:4px 6px;text-align:left">Dist</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div></div>';
+}
+
+/* ── Legs card ── */
+function renderLegsCard(s) {
+  var legs = detectLegs(s);
+  if (!legs||!legs.length) return '<div class="card dnd-card" data-card-id="legs"><div class="ct-title">🚣 Legs</div><div class="ct-sub" style="padding:12px 0;color:var(--gm)">Not enough GPS data to detect legs.</div></div>';
+  var rows = legs.map(function(lg, i) {
+    var f=getFocus(s), col=f?f.color:'var(--plum)';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--lav-lt)">'
+      +'<div style="font-size:10px;font-weight:800;color:var(--gm);width:18px">'+(i+1)+'</div>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:12px;font-weight:800;color:'+col+'">'+lg.avgSpeed.toFixed(2)+' mph</div>'
+      +'<div style="font-size:10px;color:var(--gm)">'+lg.dist.toFixed(2)+' mi · '+lg.elapsed+'</div>'
+      +'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:var(--gt)">'+lg.avgSR.toFixed(0)+' spm</div>'
+      +'</div>';
+  }).join('');
+  return '<div class="card dnd-card" data-card-id="legs"><div class="ct-title">🚣 Session Legs</div>'
+    +'<div class="ct-sub">'+legs.length+' legs detected from GPS track</div>'+rows+'</div>';
+}
+
+/* ── Tide card ── */
+function renderTideCard(s) {
+  var tide = s._tide;
+  var html = '<div class="card dnd-card" data-card-id="tide">';
+  html += '<div class="ct-title">🌊 Tides — '+(tide&&tide.station?tide.station:'—')+'</div>';
+  html += '<div class="ct-sub">MLLW datum · harmonic predictions · nearest NOAA station</div>';
+  if (!tide) {
+    html += '<div style="font-size:12px;font-weight:600;color:var(--gm);padding:8px 0">Computing tides…</div>';
+    html += '</div>'; return html;
+  }
+  var h = tide.interpHeight;
+  var trendIcon = tide.trend==='rising'?'↑ rising':'↓ falling';
+  var trendColor = tide.trend==='rising'?'#3a7abf':'#c9973d';
+  html += '<div class="sg g4" style="margin-bottom:12px">';
+  html += '<div class="sc"><div class="sl">Height at start</div>'
+        + '<div class="sv" style="color:var(--plum)">'+(h!=null?h.toFixed(1):'—')+'<span class="su2"> ft</span></div>'
+        + '<div style="font-size:9px;font-weight:700;color:'+trendColor+'">'+trendIcon+'</div></div>';
+  var tideEvents = tide.events || [];
+  var evGrid = Math.min(tideEvents.length, 4);
+  if (evGrid) {
+    html += '</div><div style="display:grid;grid-template-columns:repeat('+evGrid+',1fr);gap:8px">';
+    tideEvents.forEach(function(ev) {
+      var isHigh = ev.type==='H';
+      html += '<div class="sc" style="background:'+(isHigh?'#daeef8':'#fff8ec')+';border-color:'+(isHigh?'#9bbdd4':'#f5a623')+'40">'
+        +'<div class="sl">'+(isHigh?'High':'Low')+'</div>'
+        +'<div class="sv" style="font-size:16px">'+(ev.height!=null?ev.height.toFixed(1):'—')+'<span class="su2"> ft</span></div>'
+        +'<div style="font-size:9px;font-weight:700;color:var(--gm)">'+ev.time+'</div>'
+        +'</div>';
+    });
+  }
+  html += '</div></div>';
+  return html;
+}
+
+/* ── Notes editor ── */
+function renderNotesEditor(s) {
+  var note = getNote(s.date);
+  var onInput = 'onNoteInput(event,' + JSON.stringify(s.date) + ')';
+  return '<div class="card dnd-card" data-card-id="notes">'
+    +'<div class="ct-title">📝 Notes</div>'
+    +'<div class="ct-sub">Session notes — saved automatically</div>'
+    +'<textarea oninput="'+onInput+'" placeholder="Add notes about this session…" '
+    +'style="width:100%;min-height:80px;font-family:var(--font);font-size:12px;'
+    +'font-weight:600;padding:10px;border-radius:10px;border:1.5px solid var(--lav);'
+    +'background:var(--lilac2);color:var(--ink);resize:vertical;box-sizing:border-box">'
+    +escHtml(note)+'</textarea></div>';
+}
+
+function onNoteInput(e, date) {
+  clearTimeout(onNoteInput._t);
+  var val = e.target.value;
+  onNoteInput._t = setTimeout(function(){ setNote(date, val); }, 600);
+}
+
+/* ── Strip DnD ── */
+function attachStripDrag(strip) {
+  Array.from(strip.querySelectorAll('.ic[data-cell-id]')).forEach(function(cell) {
+    var handle = cell.querySelector(':scope > .drag-handle');
+    if (!handle) return;
+    handle.addEventListener('mousedown', function(e){ e.preventDefault(); startStripDrag(cell,strip,e.clientX); });
+    handle.addEventListener('touchstart', function(e){ e.preventDefault(); startStripDrag(cell,strip,e.touches[0].clientX); },{passive:false});
+  });
+}
+
+function startStripDrag(srcCell, strip, startX) {
+  var srcRect=srcCell.getBoundingClientRect(), offsetX=startX-srcRect.left;
+  srcCell.classList.add('dnd-dragging');
+  function onMove(x) {
+    var target=null;
+    Array.from(strip.querySelectorAll('.ic[data-cell-id]:not(.dnd-dragging)')).forEach(function(c){
+      var r=c.getBoundingClientRect(); if(x>=r.left&&x<=r.right) target=c;
+    });
+    if(target){var ti=Array.from(strip.children).indexOf(target),si=Array.from(strip.children).indexOf(srcCell);
+      if(ti>si)strip.insertBefore(srcCell,target.nextSibling);else strip.insertBefore(srcCell,target);}
+  }
+  function onEnd() {
+    srcCell.classList.remove('dnd-dragging');
+    var order=Array.from(strip.querySelectorAll('.ic[data-cell-id]')).map(function(c){return c.dataset.cellId;});
+    STRIP_CONFIG=STRIP_CONFIG||defaultStripConfig(); STRIP_CONFIG.order=order;
+    saveStripConfig();
+    document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu);
+    document.removeEventListener('touchmove',tm); document.removeEventListener('touchend',tu);
+  }
+  function mm(e){onMove(e.clientX);} function mu(){onEnd();}
+  function tm(e){e.preventDefault();onMove(e.touches[0].clientX);} function tu(){onEnd();}
+  document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
+  document.addEventListener('touchmove',tm,{passive:false}); document.addEventListener('touchend',tu);
+}
+
+/* ── Strip cell data ── */
+function getStripCellData(id) {
+  var ss=SESSIONS, n=ss.length;
+  if (!n) return null;
+  var last=ss[ss.length-1];
+  var COMPUTED = window._COMPUTED||{};
+  switch(id) {
+    case 'dist': {
+      var tot=ss.reduce(function(a,s){return a+s.totalDist;},0);
+      return {label:'Total Dist',value:tot.toFixed(1),sub:'miles'};
+    }
+    case 'speed': {
+      var best=ss.reduce(function(m,s){return s.avgSpeed>m.avgSpeed?s:m;});
+      return {label:'Best Speed',value:best.avgSpeed.toFixed(2),sub:'mph · '+dateLabel(best.date)};
+    }
+    case 'sr': {
+      var avgSR=ss.reduce(function(a,s){return a+(s.avgStrokeRate||0);},0)/n;
+      return {label:'Avg SR',value:avgSR.toFixed(0),sub:'spm'};
+    }
+    case 'hr': {
+      var hrSess=ss.filter(function(s){return s.avgHR&&s.avgHR>0;});
+      if(!hrSess.length) return null;
+      var avgHR=hrSess.reduce(function(a,s){return a+s.avgHR;},0)/hrSess.length;
+      return {label:'Avg HR',value:avgHR.toFixed(0),sub:'bpm · '+hrSess.length+' sessions'};
+    }
+    case 'sessions': return {label:'Sessions',value:String(n),sub:'total uploaded'};
+    case 'tide': {
+      var ts=ss.filter(function(s){return s._tide&&s._tide.interpHeight!=null;});
+      if(!ts.length) return {label:'Tide',value:'—',sub:'computing…'};
+      var lt=ts[ts.length-1];
+      return {label:'Last Tide',value:lt._tide.interpHeight.toFixed(1)+'ft',sub:lt._tide.trend||''};
+    }
+    default: return null;
+  }
+}
+
+/* ── Strip editor ── */
+function openStripEditor() {
+  var cfg=getStripConfig();
+  var ALL=['dist','speed','sr','hr','sessions','tide'];
+  var LABELS={'dist':'Distance','speed':'Best Speed','sr':'Stroke Rate','hr':'Heart Rate','sessions':'Sessions','tide':'Tide'};
+  var html='<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:flex-end;justify-content:center">'
+    +'<div style="background:var(--white);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:70vh;overflow-y:auto">'
+    +'<div class="ct-title" style="margin-bottom:12px">✦ Customise strip</div>';
+  ALL.forEach(function(id){
+    var on=cfg.order.indexOf(id)>=0;
+    html+='<label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">'
+      +'<input type="checkbox" '+(on?'checked':'')+' onchange="toggleStripCell(\''+id+'\',this.checked)" style="width:16px;height:16px">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--ink)">'+LABELS[id]+'</span></label>';
+  });
+  html+='<button onclick="document.getElementById(\'strip-editor-overlay\').remove()" '
+    +'style="margin-top:12px;font-family:var(--font);font-size:13px;font-weight:800;padding:10px 24px;'
+    +'border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer;width:100%">Done</button>'
+    +'</div></div>';
+  var el=document.createElement('div'); el.id='strip-editor-overlay'; el.innerHTML=html;
+  document.body.appendChild(el);
+}
+
+function toggleStripCell(id, on) {
+  var cfg=getStripConfig(); STRIP_CONFIG=cfg;
+  if(on && cfg.order.indexOf(id)<0) cfg.order.push(id);
+  else if(!on) cfg.order=cfg.order.filter(function(x){return x!==id;});
+  saveStripConfig(); renderStrip();
+}
+
+/* ── FIT parser (native, no CDN) ── */
+function _parseFITBuffer(view, bytes, filename) {
+  var headerSize=bytes[0], dataSize=view.getUint32(4,true);
+  var pos=headerSize, end=headerSize+dataSize;
+  var definitions={}, sessions=[], records=[], laps=[];
+  var EPOCH=631065600000;
+  function readVal(p,sz,base,be){
+    try{
+      if(sz===1){var v=bytes[p];return v===0xFF?null:v;}
+      if(sz===2){var v=view.getUint16(p,!be);return v===0xFFFF?null:v;}
+      if(sz===4){var v=view.getUint32(p,!be);return v===0xFFFFFFFF?null:v;}
+      return bytes[p];
+    }catch(e){return null;}
+  }
+  while(pos<end&&pos<bytes.length){
+    var hdr=bytes[pos];
+    if(hdr&0x80){pos++;continue;}
+    var isDef=!!(hdr&0x40),hasDev=!!(hdr&0x20),localNum=hdr&0x0F; pos++;
+    if(isDef){
+      pos++;
+      var be=bytes[pos]===1; pos++;
+      var gn=be?view.getUint16(pos,false):view.getUint16(pos,true); pos+=2;
+      var fc=bytes[pos++], fields=[];
+      for(var fi=0;fi<fc;fi++){fields.push({num:bytes[pos],size:bytes[pos+1],base:bytes[pos+2]});pos+=3;}
+      if(hasDev){var dc=bytes[pos++];pos+=dc*3;}
+      definitions[localNum]={gn:gn,be:be,fields:fields};
+    } else {
+      var def=definitions[localNum]; if(!def){pos++;continue;}
+      var rowSz=0; for(var fi=0;fi<def.fields.length;fi++) rowSz+=def.fields[fi].size;
+      if(pos+rowSz>bytes.length){pos+=rowSz;continue;}
+      var row={};
+      for(var fi=0;fi<def.fields.length;fi++){var f=def.fields[fi];row[f.num]=readVal(pos,f.size,f.base,def.be);pos+=f.size;}
+      if(def.gn===20)records.push(row);
+      else if(def.gn===18)sessions.push(row);
+    }
+  }
+  /* Convert to session object */
+  function sc2d(sc){if(sc==null)return null;if(sc>0x7FFFFFFF)sc-=0x100000000;return sc*(180/Math.pow(2,31));}
+  function ts2d(ts){return ts!=null?new Date(EPOCH+ts*1000):null;}
+  function secsToStr(s){s=Math.round(s||0);return Math.floor(s/3600)+':'+String(Math.floor((s%3600)/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')+'.0';}
+  var sum=sessions[0]||{};
+  var startTs=sum[253]||sum[2]||null, endTs=null;
+  var recs=records.map(function(r){
+    var lat=sc2d(r[0]),lon=sc2d(r[1]);
+    var spd=r[6]!=null&&r[6]>0?r[6]/1000:null;
+    var ts=r[253];
+    return{lt:lat,ln:lon,s:spd?spd*2.23694:null,r:r[4]||null,h:r[3]||null,
+           e:ts!=null?secsToStr((ts-(startTs||ts))):null,i:1};
+  });
+  var speeds=recs.filter(function(r){return r.s&&r.s>0.3;}).map(function(r){return r.s;});
+  var avgSpd=speeds.length?speeds.reduce(function(a,b){return a+b;})/speeds.length:0;
+  var tsArr=records.map(function(r){return r[253];}).filter(Boolean);
+  var elapsedSecs=tsArr.length>=2?(Math.max.apply(null,tsArr)-Math.min.apply(null,tsArr)):0;
+  var firstGPS=recs.find(function(r){return r.lt&&r.ln;});
+  var dateKey=startTs?String(ts2d(startTs).getFullYear())+String(ts2d(startTs).getMonth()+1).padStart(2,'0')+String(ts2d(startTs).getDate()).padStart(2,'0'):'00000000';
+  var startTime=startTs?ts2d(startTs).toLocaleString('en-US',{hour12:false}).replace(',',''):'';
+  return{date:dateKey,startTime:startTime,sessionType:'Paddling',programName:filename||'',
+    avgSpeed:avgSpd,totalDist:avgSpd*elapsedSecs/3600,elapsed:secsToStr(elapsedSecs),
+    avgStrokeRate:0,avgHR:null,hasHR:false,intervals:[],strokes:recs,_source:'fit',
+    startLat:firstGPS?firstGPS.lt:null,startLon:firstGPS?firstGPS.ln:null};
 }
 
 
