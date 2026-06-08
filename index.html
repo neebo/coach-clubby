@@ -57,6 +57,13 @@
 
 
 
+
+
+
+
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -445,6 +452,13 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
+
+
+
+
 </style>
 </head>
 <body>
@@ -469,6 +483,13 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
+
+
+
 
 
 
@@ -3477,6 +3498,221 @@ function drawGPSMap(s, strokes, canvasEl) {
 
 
 
+
+
+
+/* ── Session craft selector ── */
+function renderCraftSelector(s) {
+  var craft = getCraft(s);
+  var opts = CRAFT_OPTIONS.map(function(c) {
+    return '<option value="'+c+'"'+(c===craft?' selected':'')+'>'+c+'</option>';
+  }).join('');
+  var onchange = "setSessionCraft('" + s.date + "',this.value)";
+  return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px">'
+    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🛶 Craft:</span>'
+    +'<select onchange="'+onchange+'" style="font-family:var(--font);font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'+opts+'</select>'
+    +(SESSION_CRAFTS[s.date]?'<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>':'')
+    +'</div>';
+}
+
+function setSessionCraft(date, craft) {
+  if (!craft || craft === (USER_PREFS.defaultCraft||'OC1')) {
+    delete SESSION_CRAFTS[date];
+  } else {
+    SESSION_CRAFTS[date] = craft;
+  }
+  saveSessionCrafts();
+  recompute();
+  refresh();
+}
+
+function setDefaultCraft(craft) {
+  USER_PREFS.defaultCraft = craft;
+  savePrefs();
+  showToast('🛶 Default craft set to '+craft, 'success');
+}
+
+function loadSessionCrafts() {
+  try {
+    var raw = _store[CRAFTS_KEY];
+    if (!raw) return;
+    var o = typeof raw==='string' ? JSON.parse(raw) : raw;
+    if (o) SESSION_CRAFTS = o;
+  } catch(e) {}
+}
+
+function saveSessionCrafts() {
+  _store[CRAFTS_KEY] = SESSION_CRAFTS;
+  sbScheduleWrite(CRAFTS_KEY, SESSION_CRAFTS);
+}
+
+function loadWeeklyPlans() {
+  try {
+    var raw = _store[PLAN_KEY];
+    if (!raw) return;
+    var o = typeof raw==='string' ? JSON.parse(raw) : raw;
+    if (o) WEEKLY_PLANS = o;
+  } catch(e) {}
+}
+
+function loadPrefs() {
+  try {
+    var raw = _store[PREFS_KEY];
+    if (!raw) return;
+    var o = typeof raw==='string' ? JSON.parse(raw) : raw;
+    if (o) USER_PREFS = Object.assign(USER_PREFS, o);
+  } catch(e) {}
+}
+
+function savePrefs() {
+  _store[PREFS_KEY] = USER_PREFS;
+  sbScheduleWrite(PREFS_KEY, USER_PREFS);
+}
+
+/* ── User preferences panel ── */
+function renderUserPrefs(el) {
+  if (!el) return;
+  var craft = USER_PREFS.defaultCraft || 'OC1';
+  var craftOpts = CRAFT_OPTIONS.map(function(c) {
+    return '<option value="'+c+'"'+(c===craft?' selected':'')+'>'+c+'</option>';
+  }).join('');
+  el.innerHTML = '<div class="card">'
+    +'<div class="ct-title">⚙️ Preferences</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+    +'<span style="font-size:12px;font-weight:800;color:var(--plum)">Default craft:</span>'
+    +'<select onchange="setDefaultCraft(this.value)" style="font-family:var(--font);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'+craftOpts+'</select>'
+    +'</div>'
+    +'</div>';
+}
+
+/* ── Weekly plan editor ── */
+function openNewPlan() {
+  var wk = isoWeek(new Date());
+  ACTIVE_PLAN_WEEK = wk;
+  if (!WEEKLY_PLANS[wk]) WEEKLY_PLANS[wk] = { days: {} };
+  renderPlansPage(document.getElementById('ct'));
+}
+
+function openPlanEditor(wk) {
+  ACTIVE_PLAN_WEEK = wk;
+  var el = document.getElementById('plan-editor-slot');
+  if (!el) { renderPlansPage(document.getElementById('ct')); return; }
+  var plan = WEEKLY_PLANS[wk] || { days: {} };
+
+  var weeks = Object.keys(WEEKLY_PLANS).sort().reverse();
+  if (weeks.indexOf(wk) < 0) weeks.unshift(wk);
+  var wkOpts = weeks.map(function(w) {
+    var d = weekMonday(w);
+    var isThisWeek = w === isoWeek(new Date());
+    var lbl = 'Week of ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+             + (isThisWeek ? ' (this week)' : '');
+    return '<option value="' + w + '"' + (w===wk?' selected':'') + '>' + lbl + '</option>';
+  }).join('');
+
+  var html = '<div class="card">'
+    + '<div class="ct-title">✏️ Edit week plan</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
+    + '<label style="font-size:12px;font-weight:800;color:var(--plum)">Week:</label>'
+    + '<select onchange="switchPlanWeek(this.value)" style="font-family:var(--font);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'
+    + wkOpts + '</select></div>';
+
+  PLAN_DAYS.forEach(function(d) {
+    var day = (plan.days || {})[d.dow] || {};
+    var selBlank = (!day.id || day.id==='') ? ' selected' : '';
+    var focusOpts = '<option value=""' + selBlank + '>— Rest / None —</option>';
+    focusOpts += FOCUS_OPTIONS.map(function(o) {
+      return '<option value="' + o.id + '"' + (o.id===day.id?' selected':'') + '>' + o.icon + ' ' + o.label + '</option>';
+    }).join('');
+    var onch = 'updatePlanDay(' + JSON.stringify(wk) + ',' + d.dow + ',this.value)';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--lilac2);border-radius:10px;margin-bottom:6px;flex-wrap:wrap">'
+      + '<span style="font-size:12px;font-weight:800;color:var(--plum);width:90px">' + d.name + '</span>'
+      + '<select onchange="' + onch + '" style="font-family:var(--font);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer;flex:1">'
+      + focusOpts + '</select></div>';
+  });
+
+  var saveOnch = 'savePlanFromEditor(' + JSON.stringify(wk) + ')';
+  var delOnch  = 'deletePlan(' + JSON.stringify(wk) + ')';
+  html += '<div style="display:flex;gap:8px;margin-top:12px">'
+    + '<button onclick="' + saveOnch + '" style="font-family:var(--font);font-size:11px;font-weight:800;padding:8px 18px;border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save plan</button>'
+    + '<button onclick="' + delOnch + '" style="font-family:var(--font);font-size:11px;font-weight:800;padding:8px 18px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">🗑 Delete</button>'
+    + '<button onclick="closePlanEditor()" style="font-family:var(--font);font-size:11px;font-weight:800;padding:8px 18px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Cancel</button>'
+    + '</div></div>';
+
+  el.innerHTML = html;
+}
+
+function closePlanEditor() {
+  ACTIVE_PLAN_WEEK = null;
+  var el = document.getElementById('plan-editor-slot');
+  if (el) el.innerHTML = '';
+}
+
+function updatePlanDay(wk, dow, focusId) {
+  if (!WEEKLY_PLANS[wk]) WEEKLY_PLANS[wk] = { days: {} };
+  if (!focusId) {
+    delete WEEKLY_PLANS[wk].days[dow];
+  } else {
+    var f = FOCUS_OPTIONS.find(function(o){return o.id===focusId;}) || null;
+    WEEKLY_PLANS[wk].days[dow] = f ? {id:f.id, label:f.label, icon:f.icon, color:f.color} : {};
+  }
+  saveWeeklyPlans();
+}
+
+function switchPlanWeek(wk) {
+  ACTIVE_PLAN_WEEK = wk;
+  openPlanEditor(wk);
+}
+
+function savePlanFromEditor(wk) {
+  saveWeeklyPlans();
+  showToast('Plan saved ✓', 'success');
+  closePlanEditor();
+  renderPlansPage(document.getElementById('ct'));
+}
+
+function deletePlan(wk) {
+  if (!confirm("Delete this week's plan?")) return;
+  delete WEEKLY_PLANS[wk];
+  saveWeeklyPlans();
+  ACTIVE_PLAN_WEEK = null;
+  renderPlansPage(document.getElementById('ct'));
+  showToast('Plan deleted', 'success');
+}
+
+function renderPlanCard(wk, plan) {
+  var days = plan.days || {};
+  var dayOrder = [1,2,3,4,5,6,0];
+  var d = weekMonday(wk);
+  var isThisWeek = wk === isoWeek(new Date());
+  var weekStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  var html = '<div class="card" style="margin-bottom:12px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+  html += '<div class="ct-title" style="margin:0">📅 Week of ' + weekStr;
+  if (isThisWeek) html += ' <span style="font-size:10px;background:var(--plum);color:var(--white);padding:2px 7px;border-radius:99px">this week</span>';
+  html += '</div>';
+  html += '<button onclick="openPlanEditor(' + JSON.stringify(wk) + ')" '
+        + 'style="font-family:var(--font);font-size:10px;font-weight:800;padding:4px 12px;'
+        + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);'
+        + 'color:var(--plum);cursor:pointer">Edit</button>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+  dayOrder.forEach(function(dow) {
+    var day = days[dow];
+    var name = DOW_NAMES[dow];
+    var f = day && day.id ? (FOCUS_OPTIONS.find(function(o){return o.id===day.id;}) || day) : null;
+    var bg  = f ? (f.color + '22') : 'var(--lilac2)';
+    var col = f ? f.color : 'var(--gm)';
+    var lbl = f ? ((f.shortLabel || f.label || '').slice(0,6)) : 'Rest';
+    html += '<div style="background:' + bg + ';border-radius:8px;padding:6px 4px;text-align:center">';
+    html += '<div style="font-size:9px;font-weight:800;color:var(--gm);text-transform:uppercase">' + name + '</div>';
+    html += '<div style="font-size:14px;margin:2px 0">' + (f ? f.icon : '—') + '</div>';
+    html += '<div style="font-size:8px;font-weight:700;color:' + col + '">' + lbl + '</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
 
 
 </script>
