@@ -73,6 +73,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -477,6 +478,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -501,6 +503,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1054,6 +1057,7 @@ function bootApp() {
       loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
       loadStripConfig(); loadFocusOrder(); loadZones();
       SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
+      recompute();
       addSignOutButton();
       fetchAllWeather(function() { renderStrip(); refresh(); });
       setTimeout(computeAllTides, 200);
@@ -1750,7 +1754,19 @@ function drawSessChart(s){
   var c=document.getElementById('sc-'+s.date)||document.getElementById('sc');if(!c)return;
   var W=0,wEl=c;while(wEl&&W===0){W=wEl.offsetWidth;wEl=wEl.parentElement;}if(!W)W=600;
   var ctx=c.getContext('2d');c.width=W;var H=175;c.height=H;
-  var strokes=(s.strokes||[]).filter(function(x){return x.s&&x.s>0.3;});if(!strokes.length)return;
+  var strokes=(s.strokes||[]).filter(function(x){return x.s&&x.s>0.3;});
+  if(!strokes.length){
+    /* Strokes not yet loaded — fetch and redraw */
+    if(!s._loadingStrokes){
+      s._loadingStrokes=true;
+      sbGet(sessionDetailKey(s.date),sbToken(),function(err,detail){
+        s._loadingStrokes=false;
+        if(!err&&detail){s.strokes=detail.strokes||[];s.intervals=detail.intervals||[];}
+        if(s.strokes.length) drawSessChart(s);
+      });
+    }
+    return;
+  }
   var pad={t:20,r:18,b:26,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
   var speeds=strokes.map(function(x){return x.s;});
   var hrs=strokes.map(function(x){return x.h;}).filter(function(h){return h!=null;});
@@ -3593,18 +3609,18 @@ function savePrefs() {
 
 /* ── User preferences panel ── */
 function renderUserPrefs(el) {
-  if (!el) return;
   var craft = USER_PREFS.defaultCraft || 'OC1';
   var craftOpts = CRAFT_OPTIONS.map(function(c) {
     return '<option value="'+c+'"'+(c===craft?' selected':'')+'>'+c+'</option>';
   }).join('');
-  el.innerHTML = '<div class="card">'
+  var h = '<div class="card">'
     +'<div class="ct-title">⚙️ Preferences</div>'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
     +'<span style="font-size:12px;font-weight:800;color:var(--plum)">Default craft:</span>'
     +'<select onchange="setDefaultCraft(this.value)" style="font-family:var(--font);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">'+craftOpts+'</select>'
-    +'</div>'
-    +'</div>';
+    +'</div></div>';
+  if (el) { el.innerHTML = h; return; }
+  return h;
 }
 
 /* ── Weekly plan editor ── */
@@ -4556,6 +4572,7 @@ function startDrag(srcWrap, containerEl, s, startY) {
   document.addEventListener('touchmove', tm, {passive: false});
   document.addEventListener('touchend',  tu);
 }
+
 
 </script>
 </body>
