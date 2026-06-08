@@ -70,6 +70,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -471,6 +473,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -495,6 +499,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -4130,23 +4136,6 @@ function buildIntervalsTable(s) {
 }
 
 /* ── Legs card ── */
-function renderLegsCard(s) {
-  var legs = detectLegs(s);
-  if (!legs||!legs.length) return '<div class="card dnd-card" data-card-id="legs"><div class="ct-title">🚣 Legs</div><div class="ct-sub" style="padding:12px 0;color:var(--gm)">Not enough GPS data to detect legs.</div></div>';
-  var rows = legs.map(function(lg, i) {
-    var f=getFocus(s), col=f?f.color:'var(--plum)';
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--lav-lt)">'
-      +'<div style="font-size:10px;font-weight:800;color:var(--gm);width:18px">'+(i+1)+'</div>'
-      +'<div style="flex:1">'
-      +'<div style="font-size:12px;font-weight:800;color:'+col+'">'+lg.avgSpeed.toFixed(2)+' mph</div>'
-      +'<div style="font-size:10px;color:var(--gm)">'+lg.dist.toFixed(2)+' mi · '+lg.elapsed+'</div>'
-      +'</div>'
-      +'<div style="font-size:10px;font-weight:700;color:var(--gt)">'+lg.avgSR.toFixed(0)+' spm</div>'
-      +'</div>';
-  }).join('');
-  return '<div class="card dnd-card" data-card-id="legs"><div class="ct-title">🚣 Session Legs</div>'
-    +'<div class="ct-sub">'+legs.length+' legs detected from GPS track</div>'+rows+'</div>';
-}
 
 /* ── Tide card ── */
 function renderTideCard(s) {
@@ -4362,6 +4351,132 @@ function _parseFITBuffer(view, bytes, filename) {
     avgSpeed:avgSpd,totalDist:avgSpd*elapsedSecs/3600,elapsed:secsToStr(elapsedSecs),
     avgStrokeRate:0,avgHR:null,hasHR:false,intervals:[],strokes:recs,_source:'fit',
     startLat:firstGPS?firstGPS.lt:null,startLon:firstGPS?firstGPS.ln:null};
+}
+
+
+
+
+
+/* ── Detect session legs from GPS track ── */
+function detectLegs(s) {
+  var strokes = (s.strokes||[]).filter(function(st){
+    return st.lt && st.ln && Math.abs(st.lt) > 1;
+  });
+  if (strokes.length < 20) return [];
+  /* Split into outbound/return by finding the turnaround point (max distance from start) */
+  var s0 = strokes[0];
+  var maxDist = 0, turnIdx = 0;
+  strokes.forEach(function(st, i) {
+    var dlat = st.lt - s0.lt, dlon = (st.ln - s0.ln) * Math.cos(s0.lt * Math.PI/180);
+    var d = Math.sqrt(dlat*dlat + dlon*dlon);
+    if (d > maxDist) { maxDist = d; turnIdx = i; }
+  });
+  if (turnIdx < 5 || turnIdx > strokes.length - 5) return [];
+  var legs = [strokes.slice(0, turnIdx+1), strokes.slice(turnIdx)];
+  return legs.map(function(leg, i) {
+    var speeds = leg.map(function(st){return st.s||0;}).filter(function(v){return v>0.3;});
+    var srs    = leg.map(function(st){return st.r||0;}).filter(Boolean);
+    var hrs    = leg.map(function(st){return st.h||0;}).filter(Boolean);
+    var avgSpd = speeds.length ? speeds.reduce(function(a,b){return a+b;})/speeds.length : 0;
+    var avgSR  = srs.length   ? srs.reduce(function(a,b){return a+b;})/srs.length : 0;
+    var avgHR  = hrs.length   ? hrs.reduce(function(a,b){return a+b;})/hrs.length : null;
+    var dist   = avgSpd * leg.length / 600; /* rough estimate: N strokes at ~10/min */
+    var elapsed = leg.length > 1
+      ? (function(){var e=leg[leg.length-1].e||'0:00:00.0',s2=leg[0].e||'0:00:00.0';return e;}())
+      : '—';
+    return { leg: i+1, avgSpeed: +avgSpd.toFixed(3), avgSR: +avgSR.toFixed(1),
+             avgHR: avgHR ? +avgHR.toFixed(0) : null, dist: +dist.toFixed(2), elapsed: elapsed };
+  });
+}
+
+/* ── Render legs card (flatwater sessions) ── */
+function renderLegsCard(s) {
+  var legs = detectLegs(s);
+  if (!legs || !legs.length) {
+    return '<div class="card dnd-card" data-card-id="legs">'
+      + '<div class="ct-title">🚣 Legs</div>'
+      + '<div class="ct-sub" style="padding:12px 0;color:var(--gm)">Not enough GPS data to detect legs.</div>'
+      + '</div>';
+  }
+  var f = getFocus(s), col = f ? f.color : 'var(--plum)';
+  var rows = legs.map(function(lg) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--lav-lt)">'
+      + '<div style="font-size:10px;font-weight:800;color:var(--gm);width:18px">' + lg.leg + '</div>'
+      + '<div style="flex:1">'
+      + '<div style="font-size:12px;font-weight:800;color:' + col + '">' + lg.avgSpeed.toFixed(2) + ' mph</div>'
+      + '<div style="font-size:10px;color:var(--gm)">' + lg.dist.toFixed(2) + ' mi · ' + lg.elapsed + '</div>'
+      + '</div>'
+      + '<div style="font-size:10px;font-weight:700;color:var(--gt)">' + lg.avgSR.toFixed(0) + ' spm</div>'
+      + (lg.avgHR ? '<div style="font-size:10px;font-weight:700;color:#c0406a">' + lg.avgHR + ' bpm</div>' : '')
+      + '</div>';
+  }).join('');
+  return '<div class="card dnd-card" data-card-id="legs">'
+    + '<div class="ct-title">🚣 Session Legs</div>'
+    + '<div class="ct-sub">' + legs.length + ' legs detected from GPS</div>'
+    + rows + '</div>';
+}
+
+/* ── Detect downwind runs ── */
+function detectDownwindRuns(s) {
+  var strokes = (s.strokes||[]).filter(function(st){
+    return st.lt && st.ln && st.s && st.s > 0.3;
+  });
+  if (strokes.length < 10) return [];
+  /* Find stretches where speed is above session median */
+  var speeds = strokes.map(function(st){return st.s;}).sort(function(a,b){return a-b;});
+  var median = speeds[Math.floor(speeds.length/2)];
+  var runs = [], inRun = false, runStart = 0;
+  strokes.forEach(function(st, i) {
+    if (st.s > median * 1.1 && !inRun) { inRun = true; runStart = i; }
+    else if (st.s <= median * 1.1 && inRun) {
+      inRun = false;
+      if (i - runStart >= 5) runs.push(strokes.slice(runStart, i));
+    }
+  });
+  if (inRun && strokes.length - runStart >= 5) runs.push(strokes.slice(runStart));
+  return runs.slice(0, 8).map(function(run, i) {
+    var speeds2 = run.map(function(st){return st.s;});
+    var avgSpd  = speeds2.reduce(function(a,b){return a+b;})/speeds2.length;
+    var maxSpd  = Math.max.apply(null, speeds2);
+    var srs     = run.map(function(st){return st.r||0;}).filter(Boolean);
+    var avgSR   = srs.length ? srs.reduce(function(a,b){return a+b;})/srs.length : 0;
+    return { run: i+1, avgSpeed: +avgSpd.toFixed(3), maxSpeed: +maxSpd.toFixed(3),
+             avgSR: +avgSR.toFixed(1), count: run.length };
+  });
+}
+
+/* ── Render downwind card (long-z2 sessions) ── */
+function renderDownwindCard(s) {
+  var runs = detectDownwindRuns(s);
+  var f = getFocus(s), col = (f && f.color) ? f.color : '#9bbdd4';
+
+  if (!runs || !runs.length) {
+    return '<div class="card dnd-card" data-card-id="legs">'
+      + '<div class="ct-title">🌊 Downwind Runs</div>'
+      + '<div class="ct-sub" style="padding:12px 0;color:var(--gm)">No significant downwind runs detected.</div>'
+      + '</div>';
+  }
+
+  var best = runs.reduce(function(m, r){ return r.avgSpeed > m.avgSpeed ? r : m; });
+  var rows = runs.map(function(r) {
+    var isBest = r.run === best.run;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;'
+      + 'border-bottom:1px solid var(--lav-lt);'
+      + (isBest ? 'background:' + col + '11;border-radius:6px;padding:7px 8px;margin:-7px -8px 0;' : '') + '">'
+      + '<div style="font-size:10px;font-weight:800;color:var(--gm);width:22px">R' + r.run + '</div>'
+      + '<div style="flex:1">'
+      + '<div style="font-size:12px;font-weight:800;color:' + col + '">' + r.avgSpeed.toFixed(2) + ' mph avg</div>'
+      + '<div style="font-size:10px;color:var(--gm)">Peak: ' + r.maxSpeed.toFixed(2) + ' mph · ' + r.count + ' strokes</div>'
+      + '</div>'
+      + '<div style="font-size:10px;font-weight:700;color:var(--gt)">' + r.avgSR.toFixed(0) + ' spm</div>'
+      + (isBest ? '<span style="font-size:9px;font-weight:900;color:' + col + '">★ best</span>' : '')
+      + '</div>';
+  }).join('');
+
+  return '<div class="card dnd-card" data-card-id="legs">'
+    + '<div class="ct-title">🌊 Downwind Runs</div>'
+    + '<div class="ct-sub">' + runs.length + ' runs detected · best avg ' + best.avgSpeed.toFixed(2) + ' mph</div>'
+    + rows + '</div>';
 }
 
 
