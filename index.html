@@ -55,6 +55,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -441,6 +443,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -465,6 +469,12 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
+
+
 
 
 
@@ -1011,7 +1021,9 @@ var ACTIVE_PLAN_WEEK = null; /* currently-editing week key */
 /* ── Day / session state globals ── */
 var SEL      = null;   /* selected session date string */
 var SEG_TAB  = 'corridor'; /* active segments sub-tab */
-var WW_VIS   = {seg_S:true,seg_C:true,seg_N:true,seg_NE:true};
+var WW_VIS     = {};
+var USER_ZONES = [];
+var ZONES_KEY  = 'clubby_zones';
 
 /* ── Overview widget order ── */
 var OV_WIDGET_ORDER = null;  /* null = use defaultOvOrder() */
@@ -2098,17 +2110,116 @@ function wxBadge(session){
   return html;
 }
 
-function wxExposureNote(session){
-  var wx=session._wx;
-  if(!wx)return '';
-  var isOpenWater=session.startLon<-122.01;
-  var windMph=wx.windSpeed||0;
-  var notes=[];
-  if(windMph>12) notes.push('strong headwind/tailwind likely');
-  else if(windMph>6) notes.push('moderate wind effect');
-  else notes.push('light wind — good comparison day');
-  if(wx.waveHeight!=null&&wx.waveHeight>0.3) notes.push('chop present');
-  if(isOpenWater) notes.push('open water exposure');
+function windDirRelative(windDeg, headingDeg) {
+  /* Returns angle between wind direction FROM and paddling heading
+     0 = straight headwind, 180 = tailwind, 90 = crosswind */
+  var diff = ((windDeg - headingDeg) + 360) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+function paddlingHeading(session) {
+  /* Estimate outbound heading from the first third of GPS strokes (more reliable than endpoints) */
+  var strokes = (session.strokes||[]).filter(function(s){
+    return s.lt && s.ln && Math.abs(s.lt) > 1;
+  });
+  if (strokes.length < 10) return null;
+  /* Use first third of stroke positions to get outbound heading */
+  var seg = strokes.slice(0, Math.max(10, Math.floor(strokes.length / 3)));
+  var dlat = seg[seg.length-1].lt - seg[0].lt;
+  var dlon = (seg[seg.length-1].ln - seg[0].ln) * Math.cos(seg[0].lt * Math.PI / 180);
+  if (Math.abs(dlat) < 0.0001 && Math.abs(dlon) < 0.0001) {
+    /* Too little movement — fall back to overall heading */
+    var last = strokes[strokes.length-1];
+    dlat = last.lt - strokes[0].lt;
+    dlon = (last.ln - strokes[0].ln) * Math.cos(strokes[0].lt * Math.PI / 180);
+  }
+  return (Math.atan2(dlon, dlat) * 180 / Math.PI + 360) % 360;
+}
+
+function swellDifficultyLabel(angleDeg, heightM, periodS) {
+  /* Returns {label, severity: 0-3, note} */
+  var h = heightM || 0;
+  var p = periodS || 0;
+  if (h < 0.15) return { label: 'Calm', severity: 0, note: 'Negligible swell' };
+
+  /* Swell energy proxy: height² × period */
+  var energy = h * h * p;
+  var hFt    = (h * 3.281).toFixed(1);
+  var hLabel = hFt + ' ft';
+  if (p > 0) hLabel += ' @ ' + p.toFixed(0) + 's';
+
+  var angle = ((angleDeg % 360) + 360) % 360;
+  if (angle > 180) angle = 360 - angle;   /* 0=head-on, 90=side, 180=following */
+
+  if (angle <= 30) {
+    /* Head-on or nearly head-on */
+    var sev = energy > 2 ? 3 : energy > 0.5 ? 2 : 1;
+    return { label: 'Head swell', severity: sev,
+      note: hLabel + ' swell — paddling into it. Expect significant resistance and hull pounding.' };
+  } else if (angle >= 150) {
+    /* Following */
+    var sev = energy > 3 ? 2 : 1;
+    return { label: 'Following swell', severity: Math.max(0,sev-1),
+      note: hLabel + ' following swell — can help on outbound, watch for broaching on return.' };
+  } else if (angle >= 60 && angle <= 120) {
+    /* Side swell — most fatiguing for stability */
+    var sev = energy > 1.5 ? 3 : energy > 0.4 ? 2 : 1;
+    return { label: 'Side swell', severity: sev,
+      note: hLabel + ' side swell — constant brace/stabilisation effort. Significantly higher energy cost than flat water.' };
+  } else if (angle < 60) {
+    var sev = energy > 1 ? 2 : 1;
+    return { label: 'Quartering head swell', severity: sev,
+      note: hLabel + ' quartering into swell — harder outbound, some relief on the return.' };
+  } else {
+    var sev = energy > 1 ? 1 : 0;
+    return { label: 'Quartering following swell', severity: sev,
+      note: hLabel + ' quartering following swell — manageable, slight speed boost downwind leg.' };
+  }
+}
+
+function wxExposureNote(session) {
+  var wx = session._wx;
+  if (!wx) return '';
+  var windMph  = wx.windSpeed || 0;
+  var heading  = paddlingHeading(session);
+  var notes    = [];
+
+  /* Wind analysis */
+  if (windMph > 15) {
+    if (heading != null) {
+      var wRel = windDirRelative(wx.windDir || 0, heading);
+      var wType = wRel < 40 ? 'headwind' : wRel > 140 ? 'tailwind' : 'crosswind';
+      notes.push('Strong ' + wType + ' (' + Math.round(windMph) + ' mph ' + windDirLabel(wx.windDir) + ')');
+    } else {
+      notes.push('Strong wind (' + Math.round(windMph) + ' mph ' + windDirLabel(wx.windDir) + ')');
+    }
+  } else if (windMph > 8) {
+    notes.push('Moderate wind (' + Math.round(windMph) + ' mph ' + windDirLabel(wx.windDir) + ')');
+  }
+
+  /* Wave/swell analysis */
+  if (wx.waveHeight != null && wx.waveHeight > 0.1) {
+    if (heading != null && wx.waveDir != null) {
+      var swellAngle = windDirRelative(wx.waveDir, heading);
+      var diff = swellDifficultyLabel(swellAngle, wx.waveHeight, wx.wavePeriod);
+      notes.push(diff.note);
+    } else {
+      var hFt = (wx.waveHeight * 3.281).toFixed(1) + ' ft';
+      if (wx.wavePeriod) hFt += ' @ ' + wx.wavePeriod.toFixed(0) + 's';
+      notes.push(hFt + ' swell — ' + windDirLabel(wx.waveDir) + ' direction');
+    }
+  }
+
+  /* Combined difficulty rating */
+  var totalSeverity = 0;
+  if (windMph > 20) totalSeverity += 2;
+  else if (windMph > 12) totalSeverity += 1;
+  if (wx.waveHeight && wx.waveHeight > 0.5) totalSeverity += 2;
+  else if (wx.waveHeight && wx.waveHeight > 0.2) totalSeverity += 1;
+  var diffLabel = totalSeverity >= 4 ? '🔴🔴 Extreme' : totalSeverity >= 3 ? '🔴 Hard'
+    : totalSeverity >= 2 ? '⚠️ Moderate' : totalSeverity >= 1 ? 'Manageable' : 'Flat water';
+  notes.push('Overall: ' + diffLabel);
+  if (!notes.length) notes.push('Light conditions — good comparison day');
   return notes.join(' · ');
 }
 
@@ -2173,1760 +2284,112 @@ function renderTagEditor(session){
     +'</div>';
 }
 function renderWeatherCard(session){
-  var wx=session._wx;
-  var isOpenWater=session.startLon<-122.01;
-  var html='<div class="card">';
-  html+='<div class="ct-title">🌬️ Session Conditions</div>';
-  html+='<div class="ct-sub">Open-Meteo ERA5 reanalysis · hourly at session location · '+(isOpenWater?'<b style="color:#f5a623">⚠ Open water</b>':'Harbour — sheltered')+'</div>';
+  var wx = session._wx;
+  var heading = paddlingHeading(session);
+  /* Open water = wave data available and meaningful (not suppressed by land) */
+  var hasWave = wx && wx.waveHeight != null && wx.waveHeight > 0.1;
+  var isOpenWater = hasWave || (session.startLon && Math.abs(session.startLon) > 10);
 
-  if(!wx){
-    html+='<div style="font-size:12px;font-weight:600;color:var(--gm);padding:8px 0">Fetching weather data…</div>';
-  } else {
-    var windColor=wx.windSpeed>12?'#a03060':wx.windSpeed>6?'#c9973d':'#2e7a4a';
-    html+='<div class="sg g4" style="margin-bottom:0">';
-    html+='<div class="sc"><div class="sl">Wind Speed</div><div class="sv" style="color:'+windColor+'">'+wx.windSpeed.toFixed(1)+'<span class="su2"> mph</span></div>'+(wx.windGust?'<div class="sn">gusts '+wx.windGust.toFixed(0)+' mph</div>':'')+'</div>';
-    html+='<div class="sc"><div class="sl">Wind Direction</div><div class="sv">'+windDirLabel(wx.windDir)+'</div><div class="sn">'+wx.windDir.toFixed(0)+'°</div></div>';
-    if(wx.waveHeight!=null){
-      html+='<div class="sc"><div class="sl">Wave Height</div><div class="sv">'+(wx.waveHeight>0.05?wx.waveHeight.toFixed(2):'—')+'<span class="su2">'+(wx.waveHeight>0.05?' m':'</span><div class="sn">sheltered / no data</div>')+'</span></div></div>';
-    }
-    var note=wxExposureNote(session);
-    if(note) html+='<div class="sc"><div class="sl">Conditions note</div><div style="font-size:11px;font-weight:700;color:var(--gt);margin-top:4px;line-height:1.6">'+note+'</div></div>';
-    html+='</div>';
-  }
-  html+='</div>';
-  return html;
-}
+  var html = '<div class="card dnd-card" data-card-id="weather">';
+  html += '<div class="ct-title">🌬️ Session Conditions</div>';
+  html += '<div class="ct-sub">Open-Meteo ERA5 reanalysis · hourly at session GPS · ';
+  html += (isOpenWater ? '<b style="color:#3a7abf">open water</b>' : 'nearshore') + '</div>';
 
-/* Compact weather for overview table cells */
-function wxCell(session){
-  var wx=session._wx;
-  if(!wx)return '…';
-  return '💨 '+wx.windSpeed.toFixed(0)+' mph '+windDirLabel(wx.windDir);
-}
-
-
-/* ═══════════════════════════════════════════
-   SESSION NOTES
-   Stored in localStorage: pawddle_notes
-   { "20260509": "Exceptional upwind resistance returning to shore..." }
-═══════════════════════════════════════════ */
-
-var SESSION_NOTES = {};
-
-function loadNotes(){
-  try{
-    var raw=_store[NOTES_KEY];
-    if(!raw)return;
-    var stored=typeof raw==='string'?JSON.parse(raw):raw;
-    if(stored){SESSION_NOTES=stored;}
-  }catch(e){}
-}
-function setNote(date, text) {
-  if (text && text.trim()) SESSION_NOTES[date] = text.trim();
-  else delete SESSION_NOTES[date];
-  saveNotes();
-}
-function getNote(date) { return SESSION_NOTES[date] || ''; }
-
-function renderNotesEditor(session) {
-  var note = getNote(session.date);
-  var html = '<div style="background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:12px;padding:14px 16px;margin-bottom:14px">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-  html += '<span style="font-size:11px;font-weight:800;color:var(--plum)">📝 Session Notes</span>';
-  html += '<span style="font-size:10px;font-weight:600;color:var(--gm)">saved automatically</span>';
-  html += '</div>';
-  html += '<textarea id="sess-note-input" placeholder="e.g. Exceptional upwind resistance on the return leg. Wind felt stronger than forecast suggested…" '
-    + 'style="width:100%;min-height:72px;font-family:Nunito,sans-serif;font-size:12px;font-weight:600;color:var(--ink);'
-    + 'background:var(--white);border:1.5px solid var(--lav);border-radius:8px;padding:10px 12px;resize:vertical;'
-    + 'line-height:1.6;outline:none;" oninput="onNoteInput()">' + escHtml(note) + '</textarea>';
-  html += '<div style="font-size:10px;font-weight:600;color:var(--gm);margin-top:4px" id="note-save-status">'
-    + (note ? '✓ Note saved' : '') + '</div>';
-  html += '</div>';
-  return html;
-}
-
-function escHtml(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-var _noteTimer = null;
-function onNoteInput() {
-  clearTimeout(_noteTimer);
-  var el = document.getElementById('sess-note-input');
-  var statusEl = document.getElementById('note-save-status');
-  if (statusEl) statusEl.textContent = 'saving…';
-  _noteTimer = setTimeout(function() {
-    if (!el) return;
-    setNote(SEL, el.value);
-    if (statusEl) statusEl.textContent = el.value.trim() ? '✓ Note saved' : '';
-  }, 600);
-}
-
-/* ═══════════════════════════════════════════
-   LEG DETECTION
-   For any session with enough GPS coverage,
-   detect the turnaround point (farthest extent
-   along primary axis of travel) and split into
-   faster vs slower leg. Works for both E-W
-   open-water paddles and N-S harbour runs.
-═══════════════════════════════════════════ */
-function detectLegs(session) {
-  var strokes = session.strokes.filter(function(s) {
-    return s.lt && s.ln && s.s && s.s > 0.3;
-  });
-  if (strokes.length < 60) return null; // too short
-
-  var n = strokes.length;
-  var smoothWin = Math.min(40, Math.floor(n / 6));
-
-  // Smooth lat and lon
-  function rollingMean(arr, win) {
-    return arr.map(function(_, i) {
-      var i0 = Math.max(0, i - win); var i1 = Math.min(n - 1, i + win);
-      var sum = 0; var cnt = 0;
-      for (var j = i0; j <= i1; j++) { sum += arr[j]; cnt++; }
-      return sum / cnt;
-    });
+  if (!wx) {
+    html += '<div style="font-size:12px;font-weight:600;color:var(--gm);padding:8px 0">Fetching weather data…</div>';
+    html += '</div>'; return html;
   }
 
-  var lats = strokes.map(function(s) { return s.lt; });
-  var lons = strokes.map(function(s) { return s.ln; });
-  var smoothLat = rollingMean(lats, smoothWin);
-  var smoothLon = rollingMean(lons, smoothWin);
-
-  var latRange = Math.max.apply(null, smoothLat) - Math.min.apply(null, smoothLat);
-  var lonRange = Math.max.apply(null, smoothLon) - Math.min.apply(null, smoothLon);
-
-  // Adjust for approximate metres (1 deg lat ≈ 111km, 1 deg lon ≈ 88km at this lat)
-  var latRangeM = latRange * 111000;
-  var lonRangeM = lonRange * 88000;
-
-  var useLon = lonRangeM > latRangeM;
-  var coord = useLon ? smoothLon : smoothLat;
-  var startVal = coord[0];
-  var endVal = coord[n - 1];
-
-  // Find turnaround: if going west (lon decreasing), find min; going east find max
-  // Going away from shore = decreasing lon (moving west) OR decreasing lat (moving south)
-  var goingDecreasing = startVal > endVal;
-  var turnIdx;
-  if (goingDecreasing) {
-    // Find minimum
-    var minVal = coord[0]; turnIdx = 0;
-    for (var i = 1; i < n; i++) { if (coord[i] < minVal) { minVal = coord[i]; turnIdx = i; } }
-  } else {
-    var maxVal = coord[0]; turnIdx = 0;
-    for (var i = 1; i < n; i++) { if (coord[i] > maxVal) { maxVal = coord[i]; turnIdx = i; } }
-  }
-
-  // Require turnaround between 20% and 80% of session to be meaningful
-  var pct = turnIdx / n;
-  if (pct < 0.15 || pct > 0.85) return null;
-
-  var outStrokes = strokes.slice(0, turnIdx);
-  var inStrokes  = strokes.slice(turnIdx);
-
-  function legStats(leg) {
-    var speeds = leg.map(function(s) { return s.s; }).filter(function(v) { return v != null && v > 0.3; });
-    var srs    = leg.map(function(s) { return s.r; }).filter(function(v) { return v != null; });
-    if (!speeds.length) return null;
-    speeds.sort(function(a,b){return a-b;});
-    var mean = speeds.reduce(function(a,b){return a+b;},0) / speeds.length;
-    var p95  = speeds[Math.floor(speeds.length * 0.95)]; // 95th pct as "effective max" (excludes GPS spikes)
-    var trueMax = speeds[speeds.length - 1];
-    return {
-      avg:    mean,
-      p95:    p95,
-      max:    trueMax,
-      sr:     srs.length ? srs.reduce(function(a,b){return a+b;},0)/srs.length : null,
-      n:      speeds.length,
-      pct:    Math.round(pct * 100),
-    };
-  }
-
-  var outStats = legStats(outStrokes);
-  var inStats  = legStats(inStrokes);
-  if (!outStats || !inStats) return null;
-
-  // Label legs: "outbound" (away from start) and "inbound" (return)
-  // Faster leg gets the "tailwind" label context
-  var outFaster = outStats.avg >= inStats.avg;
-
-  return {
-    turnPct:   Math.round(pct * 100),
-    axis:      useLon ? 'E–W' : 'N–S',
-    outbound:  outStats,
-    inbound:   inStats,
-    outFaster: outFaster,
-    deltaAvg:  Math.abs(outStats.avg - inStats.avg),
-    deltaMax:  Math.abs(outStats.p95 - inStats.p95),
-  };
-}
-
-function renderLegsCard(session) {
-  var legs = detectLegs(session);
-  var html = '<div class="card">';
-  html += '<div class="ct-title">🏃 Leg Comparison</div>';
-
-  if (!legs) {
-    html += '<div class="ct-sub" style="margin-bottom:0">Not enough directional travel to detect outbound vs return legs — this is normal for harbour interval sessions.</div>';
-    html += '</div>';
-    return html;
-  }
-
-  html += '<div class="ct-sub">Turnaround detected at ' + legs.turnPct + '% of session (' + legs.axis + ' axis) · 95th‑pct speed shown as "effective max" to exclude GPS spikes</div>';
-
-  var faster = legs.outFaster ? legs.outbound : legs.inbound;
-  var slower = legs.outFaster ? legs.inbound  : legs.outbound;
-  var fasterLabel = legs.outFaster ? 'Outbound' : 'Inbound (return)';
-  var slowerLabel = legs.outFaster ? 'Inbound (return)' : 'Outbound';
-
-  // 4-column grid: faster avg | faster max | slower avg | slower max
-  html += '<div class="sg g4" style="margin-bottom:14px">';
-
-  html += '<div class="sc" style="border-color:var(--mint-dk)44">';
-  html += '<div class="sl" style="color:var(--mint-dk)">⚡ ' + fasterLabel + ' — Avg</div>';
-  html += '<div class="sv" style="color:var(--mint-dk)">' + faster.avg.toFixed(2) + '<span class="su2"> mph</span></div>';
-  html += '<div class="sn">' + (faster.sr ? faster.sr.toFixed(0) + ' spm avg' : '') + '</div>';
-  html += '</div>';
-
-  html += '<div class="sc" style="border-color:var(--mint-dk)44">';
-  html += '<div class="sl" style="color:var(--mint-dk)">⚡ ' + fasterLabel + ' — Max</div>';
-  html += '<div class="sv" style="color:var(--mint-dk)">' + faster.p95.toFixed(2) + '<span class="su2"> mph</span></div>';
-  html += '<div class="sn">true peak: ' + faster.max.toFixed(2) + '</div>';
-  html += '</div>';
-
-  html += '<div class="sc" style="border-color:var(--blush-dk)44">';
-  html += '<div class="sl" style="color:#a03060">🐢 ' + slowerLabel + ' — Avg</div>';
-  html += '<div class="sv" style="color:#a03060">' + slower.avg.toFixed(2) + '<span class="su2"> mph</span></div>';
-  html += '<div class="sn">' + (slower.sr ? slower.sr.toFixed(0) + ' spm avg' : '') + '</div>';
-  html += '</div>';
-
-  html += '<div class="sc" style="border-color:var(--blush-dk)44">';
-  html += '<div class="sl" style="color:#a03060">🐢 ' + slowerLabel + ' — Max</div>';
-  html += '<div class="sv" style="color:#a03060">' + slower.p95.toFixed(2) + '<span class="su2"> mph</span></div>';
-  html += '<div class="sn">true peak: ' + slower.max.toFixed(2) + '</div>';
-  html += '</div>';
-
-  html += '</div>';
-
-  // Gap callout
-  html += '<div style="display:flex;align-items:center;gap:12px;background:var(--lilac);border-radius:10px;padding:10px 14px">';
-  html += '<span style="font-size:20px">' + (legs.deltaAvg > 1.0 ? '💨' : legs.deltaAvg > 0.4 ? '🌬️' : '〰️') + '</span>';
-  html += '<div style="font-size:12px;font-weight:700;color:var(--ink);line-height:1.7">';
-  html += '<b>' + fasterLabel + '</b> was <b>' + legs.deltaAvg.toFixed(2) + ' mph faster</b> on average · ';
-  if (legs.deltaAvg > 1.0) {
-    html += 'Large gap — strong wind or current effect likely. Compare to weather conditions above.';
-  } else if (legs.deltaAvg > 0.4) {
-    html += 'Moderate gap — some environmental assist or fatigue effect. Check wind direction.';
-  } else {
-    html += 'Small gap — conditions were fairly balanced across legs.';
-  }
-  html += '</div></div>';
-
-  // Specific note for Saturday
-  if (session.date === '20260509') {
-    html += '<div class="notice n-mint" style="margin-top:12px;margin-bottom:0">';
-    html += '💡 <b>May 9 data insight:</b> The inbound (return to shore) leg averaged <b>5.92 mph vs 4.23 mph outbound</b> — '
-      + 'the return was actually <em>faster</em> despite feeling harder. '
-      + 'This suggests you were paddling <em>into</em> the wind on the way out and <em>with</em> it on the return. '
-      + 'The resistance you felt going back was likely the turbulence and chop from a tailwind, not headwind resistance. '
-      + 'Add a note below to record what the wind felt like on each leg.';
-    html += '</div>';
-  }
-
-  html += '</div>';
-  return html;
-}
-
-
-var SEED_SESSIONS=SESSIONS.slice();
-loadPersistedData(function(){
-  loadFromStorage();
-  loadTags();
-  loadNotes();
-  computeAllTides();
-  SEL=SESSIONS.length?SESSIONS[SESSIONS.length-1].date:null;
-  fetchAllWeather(function(){refresh();});
-});
-
-/* ═══════════════════════════════════════════
-   WEATHER — Open-Meteo Historical API
-   Free, no key needed, works for ocean coords
-   Fetches hourly wind speed + direction + wave
-   height for the hour matching session start.
-   Cached in localStorage under pawddle_wx_<date>
-═══════════════════════════════════════════ */
-var WX_CACHE_PREFIX='pawddle_wx_';
-
-
-
-
-
-
-
-
-
-
-
-
-/* ═══════════════════════════════════════════
-   SESSION TAGS — manual overrides
-   Stored in localStorage: pawddle_tags
-   Structure: { "20260430": "bungee", "20260507": null }
-   null = remove the auto-detected tag entirely
-   string = override with this focus id
-═══════════════════════════════════════════ */
-
-;
-
-
-
-
-
-
-
-
-/* Tag editor UI — rendered inside session detail */
-
-
-/* Weather card for session detail */
-
-
-/* Compact weather for overview table cells */
-
-
-/* ═══════════════════════════════════════════
-   TIDES — NOAA CO-OPS API
-   Station 9413745: Santa Cruz, Monterey Bay
-   (~2.5 mi from session start coords)
-   Free, no API key, supports browser CORS,
-   historical predictions back many years.
-   
-   Fetches high/low tide times for the session
-   date and finds the tide state at session start.
-   Cached in localStorage under pawddle_tide_<date>
-═══════════════════════════════════════════ */
-var TIDE_CACHE_PREFIX = 'pawddle_tide_';
-var NOAA_STATION = '9413745'; // Santa Cruz, Monterey Bay
-
-function fetchTides(session, callback) {
-  var cacheKey = TIDE_CACHE_PREFIX + session.date;
-  try {
-    var cached = localStorage.getItem(cacheKey);
-    if (cached) { callback(null, JSON.parse(cached)); return; }
-  } catch(e) {}
-
-  var y = session.date.slice(0,4);
-  var mo = session.date.slice(4,6);
-  var d = session.date.slice(6,8);
-  var dateStr = y + mo + d;
-
-  // Get high/low predictions for the day
-  var url = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter'
-    + '?begin_date=' + dateStr
-    + '&end_date=' + dateStr
-    + '&station=' + NOAA_STATION
-    + '&product=predictions'
-    + '&datum=MLLW'
-    + '&time_zone=lst_ldt'
-    + '&interval=hilo'
-    + '&units=english'
-    + '&application=pawddle_progress'
-    + '&format=json';
-
-  fetch(url)
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.predictions || !data.predictions.length) {
-        callback(new Error('No tide data'), null); return;
-      }
-
-      // Parse session start time to find tide state
-      var hourMatch = session.startTime.match(/(\d{2}):(\d{2}):\d{2}$/);
-      var startHour = hourMatch ? parseInt(hourMatch[1]) : 12;
-      var startMin  = hourMatch ? parseInt(hourMatch[2]) : 0;
-      var startMins = startHour * 60 + startMin;
-
-      // Parse each tide event into minutes-since-midnight
-      var events = data.predictions.map(function(p) {
-        var parts = p.t.split(' '); // "2026-04-30 14:23"
-        var timeParts = (parts[1] || '00:00').split(':');
-        var mins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
-        return {
-          time: p.t,
-          mins: mins,
-          height: parseFloat(p.v),
-          type: p.type, // "H" or "L"
-          label: p.type === 'H' ? 'High' : 'Low',
-          timeStr: parts[1] || '',
-        };
-      });
-
-      // Find the two events bracketing the session start
-      var before = null, after = null;
-      for (var i = 0; i < events.length; i++) {
-        if (events[i].mins <= startMins) before = events[i];
-        else if (!after) after = events[i];
-      }
-
-      // Determine tide state
-      var state = 'unknown';
-      var pctThrough = null;
-      var nextEvent = null;
-      var prevEvent = null;
-
-      if (before && after) {
-        var range = after.mins - before.mins;
-        pctThrough = Math.round((startMins - before.mins) / range * 100);
-        prevEvent = before;
-        nextEvent = after;
-        if (before.type === 'L' && after.type === 'H') {
-          state = 'rising';
-        } else if (before.type === 'H' && after.type === 'L') {
-          state = 'falling';
-        }
-      } else if (before) {
-        prevEvent = before;
-        state = before.type === 'H' ? 'falling' : 'rising';
-      } else if (after) {
-        nextEvent = after;
-        state = after.type === 'H' ? 'rising' : 'falling';
-      }
-
-      // Current interpolated height (linear approx between events)
-      var interpHeight = null;
-      if (before && after) {
-        var t = (startMins - before.mins) / (after.mins - before.mins);
-        interpHeight = before.height + t * (after.height - before.height);
-        interpHeight = Math.round(interpHeight * 10) / 10;
-      } else if (before) {
-        interpHeight = before.height;
-      }
-
-      var result = {
-        events: events,
-        state: state,           // 'rising' | 'falling' | 'unknown'
-        pctThrough: pctThrough, // % through current tide cycle
-        interpHeight: interpHeight, // interpolated ft above MLLW at session start
-        prevEvent: prevEvent,
-        nextEvent: nextEvent,
-        fetchedAt: Date.now(),
-      };
-
-      try { localStorage.setItem(cacheKey, JSON.stringify(result)); } catch(e) {}
-      callback(null, result);
-    })
-    .catch(function(err) { callback(err, null); });
-}
-
-function tideStateIcon(state) {
-  if (state === 'rising')  return '📈';
-  if (state === 'falling') return '📉';
-  return '〰️';
-}
-
-function tideStateColor(state) {
-  if (state === 'rising')  return '#2e7a4a';
-  if (state === 'falling') return '#a03060';
-  return 'var(--gm)';
-}
-
-function renderTideCard(session) {
-  var tide = session._tide;
-  var html = '<div class="card">';
-  html += '<div class="ct-title">🌊 Tides — '+(tide&&tide.station?tide.station:'—')+'</div>';
-  html += '<div class="ct-sub">MLLW datum · harmonic predictions · nearest NOAA station</div>';
-
-  if (!tide) {
-    html += '<div style="font-size:12px;font-weight:600;color:var(--gm);padding:4px 0">Fetching tide data…</div>';
-    html += '</div>';
-    return html;
-  }
-
-  var stateColor = tideStateColor(tide.state);
-
-  // Main state callout
-  html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">';
-  html += '<div style="font-size:36px;line-height:1">' + tideStateIcon(tide.state) + '</div>';
-  html += '<div>';
-  html += '<div style="font-size:18px;font-weight:900;color:' + stateColor + '">'
-    + (tide.state === 'rising' ? 'Rising' : tide.state === 'falling' ? 'Falling' : 'Unknown')
-    + ' tide</div>';
-  if (tide.interpHeight !== null) {
-    html += '<div style="font-size:13px;font-weight:700;color:var(--ink)">~'
-      + (tide.interpHeight != null ? tide.interpHeight.toFixed(1) : '—') + ' ft above MLLW at session start</div>';
-  }
-  if (tide.pctThrough !== null && tide.prevEvent && tide.nextEvent) {
-    html += '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-top:2px">'
-      + tide.pctThrough + '% through '
-      + tide.prevEvent.label.toLowerCase() + '-to-'
-      + tide.nextEvent.label.toLowerCase() + ' cycle</div>';
-  }
-  html += '</div></div>';
-
-  // Tide bar showing position in cycle
-  if (tide.pctThrough !== null) {
-    var barColor = tide.state === 'rising' ? 'var(--mint-dk)' : 'var(--blush-dk)';
-    html += '<div style="margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--gm);margin-bottom:4px">';
-    html += '<span>' + (tide.prevEvent ? tide.prevEvent.label + ' ' + tide.prevEvent.timeStr + ' (' + tide.prevEvent.height.toFixed(1) + ' ft)' : '') + '</span>';
-    html += '<span>' + (tide.nextEvent ? tide.nextEvent.label + ' ' + tide.nextEvent.timeStr + ' (' + tide.nextEvent.height.toFixed(1) + ' ft)' : '') + '</span>';
-    html += '</div>';
-    html += '<div style="height:8px;background:var(--lav-lt);border-radius:999px;position:relative;overflow:visible">';
-    html += '<div style="height:100%;width:' + tide.pctThrough + '%;background:' + barColor + ';border-radius:999px;transition:width .5s"></div>';
-    html += '<div style="position:absolute;top:-3px;left:' + Math.min(tide.pctThrough, 96) + '%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:' + barColor + ';border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.15)"></div>';
-    html += '</div>';
-    html += '</div>';
-  }
-
-  // Full day tide table
-  var tideEvents = tide.events || [];
-  html += '<div style="display:grid;grid-template-columns:repeat(' + Math.min(tideEvents.length, 4) + ',1fr);gap:8px">';
-  tideEvents.forEach(function(ev) {
-    var isNearest = tide.prevEvent && ev.time === tide.prevEvent.time;
-    var col = ev.type === 'H' ? 'var(--plum)' : 'var(--gm)';
-    html += '<div style="background:' + (isNearest ? 'var(--lilac)' : 'var(--lilac2)') + ';border-radius:8px;padding:10px 12px;border:1.5px solid ' + (isNearest ? 'var(--lav-md)' : 'var(--lav-lt)') + '">';
-    html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:' + col + ';margin-bottom:4px">'
-      + ev.label + (isNearest ? ' ◀ before session' : '') + '</div>';
-    html += '<div style="font-size:20px;font-weight:900;color:' + col + '">' + (ev.height != null ? ev.height.toFixed(1) : '—') + '<span style="font-size:11px;font-weight:600;color:var(--gm)"> ft</span></div>';
-    html += '<div style="font-size:11px;font-weight:700;color:var(--ink);margin-top:3px">' + ev.timeStr + '</div>';
-    html += '</div>';
-  });
-  html += '</div>';
-
-  // Context for paddling
-  html += '<div style="margin-top:12px;background:var(--lilac);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:700;color:var(--ink);line-height:1.7">';
-  html += '<b>Paddling context:</b> ';
-  if (tide.state === 'rising' && tide.interpHeight !== null && tide.interpHeight > 3.0) {
-    html += 'High-ish rising tide — water levels good for harbour access. Current typically flows into harbour (northward) during rising tide at Santa Cruz, which can give a boost heading out through the harbour mouth.';
-  } else if (tide.state === 'rising') {
-    html += 'Rising tide — current flows into harbour. Typically helpful going out, resistant coming back through the harbour mouth.';
-  } else if (tide.state === 'falling' && tide.interpHeight !== null && tide.interpHeight < 1.5) {
-    html += 'Low-ish falling tide — watch for shallow areas near harbour entrance. Outgoing current can create chop at the mouth.';
-  } else if (tide.state === 'falling') {
-    html += 'Falling tide — current flows out of harbour. Can give a boost returning to shore through the harbour mouth, but resist heading out.';
-  } else {
-    html += 'Tide state uncertain for this session time. Check the times above.';
-  }
-  html += '</div>';
-
-  html += '</div>';
-  return html;
-}
-
-function tideCell(session) {
-  var tide = session._tide;
-  if (!tide) return '…';
-  return tideStateIcon(tide.state) + ' '
-    + (tide.state === 'rising' ? 'Rising' : tide.state === 'falling' ? 'Falling' : '?')
-    + (tide.interpHeight != null && typeof tide.interpHeight === 'number' ? ' ' + tide.interpHeight.toFixed(1) + 'ft' : '');
-}
-
-
-/* ═══════════════════════════════════════════
-   SESSION NOTES
-   Stored in localStorage: pawddle_notes
-   { "20260509": "Exceptional upwind resistance returning to shore..." }
-═══════════════════════════════════════════ */
-
-var SESSION_NOTES = {};
-
-
-
-
-
-
-
-
-
-
-var _noteTimer = null;
-
-
-/* ═══════════════════════════════════════════
-   LEG DETECTION
-   For any session with enough GPS coverage,
-   detect the turnaround point (farthest extent
-   along primary axis of travel) and split into
-   faster vs slower leg. Works for both E-W
-   open-water paddles and N-S harbour runs.
-═══════════════════════════════════════════ */
-/* ═══════════════════════════════════════════
-   LEG DETECTION — speed-valley based
-   Finds turns / direction changes by looking
-   for sustained speed drops in the smoothed
-   speed trace. A real "leg boundary" shows as
-   a valley where smoothed speed falls well
-   below the session's cruising speed and stays
-   low for multiple consecutive strokes.
-═══════════════════════════════════════════ */
-
-
-
-
-
-
-/* ═══════════════════════════════════════════
-   DOWNWIND RUN DETECTION
-   For Saturday Long Z2 sessions, identifies
-   "hot runs" — sustained periods where smoothed
-   speed exceeds the session's 75th percentile.
-   These are the wave-connected legs.
-   
-   Key metric: speed / stroke_rate (efficiency)
-   Higher = connecting waves with fewer strokes.
-   Goal: same or higher speed at lower SR over time.
-═══════════════════════════════════════════ */
-
-function detectDownwindRuns(session) {
-  var strokes = session.strokes.filter(function(s) {
-    return s.s != null && s.s > 0.3;
-  });
-  var n = strokes.length;
-  if (n < 80) return null;
-
-  /* Smooth speed */
-  var WIN = 15;
-  var smoothed = new Array(n);
-  for (var i = 0; i < n; i++) {
-    var i0 = Math.max(0, i - WIN), i1 = Math.min(n - 1, i + WIN);
-    var sum = 0, cnt = 0;
-    for (var j = i0; j <= i1; j++) { sum += strokes[j].s; cnt++; }
-    smoothed[i] = sum / cnt;
-  }
-
-  /* Session speed distribution */
-  var sorted = smoothed.slice().sort(function(a,b){return a-b;});
-  var p50 = sorted[Math.floor(n*0.50)];
-  var p75 = sorted[Math.floor(n*0.75)];
-  var p90 = sorted[Math.floor(n*0.90)];
-
-  /* Hot-run threshold = p75. Min 8 strokes to count. */
-  var hotThresh = p75;
-  var minRunLen = 8;
-
-  /* Find contiguous hot runs */
-  var runs = [];
-  var inRun = false, runStart = 0;
-  for (var i = 0; i < n; i++) {
-    if (smoothed[i] >= hotThresh) {
-      if (!inRun) { inRun = true; runStart = i; }
-    } else {
-      if (inRun) {
-        inRun = false;
-        if (i - runStart >= minRunLen) {
-          runs.push(makeRun(strokes, runStart, i, runStart / n));
-        }
-      }
-    }
-  }
-  if (inRun && n - runStart >= minRunLen) {
-    runs.push(makeRun(strokes, runStart, n, runStart / n));
-  }
-
-  if (!runs.length) return null;
-
-  /* Aggregate across all hot runs */
-  var allRunSpds = [], allRunSRs = [];
-  runs.forEach(function(r) {
-    for (var i = r.start; i < r.end; i++) {
-      allRunSpds.push(strokes[i].s);
-      if (strokes[i].r != null) allRunSRs.push(strokes[i].r);
-    }
-  });
-
-  /* Between-run (paddling, waiting for next wave) */
-  var restSpds = [], restSRs = [];
-  var inRunSet = new Set();
-  runs.forEach(function(r){ for(var i=r.start;i<r.end;i++) inRunSet.add(i); });
-  for (var i = 0; i < n; i++) {
-    if (!inRunSet.has(i)) {
-      restSpds.push(strokes[i].s);
-      if (strokes[i].r != null) restSRs.push(strokes[i].r);
-    }
-  }
-
-  allRunSpds.sort(function(a,b){return a-b;});
-  var runAvgSpd = avg(allRunSpds);
-  var runP95Spd = allRunSpds[Math.floor(allRunSpds.length*0.95)] || allRunSpds[allRunSpds.length-1];
-  var runAvgSR  = allRunSRs.length ? avg(allRunSRs) : null;
-  var runEff    = runAvgSR ? runAvgSpd / runAvgSR * 100 : null;
-
-  /* Sort runs by efficiency score (longer + higher eff = better wave ride) */
-  runs.sort(function(a,b){
-    var scoreA = (a.eff||0) * Math.log(a.len+1);
-    var scoreB = (b.eff||0) * Math.log(b.len+1);
-    return scoreB - scoreA;
-  });
-
-  return {
-    runs:       runs,
-    runCount:   runs.length,
-    runStrokes: allRunSpds.length,
-    runPct:     Math.round(allRunSpds.length / n * 100),
-    avgSpd:     runAvgSpd,
-    p95Spd:     runP95Spd,
-    avgSR:      runAvgSR,
-    eff:        runEff,
-    restAvgSpd: avg(restSpds),
-    restAvgSR:  restSRs.length ? avg(restSRs) : null,
-    p75Thresh:  Math.round(p75*100)/100,
-    p90:        Math.round(p90*100)/100,
-    sessionP50: Math.round(p50*100)/100,
-  };
-}
-
-function makeRun(strokes, start, end, pct) {
-  var spds = [], srs = [];
-  for (var i = start; i < end; i++) {
-    spds.push(strokes[i].s);
-    if (strokes[i].r != null) srs.push(strokes[i].r);
-  }
-  spds.sort(function(a,b){return a-b;});
-  var avgSpd = avg(spds);
-  var p95    = spds[Math.floor(spds.length*0.95)] || spds[spds.length-1];
-  var avgSR  = srs.length ? avg(srs) : null;
-  var eff    = avgSR ? avgSpd / avgSR * 100 : null;
-  return { start:start, end:end, len:end-start, pct:Math.round(pct*100),
-           avgSpd:Math.round(avgSpd*100)/100, p95:Math.round(p95*100)/100,
-           avgSR:avgSR?Math.round(avgSR*10)/10:null, eff:eff?Math.round(eff*100)/100:null };
-}
-
-function avg(arr) {
-  if (!arr.length) return 0;
-  return arr.reduce(function(a,b){return a+b;},0)/arr.length;
-}
-
-/* ── Render downwind card (replaces generic legs card on Saturday sessions) ── */
-function renderDownwindCard(session) {
-  var dw = detectDownwindRuns(session);
-
-  var html = '<div class="card">';
-  html += '<div class="ct-title">🌊 Downwind Run Analysis</div>';
-
-  if (!dw) {
-    html += '<div class="ct-sub" style="margin-bottom:0">No clear downwind runs detected — need a longer open-water session.</div>';
-    html += '</div>';
-    return html;
-  }
-
-  html += '<div class="ct-sub">'
-    + dw.runCount + ' hot runs detected (above ' + dw.p75Thresh + ' mph · session P75) · '
-    + dw.runStrokes + ' strokes (' + dw.runPct + '% of session)'
-    + '</div>';
-
-  /* ── Key stats grid ── */
-  var effColor = dw.eff && dw.eff > 12 ? 'var(--mint-dk)' : dw.eff && dw.eff > 10.5 ? 'var(--plum)' : '#a03060';
-
+  var windColor = wx.windSpeed > 15 ? '#c0406a' : wx.windSpeed > 8 ? '#c9973d' : '#2e7a4a';
+  var windRel   = (heading != null && wx.windDir != null)
+    ? windDirRelative(wx.windDir, heading) : null;
+  var windTypeLabel = windRel != null
+    ? (windRel < 40 ? '↑ headwind' : windRel > 140 ? '↓ tailwind' : '↔ crosswind') : '';
+
+  /* ── Wind row ── */
   html += '<div class="sg g4" style="margin-bottom:12px">';
+  html += '<div class="sc"><div class="sl">Wind Speed</div>'
+        + '<div class="sv" style="color:'+windColor+'">'+(wx.windSpeed!=null?wx.windSpeed.toFixed(1):'—')
+        + '<span class="su2"> mph</span></div>'
+        + (windTypeLabel ? '<div style="font-size:9px;font-weight:800;color:'+windColor+';margin-top:1px">'+windTypeLabel+'</div>' : '')
+        + '</div>';
+  html += '<div class="sc"><div class="sl">Wind Direction</div>'
+        + '<div class="sv" style="font-size:16px">'+(wx.windDir!=null ? windDirLabel(wx.windDir) : '—')+'</div>'
+        + (wx.windGust != null ? '<div style="font-size:9px;font-weight:700;color:var(--gm)">Gust: '+wx.windGust.toFixed(0)+' mph</div>' : '')
+        + '</div>';
 
-  html += '<div class="sc" style="border-color:var(--plum)44">';
-  html += '<div class="sl" style="color:var(--plum)">🌊 Run avg speed</div>';
-  html += '<div class="sv" style="color:var(--plum)">' + dw.avgSpd.toFixed(2) + '<span class="su2"> mph</span></div>';
-  html += '<div class="sn">vs ' + dw.restAvgSpd.toFixed(2) + ' paddling</div>';
-  html += '</div>';
-
-  html += '<div class="sc" style="border-color:var(--plum)44">';
-  html += '<div class="sl" style="color:var(--plum)">⚡ Run peak (P95)</div>';
-  html += '<div class="sv" style="color:var(--plum)">' + dw.p95Spd.toFixed(2) + '<span class="su2"> mph</span></div>';
-  html += '<div class="sn">fastest wave connections</div>';
-  html += '</div>';
-
-  html += '<div class="sc" style="border-color:var(--gm)44">';
-  html += '<div class="sl">🚣 Run avg SR</div>';
-  html += '<div class="sv">' + (dw.avgSR ? dw.avgSR.toFixed(0) : '—') + '<span class="su2"> spm</span></div>';
-  html += '<div class="sn">' + (dw.restAvgSR ? 'vs ' + dw.restAvgSR.toFixed(0) + ' between runs' : '') + '</div>';
-  html += '</div>';
-
-  html += '<div class="sc" style="border-color:' + effColor + '44">';
-  html += '<div class="sl" style="color:' + effColor + '">📈 Efficiency</div>';
-  html += '<div class="sv" style="color:' + effColor + '">' + (dw.eff ? dw.eff.toFixed(2) : '—') + '</div>';
-  html += '<div class="sn">speed ÷ SR × 100 · higher = better</div>';
-  html += '</div>';
-
-  html += '</div>';
-
-  /* ── Goal callout ── */
-  html += '<div style="background:var(--lilac);border-radius:10px;padding:11px 14px;font-size:12px;font-weight:700;color:var(--ink);line-height:1.7;margin-bottom:12px">';
-  html += '🎯 <b>Goal:</b> increase efficiency score over time — higher speed at <em>lower</em> stroke rate means you\'re connecting waves and letting momentum carry you rather than muscling through. ';
-  if (dw.eff && dw.eff > 12) {
-    html += '<span style="color:var(--mint-dk)">✓ Good wave connection today — efficiency above 12.</span>';
-  } else if (dw.eff && dw.eff > 10.5) {
-    html += 'Efficiency is solid — work on sustaining runs longer with fewer strokes to push above 12.';
-  } else {
-    html += 'Focus on catching the wave early and reducing cadence once on the face — let the wave do the work.';
-  }
-  html += '</div>';
-
-  /* ── Top runs table ── */
-  var topRuns = dw.runs.slice(0, Math.min(8, dw.runs.length));
-  html += '<div class="ct-title" style="font-size:12px;margin-bottom:8px">Top runs by wave-ride quality</div>';
-  html += '<div class="tw" style="margin-bottom:0"><table>';
-  html += '<tr><th>#</th><th>Position</th><th>Length</th><th>Avg Speed</th><th>Peak (P95)</th><th>Avg SR</th><th>Efficiency</th></tr>';
-  topRuns.forEach(function(r, i) {
-    var effCol = r.eff && r.eff > 12 ? 'var(--mint-dk)' : r.eff && r.eff > 10.5 ? 'var(--plum)' : '#a03060';
-    html += '<tr>';
-    html += '<td style="color:var(--gm)">' + (i+1) + '</td>';
-    html += '<td style="color:var(--gm)">' + r.pct + '% into session</td>';
-    html += '<td>' + r.len + ' strokes</td>';
-    html += '<td class="td-spd">' + r.avgSpd.toFixed(2) + ' mph</td>';
-    html += '<td class="td-spd">' + r.p95.toFixed(2) + ' mph</td>';
-    html += '<td>' + (r.avgSR ? r.avgSR.toFixed(0) + ' spm' : '—') + '</td>';
-    html += '<td style="font-weight:900;color:' + effCol + '">' + (r.eff ? r.eff.toFixed(2) : '—') + '</td>';
-    html += '</tr>';
-  });
-  html += '</table></div>';
-  html += '</div>';
-  return html;
-}
-
-
-/* ═══════════════════════════════════════════
-   TIDES — Local harmonic computation
-   Station 9413745: Santa Cruz, Monterey Bay
-   Constituents from NOAA CO-OPS published data.
-   No API call needed — works offline + file://.
-   Same algorithm NOAA uses for predictions.
-   Accuracy: typically ±0.1ft, ±10min of NOAA.
-═══════════════════════════════════════════ */
-
-/* ══════════════════════════════════════════════════════════════
-   TIDE HARMONIC ENGINE — multi-station, GPS-matched
-   Constituent: [amplitude_ft, phase_degrees_from_epoch]
-   Sources: NOAA CO-OPS harmonic constituents database
-   Stations: Santa Cruz, San Francisco, Monterey, LA, San Diego,
-             Honolulu, Seattle, Miami
-══════════════════════════════════════════════════════════════ */
-
-var TIDE_EPOCH_MS = 1349827200000; /* shared epoch for all stations */
-var DEG = Math.PI / 180;
-
-/* Angular speeds (degrees/hour) — identical for all stations */
-var TIDE_SPEED = {
-  M2:28.9841042, S2:30.0, N2:28.4397295, K1:15.0410686,
-  O1:13.9430356, M4:57.9682084, MK3:44.0251729, S1:15.0,
-  MN4:57.4238337, NU2:28.5125831, '2N2':27.8953548, OO1:16.1391017,
-  LAM2:29.4556253, K2:30.0821373, L2:29.5284789, T2:29.9589333,
-  J1:15.5854433, M1:14.4966939,
-};
-
-/* ── Station catalogue ── */
-var TIDE_STATIONS = {
-  '9413745': { name:'Santa Cruz, CA',      lat:36.9633, lon:-122.0175, datum:2.776,
-    c:{ M2:[2.382,162.5],S2:[0.377,191.5],N2:[0.475,143.3],K1:[1.161,232.0],
-        O1:[0.666,211.5],M4:[0.030,224.6],K2:[0.103,194.1],L2:[0.054,187.2],
-        NU2:[0.089,140.8],S1:[0.022,176.8],T2:[0.022,190.7],MK3:[0.018,343.0],
-        MN4:[0.017,201.1],'2N2':[0.058,122.6],OO1:[0.052,275.7],LAM2:[0.026,171.9] } },
-  '9413450': { name:'Monterey, CA',        lat:36.6050, lon:-121.8883, datum:2.792,
-    c:{ M2:[2.388,161.7],S2:[0.374,191.2],N2:[0.476,142.5],K1:[1.155,231.5],
-        O1:[0.662,210.8],M4:[0.027,218.3],K2:[0.102,193.9],L2:[0.053,186.8],
-        NU2:[0.089,140.2],S1:[0.021,175.9],T2:[0.022,190.3] } },
-  '9414290': { name:'San Francisco, CA',   lat:37.8063, lon:-122.4659, datum:2.866,
-    c:{ M2:[2.516,170.1],S2:[0.463,202.9],N2:[0.527,150.3],K1:[1.280,235.6],
-        O1:[0.726,217.6],M4:[0.066,179.9],K2:[0.125,205.7],L2:[0.058,195.9],
-        NU2:[0.099,148.4],S1:[0.032,192.1],T2:[0.024,202.1],MK3:[0.038,325.4] } },
-  '9410660': { name:'Los Angeles, CA',     lat:33.7200, lon:-118.2720, datum:2.868,
-    c:{ M2:[1.969,186.2],S2:[0.396,218.7],N2:[0.396,167.3],K1:[1.499,243.2],
-        O1:[0.863,222.7],M4:[0.040,241.4],K2:[0.108,220.8],L2:[0.044,207.1],
-        NU2:[0.074,165.0],S1:[0.038,199.1],T2:[0.026,217.7] } },
-  '9410170': { name:'San Diego, CA',       lat:32.7142, lon:-117.1736, datum:2.857,
-    c:{ M2:[1.848,192.4],S2:[0.376,224.4],N2:[0.369,172.9],K1:[1.535,246.0],
-        O1:[0.879,225.8],M4:[0.031,252.1],K2:[0.102,226.1],L2:[0.040,211.3],
-        NU2:[0.069,170.5],S1:[0.038,203.6],T2:[0.025,222.8] } },
-  '9447130': { name:'Seattle, WA',         lat:47.6026, lon:-122.3396, datum:5.858,
-    c:{ M2:[3.777,224.3],S2:[0.600,262.1],N2:[0.769,204.0],K1:[2.889,284.9],
-        O1:[1.591,265.9],M4:[0.054,178.0],K2:[0.162,264.1],L2:[0.074,240.7],
-        NU2:[0.143,201.6],S1:[0.060,249.1],T2:[0.028,261.5] } },
-  '1612340': { name:'Honolulu, HI',        lat:21.3067, lon:-157.8670, datum:0.803,
-    c:{ M2:[0.298,242.3],S2:[0.099,284.5],N2:[0.058,222.1],K1:[0.470,309.2],
-        O1:[0.316,287.0],K2:[0.027,286.7],S1:[0.030,266.5],T2:[0.013,283.5] } },
-  '8723170': { name:'Miami Beach, FL',     lat:25.7700, lon:-80.1300, datum:0.962,
-    c:{ M2:[0.749,347.5],S2:[0.178,27.9],N2:[0.161,329.2],K1:[0.350,42.0],
-        O1:[0.247,17.8],K2:[0.048,29.8],S1:[0.026,11.4],T2:[0.017,27.4] } },
-  '9414523': { name:'Redwood City, CA',   lat:37.5073, lon:-122.2112, datum:3.381,
-    c:{ M2:[3.127,178.4],S2:[0.557,212.0],N2:[0.641,157.8],K1:[1.440,239.7],
-        O1:[0.802,221.4],M4:[0.135,164.9],K2:[0.151,214.2],L2:[0.071,200.3],
-        NU2:[0.120,155.4],S1:[0.038,196.3],T2:[0.027,210.8],MK3:[0.055,318.4] } },
-  '9410580': { name:'Newport Beach, CA',  lat:33.6058, lon:-117.8789, datum:2.806,
-    c:{ M2:[2.008,186.9],S2:[0.399,219.5],N2:[0.402,167.8],K1:[1.491,243.8],
-        O1:[0.856,223.2],M4:[0.038,243.2],K2:[0.108,221.5],L2:[0.045,207.8],
-        NU2:[0.075,165.5],S1:[0.037,199.7],T2:[0.026,218.3] } },
-  '9414750': { name:'Alameda, CA',        lat:37.7717, lon:-122.3000, datum:2.881,
-    c:{ M2:[2.570,173.2],S2:[0.472,206.1],N2:[0.538,153.1],K1:[1.301,236.8],
-        O1:[0.739,219.0],M4:[0.079,183.1],K2:[0.128,207.9],L2:[0.060,198.2],
-        NU2:[0.101,150.7],S1:[0.033,193.4],T2:[0.025,205.4],MK3:[0.041,328.9] } },
-  '9410230': { name:'Oceanside, CA',      lat:33.2153, lon:-117.3925, datum:2.851,
-    c:{ M2:[1.832,193.1],S2:[0.371,225.1],N2:[0.366,173.5],K1:[1.541,246.5],
-        O1:[0.883,226.3],M4:[0.029,253.8],K2:[0.101,226.8],L2:[0.039,211.9],
-        NU2:[0.068,171.1],S1:[0.037,204.2],T2:[0.024,223.4] } },
-  '9413616': { name:'Half Moon Bay, CA', lat:37.4636, lon:-122.4797, datum:2.828,
-    c:{ M2:[2.490,168.3],S2:[0.455,200.7],N2:[0.522,148.6],K1:[1.268,234.5],
-        O1:[0.718,216.8],M4:[0.055,177.4],K2:[0.123,202.9],L2:[0.057,193.8],
-        NU2:[0.097,147.2],S1:[0.031,190.8],T2:[0.024,200.3] } },
-  '9414816': { name:'Berkeley, CA',        lat:37.8686, lon:-122.3022, datum:2.893,
-    c:{ M2:[2.558,172.0],S2:[0.468,205.4],N2:[0.535,151.8],K1:[1.290,236.3],
-        O1:[0.731,218.3],M4:[0.083,181.7],K2:[0.127,207.3],L2:[0.061,197.6],
-        NU2:[0.100,149.5],S1:[0.033,192.8],T2:[0.025,205.0],MK3:[0.043,327.2] } },
-  '9415020': { name:'Sausalito, CA',       lat:37.8587, lon:-122.4829, datum:2.872,
-    c:{ M2:[2.531,171.1],S2:[0.465,203.8],N2:[0.531,150.9],K1:[1.283,235.9],
-        O1:[0.726,217.8],M4:[0.073,182.4],K2:[0.126,205.8],L2:[0.059,196.9],
-        NU2:[0.099,149.1],S1:[0.032,191.9],T2:[0.025,203.6],MK3:[0.040,326.5] } },
-  '9415144': { name:'San Rafael, CA',      lat:37.9728, lon:-122.4883, datum:3.010,
-    c:{ M2:[2.678,177.3],S2:[0.491,210.8],N2:[0.560,156.8],K1:[1.321,237.9],
-        O1:[0.750,220.1],M4:[0.100,187.2],K2:[0.133,212.5],L2:[0.064,201.8],
-        NU2:[0.105,155.0],S1:[0.035,195.1],T2:[0.026,209.5],MK3:[0.048,331.0] } },
-  '9416841': { name:'Mendocino, CA',       lat:39.3073, lon:-123.7992, datum:2.635,
-    c:{ M2:[2.274,162.8],S2:[0.352,192.4],N2:[0.453,143.8],K1:[1.128,230.7],
-        O1:[0.644,210.1],M4:[0.022,215.6],K2:[0.096,194.7],L2:[0.050,186.2],
-        NU2:[0.085,141.5],S1:[0.020,175.3],T2:[0.021,191.8] } },
-};
-
-/* ── Pick closest station to a lat/lon ── */
-function closestTideStation(lat, lon) {
-  if (!lat || !lon) return TIDE_STATIONS['9413745']; /* default Santa Cruz */
-  var best = null, bestDist = Infinity;
-  Object.keys(TIDE_STATIONS).forEach(function(id) {
-    var st = TIDE_STATIONS[id];
-    var dlat = st.lat - lat, dlon = st.lon - lon;
-    var dist = Math.sqrt(dlat*dlat + dlon*dlon);
-    if (dist < bestDist) { bestDist = dist; best = st; }
-  });
-  return best || TIDE_STATIONS['9413745'];
-}
-
-/* ── Compute height from harmonic constituents for a given station ── */
-function tideHeightAt(utcMs, station) {
-  var st = station || TIDE_STATIONS['9413745'];
-  var hrs = (utcMs - TIDE_EPOCH_MS) / 3600000;
-  var h = st.datum;
-  var c = st.c;
-  for (var name in c) {
-    var amp = c[name][0], phase = c[name][1];
-    var speed = TIDE_SPEED[name];
-    if (speed && amp) h += amp * Math.cos((speed * hrs - phase) * DEG);
-  }
-  return h;
-}
-
-/* ── Compute tide data for a single session ── */
-function computeTidesForSession(session) {
-  var y  = +session.date.slice(0,4);
-  var mo = +session.date.slice(4,6) - 1;
-  var d  = +session.date.slice(6,8);
-
-  /* Pick station based on session GPS */
-  var lat = session.midLat || session.startLat || null;
-  var lon = session.midLon || session.startLon || null;
-  var station = closestTideStation(lat, lon);
-
-  var m = session.startTime ? session.startTime.match(/(\d{2}):(\d{2}):\d{2}$/) : null;
-  var sh = m ? +m[1] : 12, sm = m ? +m[2] : 0;
-
-  /* Session start in UTC (assume local time is UTC-7 PDT, adjust if needed) */
-  var utcOffset = session.utcOffset !== undefined ? session.utcOffset : 7;
-  var startUtc = Date.UTC(y, mo, d, sh + utcOffset, sm);
-
-  /* Scan full local day every 6 min */
-  var t0 = Date.UTC(y, mo, d, utcOffset, 0);
-  var samples = [];
-  for (var i = 0; i <= 240; i++) {
-    var t = t0 + i * 6 * 60000;
-    samples.push({ t: t, h: tideHeightAt(t, station) });
-  }
-
-  /* Find high/low events */
-  var events = [];
-  for (var j = 1; j < samples.length - 1; j++) {
-    var prev = samples[j-1].h, cur = samples[j].h, next = samples[j+1].h;
-    if ((cur >= prev && cur >= next && cur - Math.min(prev,next) > 0.15) ||
-        (cur <= prev && cur <= next && Math.max(prev,next) - cur > 0.15)) {
-      var isHigh = cur >= prev && cur >= next;
-      var evtDate = new Date(samples[j].t);
-      events.push({
-        type:   isHigh ? 'H' : 'L',
-        height: Math.round(cur * 100) / 100,
-        time:   String(evtDate.getUTCHours()).padStart(2,'0') + ':'
-               + String(evtDate.getUTCMinutes()).padStart(2,'0'),
-      });
+  /* ── Wave row (open water only) ── */
+  if (hasWave) {
+    var swellDiff = null;
+    if (heading != null && wx.waveDir != null) {
+      var swellAngle = windDirRelative(wx.waveDir, heading);
+      swellDiff = swellDifficultyLabel(swellAngle, wx.waveHeight, wx.wavePeriod);
     }
-  }
+    var sevColors = ['#2e7a4a','#c9973d','#c0406a','#8a1a3a'];
+    var sevLabels = ['','⚠️','🔴','🔴🔴'];
+    var sevColor  = swellDiff ? sevColors[swellDiff.severity] : '#3a7abf';
 
-  /* Interpolate height at session start */
-  var interpHeight = null;
-  if (startUtc >= t0 && startUtc <= t0 + 240 * 6 * 60000) {
-    var idx2 = Math.round((startUtc - t0) / (6 * 60000));
-    idx2 = Math.max(0, Math.min(239, idx2));
-    var frac = ((startUtc - t0) / (6 * 60000)) - Math.floor((startUtc - t0) / (6 * 60000));
-    interpHeight = samples[idx2].h * (1 - frac) + (samples[idx2+1] ? samples[idx2+1].h * frac : samples[idx2].h * frac);
-    interpHeight = Math.round(interpHeight * 100) / 100;
-  }
-
-  /* Rising or falling at session start */
-  var trend = null;
-  if (startUtc >= t0 + 6 * 60000) {
-    var idxA = Math.round((startUtc - t0) / (6 * 60000));
-    idxA = Math.max(1, Math.min(239, idxA));
-    trend = samples[idxA].h > samples[idxA - 1].h ? 'rising' : 'falling';
-  }
-
-  return {
-    station:     station.name,
-    interpHeight: interpHeight,
-    trend:        trend,
-    events:       events,
-    samples:      samples,
-  };
-}
-
-
-function computeAllTides() {
-  SESSIONS.forEach(function(s) {
-    if (!s._tide || s._tide.error) {
-      try { s._tide = computeTidesForSession(s); }
-      catch(e) { s._tide = { error: true }; }
-    }
-  });
-}
-
-/* ── Tide direction note ── */
-function tideFlowNote(state) {
-  if (state === 'rising')
-    return 'Water is <b>flooding in toward shore</b> (rising tide). Paddling outbound (away from harbour) meets resistance from the incoming flow. Returning to shore is easier — you\'re with the current.';
-  if (state === 'falling')
-    return 'Water is <b>ebbing out to sea</b> (falling tide). Paddling outbound is with the flow — faster. Returning to shore meets resistance from the outgoing current.';
-  return 'Tide state uncertain at session start time.';
-}
-
-function tideIcon(state) {
-  return state === 'rising' ? '📈' : state === 'falling' ? '📉' : '〰️';
-}
-
-/* ── Render tide card ── */
-
-
-
-
-/* ═══════════════════════════════════════════
-   DATE FILTER
-═══════════════════════════════════════════ */
-var FILTER_FROM = null;
-var FILTER_TO   = null;
-
-function filteredSessions() {
-  return SESSIONS.filter(function(s) {
-    if (FILTER_FROM && s.date < FILTER_FROM) return false;
-    if (FILTER_TO   && s.date > FILTER_TO)   return false;
-    return true;
-  });
-}
-
-function renderDateFilter() {
-  var ss = SESSIONS.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
-  if (ss.length < 2) return '';
-  function toInput(d){ return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8); }
-  var earliest = toInput(ss[0].date), latest = toInput(ss[ss.length-1].date);
-  var active = FILTER_FROM || FILTER_TO;
-  var showing = filteredSessions().length;
-
-  var html = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;'
-    +'background:var(--lilac2);border:1.5px solid var(--lav-lt);border-radius:12px;'
-    +'padding:10px 14px;margin-bottom:16px">';
-  html += '<span style="font-size:11px;font-weight:800;color:var(--plum);white-space:nowrap">📅 Filter by date</span>';
-  html += '<label style="font-size:10px;font-weight:700;color:var(--gm)">From</label>';
-  html += '<input type="date" id="filter-from" value="'+(FILTER_FROM?toInput(FILTER_FROM):'')+'"'
-    +' min="'+earliest+'" max="'+latest+'" onchange="applyDateFilter()"'
-    +' style="font-family:var(--font);font-size:11px;font-weight:700;padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">';
-  html += '<label style="font-size:10px;font-weight:700;color:var(--gm)">To</label>';
-  html += '<input type="date" id="filter-to" value="'+(FILTER_TO?toInput(FILTER_TO):'')+'"'
-    +' min="'+earliest+'" max="'+latest+'" onchange="applyDateFilter()"'
-    +' style="font-family:var(--font);font-size:11px;font-weight:700;padding:5px 8px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer">';
-  html += '<span style="font-size:10px;font-weight:700;color:'+(active?'var(--plum)':'var(--gm)')+'">Showing '+showing+' of '+ss.length+' sessions</span>';
-  if (active) {
-    html += '<button onclick="clearDateFilter()" style="font-family:var(--font);font-size:10px;font-weight:800;'
-      +'padding:4px 10px;border-radius:999px;border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">✕ Clear</button>';
-  }
-  html += '</div>';
-  return html;
-}
-
-function applyDateFilter() {
-  var f = document.getElementById('filter-from');
-  var t = document.getElementById('filter-to');
-  FILTER_FROM = f && f.value ? f.value.replace(/-/g,'') : null;
-  FILTER_TO   = t && t.value ? t.value.replace(/-/g,'') : null;
-  render();
-}
-function clearDateFilter() { FILTER_FROM = null; FILTER_TO = null; render(); }
-
-
-/* ═══════════════════════════════════════════════════════════
-   DRAG-AND-DROP CARD REORDERING
-   
-   Applies to session detail cards only.
-   Order persisted per-user under LAYOUT_KEY in Supabase.
-   
-   Default order:
-     legs | tide | weather | notes | speed | intervals
-   
-   Mobile: touch-based drag with long-press activation.
-   Desktop: mouse drag with handle icon.
-═══════════════════════════════════════════════════════════ */
-
-
-var CARD_ORDER   = null;   /* loaded from storage — null means default */
-
-var CARD_DEFS = [
-  { id: 'legs',      label: 'Legs / Downwind',  icon: '🚣' },
-  { id: 'tide',      label: 'Tide',             icon: '🌊' },
-  { id: 'weather',   label: 'Weather',          icon: '🌤️' },
-  { id: 'notes',     label: 'Notes',            icon: '📝' },
-  { id: 'map',       label: 'GPS Track',        icon: '🗺️' },
-  { id: 'trim',      label: 'Trim Session',     icon: '✂️' },
-  { id: 'speed',     label: 'Speed Profile',    icon: '📈' },
-  { id: 'intervals', label: 'Intervals',        icon: '⚡' },
-];
-
-function defaultCardOrder() {
-  return CARD_DEFS.map(function(c) { return c.id; });
-}
-
-function getCardOrder() {
-  return CARD_ORDER || defaultCardOrder();
-}
-
-function loadLayout() {
-  try {
-    var raw = _store[LAYOUT_KEY];
-    if (raw) {
-      var stored = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      /* Validate — only keep known card ids, append any new ones at end */
-      var known  = defaultCardOrder();
-      var valid  = stored.filter(function(id) { return known.indexOf(id) >= 0; });
-      var missing = known.filter(function(id) { return valid.indexOf(id) < 0; });
-      CARD_ORDER = valid.concat(missing);
-    }
-  } catch(e) { CARD_ORDER = null; }
-}
-
-function saveLayout() {
-  _store[LAYOUT_KEY] = CARD_ORDER;
-  sbScheduleWrite(LAYOUT_KEY, CARD_ORDER);
-}
-
-/* ── Render all session cards in the stored order ── */
-function renderSessionCards(s, containerEl) {
-  var order      = getCardOrder();
-  var __f        = getFocus(s);
-  var isDownwind = __f && __f.id === 'long-z2';
-  var mapCanvasEl = null;
-
-  function cardHTML(id) {
-    switch(id) {
-      case 'legs':      return isDownwind ? renderDownwindCard(s) : renderLegsCard(s);
-      case 'tide':      return renderTideCard(s);
-      case 'weather':   return renderWeatherCard(s);
-      case 'notes':     return renderNotesEditor(s);
-      case 'map':       return renderGPSMap(s);
-      case 'trim':      return renderTrimCard(s);
-      case 'speed':
-        return '<div class="card dnd-card" data-card-id="speed">'
-          + '<div class="ct-title">Speed profile</div>'
-          + '<div class="ct-sub">Per-stroke speed · interval dividers'
-          + (s.hasHR ? ' · ♥ HR' : '') + '</div>'
-          + '<canvas id="sc-'+s.date+'" height="175" style="width:100%;display:block"></canvas>'
+    html += '<div class="sc"><div class="sl">Wave Height</div>'
+          + '<div class="sv" style="color:'+sevColor+'">'+(wx.waveHeight*3.281).toFixed(1)
+          + '<span class="su2"> ft</span></div>'
+          + '<div style="font-size:9px;font-weight:700;color:var(--gm)">'+(wx.waveHeight*100).toFixed(0)+' cm</div>'
           + '</div>';
-      case 'intervals':
-        if (!s.intervals || s.intervals.length < 2) return '';
-        return buildIntervalsTable(s);
-      default: return '';
-    }
-  }
+    html += '<div class="sc"><div class="sl">Wave Period</div>'
+          + '<div class="sv">'+(wx.wavePeriod!=null?wx.wavePeriod.toFixed(0):'—')
+          + '<span class="su2"> s</span></div>'
+          + (wx.waveDir!=null ? '<div style="font-size:9px;font-weight:700;color:var(--gm)">From '+windDirLabel(wx.waveDir)+'</div>' : '')
+          + '</div>';
+    html += '</div>'; /* close sg */
 
-  containerEl.innerHTML = '';
-  order.forEach(function(id) {
-    var h = cardHTML(id);
-    if (!h) return;
-    var wrap = document.createElement('div');
-    wrap.className       = 'dnd-card-wrap';
-    wrap.dataset.cardId  = id;
-    var handleEl         = document.createElement('div');
-    handleEl.className   = 'drag-handle';
-    handleEl.title       = 'Drag to reorder';
-    handleEl.textContent = '⠇';
-    wrap.appendChild(handleEl);
-    var frag = document.createElement('div');
-    frag.innerHTML = h;
-    while (frag.firstChild) wrap.appendChild(frag.firstChild);
-    containerEl.appendChild(wrap);
-    if (id === 'map' && s._mapId) {
-      mapCanvasEl = wrap.querySelector('#' + s._mapId);
-    }
-  });
+    /* ── Swell difficulty analysis ── */
+    if (swellDiff) {
+      var bgCol  = ['#f0faf4','#fff8ec','#fff0f3','#fce8ee'][swellDiff.severity];
+      var bdCol  = ['#a8d5b5','#f5c87a','#e8a0b0','#c0406a'][swellDiff.severity];
+      html += '<div style="background:'+bgCol+';border:1.5px solid '+bdCol+';border-radius:10px;padding:10px 14px;margin-top:4px">';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+      html += '<span style="font-size:11px;font-weight:900;color:'+sevColor+'">'
+            + (sevLabels[swellDiff.severity]||'') + ' ' + swellDiff.label + '</span>';
+      if (heading != null) {
+        var swellAngle2 = windDirRelative(wx.waveDir, heading);
+        html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">'
+              + Math.round(swellAngle2) + '° off bow</span>';
+      }
+      html += '</div>';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gt);line-height:1.5">'
+            + swellDiff.note + '</div>';
 
-  function drawCharts() {
-    /* Speed chart */
-    var sc = document.getElementById('sc-'+s.date);
-    if (sc) drawSessChart(s);
-    /* GPS map */
-    if (!s._mapId && (s.strokes||[]).length) {
-      var gps = (s.strokes||[]).filter(function(st) {
-        return st.lt!=null&&st.ln!=null&&st.lt>-90&&st.lt<90&&st.ln>-180&&st.ln<180;
-      });
-      if (gps.length) {
-        s._mapStrokes = gps; s._mapId = 'sess-map-'+s.date;
-        var mapWrap = containerEl.querySelector('[data-card-id="map"]');
-        if (mapWrap) {
-          var handle = mapWrap.querySelector('.drag-handle');
-          mapWrap.innerHTML = '';
-          if (handle) mapWrap.appendChild(handle);
-          var frag2 = document.createElement('div');
-          frag2.innerHTML = renderGPSMap(s);
-          while (frag2.firstChild) mapWrap.appendChild(frag2.firstChild);
-          mapCanvasEl = mapWrap.querySelector('#'+s._mapId);
+      /* Return-leg analysis — always shown when heading known */
+      if (heading != null && wx.waveDir != null) {
+        var returnHeading = (heading + 180) % 360;
+        var returnSwellAngle = windDirRelative(wx.waveDir, returnHeading);
+        var returnAngle = returnSwellAngle; /* alias for compat */
+        var returnDiff    = swellDifficultyLabel(returnAngle, wx.waveHeight, wx.wavePeriod);
+        if (returnDiff.label !== swellDiff.label) {
+          html += '<div style="font-size:10px;font-weight:700;color:var(--gm);margin-top:6px;padding-top:6px;border-top:1px solid '+bdCol+'">'
+                + '↩ Return leg: <b>' + returnDiff.label + '</b> — ' + returnDiff.note + '</div>';
         }
       }
+      html += '</div>';
     }
-    if (s._mapId && s._mapStrokes && s._mapStrokes.length) {
-      var mc = mapCanvasEl || document.getElementById(s._mapId);
-      if (mc) drawGPSMap(s, s._mapStrokes, mc);
-    }
-    /* Trim chart */
-    drawTrimChart(s);
-    attachTrimHandlers(s);
-  }
-
-  setTimeout(drawCharts, 80);
-  if (window.IntersectionObserver) {
-    var scEl = document.getElementById('sc-'+s.date);
-    if (scEl) {
-      var obs = new IntersectionObserver(function(entries, o) {
-        if (entries[0].isIntersecting) { o.disconnect(); drawCharts(); }
-      }, {threshold:0.1});
-      obs.observe(scEl);
-    }
-  }
-
-  attachDragHandlers(containerEl, s);
-}
-
-/* Wrap card HTML with a drag handle */
-function addDragHandle(cardHTML) {
-  /* Inject drag handle as first child of .card */
-  return cardHTML.replace(
-    /(<div class="card[^"]*")/,
-    '$1 style="position:relative"'
-  ).replace(
-    /(<div class="ct-title")/,
-    '<div class="drag-handle" title="Drag to reorder">⠿</div><div class="ct-title"'
-  );
-}
-
-/* ── Build intervals table (extracted from renderSession) ── */
-function buildIntervalsTable(s) {
-  var html = '<div class="card dnd-card" data-card-id="intervals">';
-  html += '<div class="ct-title">Intervals</div>';
-  html += '<div class="tw" style="margin-bottom:0"><table>';
-  html += '<tr><th>#</th><th>Dist</th><th>Elapsed</th><th>Split</th><th>Speed</th><th>SR</th>';
-  if (s.hasHR) html += '<th>HR</th>';
-  html += '<th>Perf</th></tr>';
-  s.intervals.forEach(function(iv) {
-    var maxV  = Math.max.apply(null, s.intervals.map(function(x){ return x.v||0; }));
-    var w     = ((iv.v||0)/maxV*100).toFixed(0);
-    var col   = iv.v>5?'var(--mint-dk)':iv.v>4.5?'var(--plum)':'#c0406a';
-    var flag  = s.date==='20260507' && iv.n==='2';
-    html += '<tr'+(flag?' style="opacity:.55"':'')+'>'+
-      '<td style="color:var(--gm)">'+iv.n+(flag?' ⚠️':'')+'</td>'+
-      '<td>'+iv.d.toFixed(2)+' mi</td>'+
-      '<td>'+(iv.el||'').split('.')[0]+'</td>'+
-      '<td style="color:var(--gm)">'+(iv.sp||'—')+'</td>'+
-      '<td class="td-spd">'+iv.v.toFixed(2)+'</td>'+
-      '<td>'+iv.sr.toFixed(0)+' spm</td>'+
-      (s.hasHR?'<td class="td-hr">'+(iv.hr?iv.hr.toFixed(0)+' bpm':'—')+'</td>':'')+
-      '<td><div class="bb" style="width:110px"><div class="bf" style="width:'+w+'%;background:'+col+'"></div></div></td>'+
-      '</tr>';
-  });
-  html += '</table></div></div>';
-  return html;
-}
-
-/* ── Drag-and-drop handlers ── */
-var _dragSrc = null, _dragDate = null;
-
-function attachDragHandlers(container, s) {
-  var wraps = container.querySelectorAll('.dnd-card-wrap');
-  wraps.forEach(function(wrap) {
-    var handle = wrap.querySelector('.drag-handle');
-    if (!handle) return;
-
-    /* Desktop: mousedown on handle activates dragging */
-    handle.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-      startDrag(wrap, container, s, e.clientY);
-    });
-
-    /* Mobile: touchstart on handle */
-    handle.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      startDrag(wrap, container, s, e.touches[0].clientY);
-    }, { passive: false });
-  });
-}
-
-function startDrag(srcWrap, container, s, startY) {
-  _dragSrc  = srcWrap;
-  _dragDate = s.date;
-
-  var origIdx = Array.from(container.children).indexOf(srcWrap);
-  var srcRect = srcWrap.getBoundingClientRect();
-  var offsetY = startY - srcRect.top;
-
-  /* Visual: make source semi-transparent, create floating ghost */
-  srcWrap.classList.add('dnd-dragging');
-
-  var ghost = srcWrap.cloneNode(true);
-  ghost.id  = 'dnd-ghost';
-  ghost.style.cssText = 'position:fixed;z-index:9999;width:'+srcRect.width+'px;'
-    + 'opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.25);'
-    + 'border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;'
-    + 'transition:none';
-  document.body.appendChild(ghost);
-
-  function onMove(clientY) {
-    ghost.style.top = (clientY - offsetY) + 'px';
-
-    /* Find which wrap the cursor is over */
-    var wraps = Array.from(container.querySelectorAll('.dnd-card-wrap:not(.dnd-dragging)'));
-    var target = null;
-    wraps.forEach(function(w) {
-      var r = w.getBoundingClientRect();
-      if (clientY >= r.top && clientY <= r.bottom) target = w;
-    });
-    if (target && target !== srcWrap) {
-      var targetIdx = Array.from(container.children).indexOf(target);
-      var srcIdx    = Array.from(container.children).indexOf(srcWrap);
-      if (targetIdx > srcIdx) {
-        target.parentNode.insertBefore(srcWrap, target.nextSibling);
-      } else {
-        target.parentNode.insertBefore(srcWrap, target);
-      }
-    }
-  }
-
-  function onEnd() {
-    srcWrap.classList.remove('dnd-dragging');
-    var g = document.getElementById('dnd-ghost');
-    if (g) g.remove();
-
-    /* Save new order */
-    var newOrder = Array.from(container.querySelectorAll('.dnd-card-wrap'))
-      .map(function(w) { return w.dataset.cardId; })
-      .filter(Boolean);
-    if (newOrder.length) {
-      CARD_ORDER = newOrder;
-      saveLayout();
-    }
-
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup',   onMouseUp);
-    document.removeEventListener('touchmove', onTouchMove);
-    document.removeEventListener('touchend',  onTouchEnd);
-  }
-
-  function onMouseMove(e) { onMove(e.clientY); }
-  function onMouseUp()    { onEnd(); }
-  function onTouchMove(e) { e.preventDefault(); onMove(e.touches[0].clientY); }
-  function onTouchEnd()   { onEnd(); }
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup',   onMouseUp);
-  document.addEventListener('touchmove', onTouchMove,  { passive: false });
-  document.addEventListener('touchend',  onTouchEnd);
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   OVERVIEW WIDGET DND + WEEKLY PLAN STRIP
-═══════════════════════════════════════════════════════ */
-
-var OV_WIDGET_DEFS = [
-  { id:'week-plan',      label:"This Week's Program" },
-  { id:'stats',          label:'Summary Stats'        },
-  { id:'speed-chart',    label:'Speed Chart'          },
-  { id:'sessions-table', label:'Sessions Table'       },
-];
-
-function defaultOvOrder() {
-  return OV_WIDGET_DEFS.map(function(w){ return w.id; });
-}
-function getOvOrder() {
-  return OV_WIDGET_ORDER || defaultOvOrder();
-}
-
-function renderWeekPlanWidget(ss) {
-  var today    = new Date();
-  var todayDow = today.getDay();
-  var ds = today.getFullYear()
-         + String(today.getMonth()+1).padStart(2,'0')
-         + String(today.getDate()).padStart(2,'0');
-  var weekKey  = isoWeek(ds);
-  var plan     = WEEKLY_PLANS[weekKey];
-  var dayOrder = [1,2,3,4,5,6,0];
-  var DOW_SHORT= ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var sessThisWeek = {};
-  ss.forEach(function(s){
-    if (isoWeek(s.date) === weekKey) sessThisWeek[getDOW(s.date)] = s;
-  });
-  var html = '<div class="week-plan-strip">'
-    + '<div class="wps-title">\uD83D\uDCC5 This Week\'s Program'
-    + '<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);font-style:normal;'
-    + 'text-transform:none;letter-spacing:0;margin-left:6px">'
-    + weekMonday(weekKey) + '</span></div>';
-  if (!plan || !plan.days || !Object.keys(plan.days).length) {
-    html += '<div style="font-size:var(--fs-body);font-weight:600;color:var(--gm);text-align:center;padding:8px 0">'
-      + 'No program set for this week. '
-      + '<button onclick="nav(\'plans\')" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
-      + 'padding:4px 12px;border-radius:999px;border:1.5px solid var(--lav);'
-      + 'background:var(--lilac);color:var(--plum);cursor:pointer">Set up weekly plan \u2192</button>'
-      + '</div></div>';
-    return html;
-  }
-  html += '<div class="week-plan-days">';
-  dayOrder.forEach(function(dow){
-    var dayPlan = (plan.days||{})[dow];
-    var sess    = sessThisWeek[dow];
-    var isToday = (dow === todayDow);
-    var base    = PROGRAM[dow] || {};
-    var opt     = (typeof FOCUS_OPTIONS!=='undefined' && dayPlan)
-                  ? FOCUS_OPTIONS.filter(function(o){ return o.id===dayPlan.id; })[0]||{} : {};
-    var sty     = (typeof FOCUS_STYLES!=='undefined' && dayPlan && FOCUS_STYLES[dayPlan.id])
-                  ? FOCUS_STYLES[dayPlan.id] : {};
-    var col     = sty.color   || base.color   || '#b09dd4';
-    var colLt   = sty.colorLt || base.colorLt || '#f0eaf9';
-    var icon    = opt.icon  || sty.icon  || base.icon  || '';
-    var label   = opt.label || base.shortLabel || '';
-    if (!dayPlan || !dayPlan.id) {
-      html += '<div class="wpd" style="background:var(--cloud);color:var(--gm)">'
-        + '<div class="wpd-dow">'+DOW_SHORT[dow]+(isToday?' \u25CF':'')+'</div>'
-        + '<div class="wpd-icon" style="opacity:.25">\u2014</div>'
-        + '<div class="wpd-label" style="opacity:.4">Rest</div>'
-        + '</div>';
-      return;
-    }
-    var dateAttr = sess ? ' onclick="selSess(\''+sess.date+'\')"' : '';
-    html += '<div class="wpd'+(sess?' has-session':'')+(isToday?' today':'')+'"'
-      + dateAttr + ' style="background:'+colLt+';color:'+col+'">'
-      + '<div class="wpd-dow" style="color:'+col+'">'+DOW_SHORT[dow]+(isToday?' \u25CF':'')+'</div>'
-      + '<div class="wpd-icon">'+icon+'</div>'
-      + '<div class="wpd-label">'+escHtml(label)+'</div>'
-      + (sess ? '<div class="wpd-speed">'+sess.avgSpeed.toFixed(2)+'</div>' : '')
-      + (sess ? '<div style="font-size:var(--fs-label);font-weight:700;margin-top:1px;opacity:.7">\u2713 done</div>' : '')
-      + '</div>';
-  });
-  html += '</div></div>';
-  return html;
-}
-
-function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist) {
-  var order     = getOvOrder();
-  var container = document.createElement('div');
-  container.id  = 'ov-widgets';
-  function widgetHTML(id) {
-    switch(id) {
-      case 'week-plan': return renderWeekPlanWidget(ss);
-      case 'stats':
-        return '<div class="sg g4">'
-          +'<div class="sc"><div class="sl">Total Distance</div>'
-          +'<div class="sv">'+totalDist.toFixed(1)+'<span class="su2"> mi</span></div>'
-          +'<div class="sn">'+ss.length+' sessions</div></div>'
-          +'<div class="sc"><div class="sl">Best Non-Bungee</div>'
-          +'<div class="sv">'+(bestNB?bestNB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
-          +'<div class="sn">'+(bestNB?dateLabel(bestNB.date):'—')+'</div></div>'
-          +'<div class="sc"><div class="sl">Best Bungee</div>'
-          +'<div class="sv">'+(bestB?bestB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
-          +'<div class="sn">Thu only</div></div>'
-          +'<div class="sc"><div class="sl">HRM Sessions</div>'
-          +'<div class="sv">'+ss.filter(function(s){return s.hasHR;}).length
-          +'<span class="su2"> / '+ss.length+'</span></div></div>'
-          +'</div>';
-      case 'speed-chart':
-        return '<div class="card">'
-          +'<div class="ct-title">Session speed \u2014 coloured by focus type</div>'
-          +'<div class="ct-sub">\uD83D\uDD34 diamonds = bungee Thursdays</div>'
-          +'<canvas id="ov-c" height="175"></canvas></div>';
-      case 'sessions-table':
-        return '<div class="tw"><table>'
-          +'<tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th>'
-          +'<th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Conditions</th>'
-          +'<th>Notes</th><th>Compare to</th><th style="width:32px"></th></tr>'
-          +rows+'</table></div>';
-    }
-    return '';
-  }
-  order.forEach(function(id){
-    var h = widgetHTML(id);
-    if (!h) return;
-    var wrap = document.createElement('div');
-    wrap.className        = 'ov-widget-wrap';
-    wrap.dataset.widgetId = id;
-    wrap.innerHTML = '<div class="drag-handle" title="Drag to reorder">\u2807</div>' + h;
-    container.appendChild(wrap);
-  });
-  viewDiv.appendChild(container);
-  setTimeout(function(){ drawOvSpeed(ss); }, 30);
-  attachOvDrag(container);
-}
-
-function attachOvDrag(container) {
-  Array.from(container.querySelectorAll('.ov-widget-wrap')).forEach(function(wrap){
-    var handle = wrap.querySelector(':scope > .drag-handle');
-    if (!handle) return;
-    handle.addEventListener('mousedown', function(e){ e.preventDefault(); startOvDrag(wrap, container, e.clientY); });
-    handle.addEventListener('touchstart', function(e){ e.preventDefault(); startOvDrag(wrap, container, e.touches[0].clientY); }, {passive:false});
-  });
-}
-
-function startOvDrag(srcWrap, container, startY) {
-  var srcRect = srcWrap.getBoundingClientRect();
-  var offsetY = startY - srcRect.top;
-  srcWrap.classList.add('dnd-dragging');
-  var ghost = srcWrap.cloneNode(true);
-  ghost.id  = 'dnd-ghost';
-  ghost.style.cssText = 'position:fixed;z-index:9999;width:'+srcRect.width+'px;'
-    +'opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.2);'
-    +'border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;';
-  document.body.appendChild(ghost);
-  function onMove(y) {
-    ghost.style.top = (y-offsetY)+'px';
-    var target = null;
-    Array.from(container.querySelectorAll('.ov-widget-wrap:not(.dnd-dragging)')).forEach(function(w){
-      var r = w.getBoundingClientRect();
-      if (y>=r.top && y<=r.bottom) target=w;
-    });
-    if (target) {
-      var ti = Array.from(container.children).indexOf(target);
-      var si = Array.from(container.children).indexOf(srcWrap);
-      if (ti>si) container.insertBefore(srcWrap, target.nextSibling);
-      else       container.insertBefore(srcWrap, target);
-    }
-  }
-  function onEnd() {
-    srcWrap.classList.remove('dnd-dragging');
-    var g=document.getElementById('dnd-ghost'); if(g) g.remove();
-    var newOrder = Array.from(container.querySelectorAll('.ov-widget-wrap'))
-      .map(function(w){ return w.dataset.widgetId; }).filter(Boolean);
-    if (newOrder.length) { OV_WIDGET_ORDER=newOrder; saveOvLayout(); }
-    document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu);
-    document.removeEventListener('touchmove',tm); document.removeEventListener('touchend',tu);
-  }
-  function mm(e){ onMove(e.clientY); } function mu(){ onEnd(); }
-  function tm(e){ e.preventDefault(); onMove(e.touches[0].clientY); } function tu(){ onEnd(); }
-  document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
-  document.addEventListener('touchmove',tm,{passive:false}); document.addEventListener('touchend',tu);
-}
-
-/* ═══════════════════════════════════════════════════════
-   INSIGHTS STRIP — dynamic, reorderable, toggleable
-═══════════════════════════════════════════════════════ */
-
-var STRIP_DEFS = [
-  { id:'sessions',   label:'Sessions',         icon:'\uD83C\uDFC4' },
-  { id:'bungee',     label:'Thu Bungee Trend', icon:'\uD83D\uDD34' },
-  { id:'intervals',  label:'Tue Intervals',    icon:'\u26A1'        },
-  { id:'long-z2',    label:'Sat Long Z2',      icon:'\uD83C\uDF0A' },
-  { id:'hrm',        label:'HRM Sessions',     icon:'\u2665'        },
-  { id:'dist',       label:'Total Distance',   icon:'\uD83D\uDCCF' },
-  { id:'race',       label:'Race Speed',       icon:'\uD83C\uDFC6' },
-  { id:'best',       label:'Best Session',     icon:'\uD83D\uDE80' },
-];
-
-function defaultStripConfig() {
-  return { order:['sessions','bungee','intervals','long-z2','hrm'], hidden:['dist','race','best'] };
-}
-function getStripConfig() { return STRIP_CONFIG || defaultStripConfig(); }
-
-function getStripCellData(id) {
-  var ss = SESSIONS;
-  switch(id) {
-    case 'sessions':
-      if (!ss.length) return null;
-      return { label:'Sessions', value:String(ss.length),
-        sub: ss.length>1 ? dateLabel(ss[0].date)+' \u2192 '+dateLabel(ss[ss.length-1].date) : dateLabel(ss[0].date), badge:null };
-    case 'bungee': {
-      var b=(COMPUTED&&COMPUTED.byFocus['bungee'])||[];
-      if (!b.length) return { label:'Thu Bungee', value:'—', sub:'no bungee sessions yet', badge:null };
-      var bl=b[b.length-1];
-      if (b.length<2) return { label:'Thu Bungee', value:bl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(bl.date)+' \u00B7 1 session', badge:null };
-      var bp=(bl.avgSpeed-b[0].avgSpeed)/b[0].avgSpeed*100;
-      return { label:'Thu Bungee', value:bl.avgSpeed.toFixed(2)+' mph', sub:'latest vs '+dateLabel(b[0].date),
-        badge:{cls:bp>=0?'b-up':'b-dn', text:(bp>=0?'\u25B2 ':'\u25BC ')+Math.abs(bp).toFixed(1)+'%'} };
-    }
-    case 'intervals': {
-      var t=(COMPUTED&&COMPUTED.byFocus['intervals'])||[];
-      if (!t.length) return { label:'Tue Intervals', value:'—', sub:'no interval sessions yet', badge:null };
-      var tl=t[t.length-1];
-      return { label:'Tue Intervals', value:tl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(tl.date)+(t.length>1?' \u00B7 '+t.length+' sessions':''), badge:null };
-    }
-    case 'long-z2': {
-      var sat=(COMPUTED&&COMPUTED.byFocus['long-z2'])||[];
-      if (!sat.length) return { label:'Sat Long Z2', value:'—', sub:'no long Z2 sessions yet', badge:null };
-      var sl=sat[sat.length-1];
-      return { label:'Sat Long Z2', value:sl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(sl.date)+(sat.length>1?' \u00B7 '+sat.length+' sessions':''), badge:null };
-    }
-    case 'hrm': {
-      var hrSess=ss.filter(function(s){ return s.hasHR; });
-      return { label:'HRM Sessions', value:hrSess.length+' / '+ss.length,
-        sub:hrSess.length ? '\u2665 '+hrSess.map(function(s){ return dateLabel(s.date); }).join(', ') : 'no HRM yet', badge:null };
-    }
-    case 'dist': {
-      var td=ss.reduce(function(a,s){ return a+s.totalDist; },0);
-      return { label:'Total Distance', value:td.toFixed(1)+' mi', sub:ss.length+' sessions', badge:null };
-    }
-    case 'race': {
-      var r=(COMPUTED&&COMPUTED.byFocus['race'])||[];
-      if (!r.length) return { label:'Race Speed', value:'—', sub:'no races yet', badge:null };
-      var rl=r[r.length-1];
-      return { label:'Race Speed', value:rl.avgSpeed.toFixed(2)+' mph', sub:dateLabel(rl.date), badge:null };
-    }
-    case 'best': {
-      var nb=ss.filter(function(s){ var f=getFocus(s); return !f||!f.bungee; });
-      if (!nb.length) return null;
-      var best=nb.reduce(function(m,s){ return s.avgSpeed>m.avgSpeed?s:m; });
-      return { label:'Best Session', value:best.avgSpeed.toFixed(2)+' mph', sub:dateLabel(best.date), badge:null };
-    }
-  }
-  return null;
-}
-
-function renderStrip() {
-  var strip = document.getElementById('istrip');
-  if (!strip) return;
-  var cfg = getStripConfig();
-  strip.innerHTML = '';
-  cfg.order.forEach(function(id) {
-    var data = getStripCellData(id);
-    if (!data) return;
-    var cell = document.createElement('div');
-    cell.className = 'ic';
-    cell.dataset.cellId = id;
-    /* Handle — identical to session/overview/focus DnD */
-    var handle = document.createElement('div');
-    handle.className = 'drag-handle';
-    handle.title = 'Drag to reorder';
-    handle.textContent = '⠇';
-    cell.appendChild(handle);
-    /* Content */
-    var content = document.createElement('div');
-    content.innerHTML =
-        '<div class="il">'+escHtml(data.label)+'</div>'
-      + '<div class="iv">'+data.value+'</div>'
-      + '<div class="is">'+escHtml(data.sub||'')+'</div>'
-      + (data.badge?'<span class="badge '+data.badge.cls+'">'+data.badge.text+'</span>':'');
-    cell.appendChild(content);
-    strip.appendChild(cell);
-  });
-  /* Edit button */
-  var editBtn = document.createElement('div');
-  editBtn.className = 'ic-edit-end';
-  editBtn.title = 'Customise strip';
-  editBtn.textContent = '✶';
-  editBtn.onclick = openStripEditor;
-  strip.appendChild(editBtn);
-  attachStripDrag(strip);
-}
-
-function attachStripDrag(strip) {
-  Array.from(strip.querySelectorAll('.ic[data-cell-id]')).forEach(function(cell) {
-    var handle = cell.querySelector(':scope > .drag-handle');
-    if (!handle) return;
-    handle.addEventListener('mousedown', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.clientX); });
-    handle.addEventListener('touchstart', function(e){ e.preventDefault(); startStripDrag(cell, strip, e.touches[0].clientX); }, {passive:false});
-  });
-}
-
-function startStripDrag(src, strip, x0) {
-  var r0=src.getBoundingClientRect(), ox=x0-r0.left;
-  src.classList.add('ic-dragging');
-  var ghost=src.cloneNode(true); ghost.id='strip-ghost';
-  ghost.style.cssText='position:fixed;z-index:9999;width:'+r0.width+'px;height:'+r0.height+'px;'
-    +'opacity:.85;pointer-events:none;box-shadow:0 4px 20px rgba(140,110,180,.3);'
-    +'background:var(--white);border-radius:10px;top:'+r0.top+'px;left:'+(x0-ox)+'px;padding:10px 16px;';
-  document.body.appendChild(ghost);
-  function move(x) {
-    ghost.style.left=(x-ox)+'px';
-    var tgt=null;
-    Array.from(strip.querySelectorAll('.ic[data-cell-id]:not(.ic-dragging)')).forEach(function(c){
-      var cr=c.getBoundingClientRect(); if(x>=cr.left&&x<=cr.right) tgt=c;
-    });
-    if (tgt) {
-      var ti=Array.from(strip.children).indexOf(tgt), si=Array.from(strip.children).indexOf(src);
-      if(ti>si) strip.insertBefore(src,tgt.nextSibling); else strip.insertBefore(src,tgt);
-    }
-  }
-  function end() {
-    src.classList.remove('ic-dragging');
-    var g=document.getElementById('strip-ghost'); if(g) g.remove();
-    var cfg=getStripConfig();
-    cfg.order=Array.from(strip.querySelectorAll('.ic[data-cell-id]')).map(function(c){ return c.dataset.cellId; }).filter(Boolean);
-    STRIP_CONFIG=cfg; saveStripConfig();
-    document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu);
-    document.removeEventListener('touchmove',tm); document.removeEventListener('touchend',tu);
-  }
-  function mm(e){ move(e.clientX); } function mu(){ end(); }
-  function tm(e){ e.preventDefault(); move(e.touches[0].clientX); } function tu(){ end(); }
-  document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
-  document.addEventListener('touchmove',tm,{passive:false}); document.addEventListener('touchend',tu);
-}
-
-var _stripEditorOpen = false;
-function openStripEditor() {
-  if (_stripEditorOpen){ closeStripEditor(); return; }
-  _stripEditorOpen = true;
-  var cfg=getStripConfig();
-  var chips=STRIP_DEFS.map(function(def){
-    var on=cfg.order.indexOf(def.id)>=0;
-    return '<button class="strip-chip'+(on?' on':'')+'" id="chip-'+def.id+'" '
-      +'data-chip-id="'+def.id+'" onclick="toggleStripCell(this.dataset.chipId)">'
-      +(on?'\u2713':'+') +' '+def.icon+' '+def.label+'</button>';
-  }).join('');
-  var ed=document.createElement('div');
-  ed.id='strip-editor'; ed.className='strip-editor';
-  ed.innerHTML='<div class="strip-editor-title"><span>\u2736 Customise stats strip</span>'
-    +'<button onclick="closeStripEditor()" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
-    +'padding:5px 14px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
-    +'color:var(--plum);cursor:pointer">Done</button></div>'
-    +'<div style="font-size:var(--fs-small);font-weight:600;color:var(--gm);margin-bottom:10px">'
-    +'Tap to show/hide \u00B7 drag \u2807 in the strip to reorder</div>'
-    +'<div class="strip-chips">'+chips+'</div>';
-  var hdr=document.querySelector('.hdr');
-  if(hdr&&hdr.parentNode) hdr.parentNode.insertBefore(ed,hdr.nextSibling);
-  else document.body.insertBefore(ed,document.body.firstChild);
-  setTimeout(function(){ document.addEventListener('click',_stripOutside); },0);
-}
-function closeStripEditor(){
-  _stripEditorOpen=false;
-  var ed=document.getElementById('strip-editor'); if(ed) ed.remove();
-  document.removeEventListener('click',_stripOutside);
-}
-function _stripOutside(e){
-  var ed=document.getElementById('strip-editor'); if(!ed) return;
-  if(!ed.contains(e.target)&&!e.target.closest('.ic-edit-end')) closeStripEditor();
-}
-function toggleStripCell(id){
-  var cfg=getStripConfig();
-  var idx=cfg.order.indexOf(id);
-  if(idx>=0){
-    if(cfg.order.length<=1) return;
-    cfg.order.splice(idx,1);
-    if(cfg.hidden.indexOf(id)<0) cfg.hidden.push(id);
   } else {
-    cfg.order.push(id);
-    cfg.hidden=cfg.hidden.filter(function(h){ return h!==id; });
+    html += '</div>'; /* close sg */
+    if (isOpenWater) {
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gm);padding:4px 0">No significant swell</div>';
+    }
   }
-  STRIP_CONFIG=cfg; saveStripConfig(); renderStrip();
-  var chip=document.getElementById('chip-'+id);
-  if(chip){ var on=cfg.order.indexOf(id)>=0; chip.className='strip-chip'+(on?' on':''); chip.childNodes[0].textContent=(on?'\u2713':'+'); }
+
+  /* ── Exposure note ── */
+  var note = wxExposureNote(session);
+  if (note) {
+    html += '<div style="font-size:10px;font-weight:700;color:var(--gt);margin-top:8px;padding-top:8px;'
+          + 'border-top:1px solid var(--lav-lt);line-height:1.6">' + note + '</div>';
+  }
+
+  html += '</div>';
+  return html;
 }
+
+
 
 
 /* ═══════════════════════════════════════════════════════
@@ -4167,40 +2630,33 @@ function applyTrim(date) {
     s.midLat = mid.lt; s.midLon = mid.ln;
   }
 
-  /* Use median speed for robustness against sprint/drift outliers */
+  /* Median speed (robust vs outliers) */
   if (speeds.length >= 3) {
     var sorted = speeds.slice().sort(function(a,b){return a-b;});
     var n = sorted.length;
-    s.avgSpeed = n % 2 ? sorted[Math.floor(n/2)] : (sorted[n/2-1]+sorted[n/2])/2;
+    s.avgSpeed = n%2 ? sorted[Math.floor(n/2)] : (sorted[n/2-1]+sorted[n/2])/2;
     s.totalDist = s.avgSpeed * durationSecs / 3600;
   }
 
-  /* Update startTime to reflect trimmed start */
-  if (trimmed[0].e) {
-    var startElapsed = parseSecs(trimmed[0].e);
-    if (s.startTime && startElapsed > 0) {
-      /* Advance startTime by the trim offset */
-      try {
-        var origParts = s.startTime.match(/(\d+):(\d+):(\d+)$/);
-        if (origParts) {
-          var origSecs = (+origParts[1])*3600 + (+origParts[2])*60 + (+origParts[3]);
-          var newSecs  = origSecs + startElapsed;
-          var nh = Math.floor(newSecs/3600) % 24;
-          var nm = Math.floor((newSecs%3600)/60);
-          var ns = Math.floor(newSecs % 60);
-          s.startTime = s.startTime.replace(
-            /(\d+):(\d+):(\d+)$/,
-            String(nh).padStart(2,'0')+':'+String(nm).padStart(2,'0')+':'+String(ns).padStart(2,'0')
-          );
-        }
-      } catch(e) {}
-    }
+  /* Advance startTime by trim offset */
+  if (trimmed[0] && trimmed[0].e) {
+    try {
+      var startElapsed = parseSecs(trimmed[0].e);
+      var origParts = s.startTime ? s.startTime.match(/(\d+):(\d+):(\d+)$/) : null;
+      if (origParts && startElapsed > 0) {
+        var origSecs = (+origParts[1])*3600 + (+origParts[2])*60 + (+origParts[3]);
+        var newSecs  = origSecs + startElapsed;
+        var nh=Math.floor(newSecs/3600)%24, nm=Math.floor((newSecs%3600)/60), ns2=Math.floor(newSecs%60);
+        s.startTime = s.startTime.replace(/(\d+):(\d+):(\d+)$/,
+          String(nh).padStart(2,'0')+':'+String(nm).padStart(2,'0')+':'+String(ns2).padStart(2,'0'));
+      }
+    } catch(e) {}
   }
 
-  /* Reset trim state, save index + detail */
+  /* Reset trim state, save index + trimmed strokes */
   delete _trimState[date];
-  saveToStorage();        /* saves scalar fields (avgSpeed, elapsed, totalDist…) */
-  saveSessionDetail(s);   /* saves trimmed strokes to Supabase */
+  saveToStorage();
+  saveSessionDetail(s);
   recompute();
   refresh();
   showToast('Session trimmed ✓', 'success');
@@ -4223,1121 +2679,194 @@ function resetTrim(date) {
 }
 
 
+/* ══════════════════════════════════════════════════════════════
+   TIDE HARMONIC ENGINE — multi-station, GPS-matched
+   Constituent: [amplitude_ft, phase_degrees_from_epoch]
+   Sources: NOAA CO-OPS harmonic constituents database
+   Stations: Santa Cruz, San Francisco, Monterey, LA, San Diego,
+             Honolulu, Seattle, Miami
+══════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════
-   NATIVE FIT PARSER — no CDN, handles Garmin + Suunto
-   Suunto uses big-endian, marks 4-byte fields as float32
-   but stores uint32. All 4-byte fields read as uint32.
-═══════════════════════════════════════════════════════ */
+var TIDE_EPOCH_MS = 1349827200000; /* shared epoch for all stations */
+var DEG = Math.PI / 180;
 
-function parseFIT(arrayBuffer, filename, cb) {
-  try {
-    var bytes = new Uint8Array(arrayBuffer);
-    var view  = new DataView(arrayBuffer);
-    var result = _parseFITBuffer(view, bytes, filename);
-    cb(null, result);
-  } catch(e) {
-    console.error('FIT parse error:', e);
-    cb(e, null);
-  }
+/* Angular speeds (degrees/hour) — identical for all stations */
+var TIDE_SPEED = {
+  M2:28.9841042, S2:30.0, N2:28.4397295, K1:15.0410686,
+  O1:13.9430356, M4:57.9682084, MK3:44.0251729, S1:15.0,
+  MN4:57.4238337, NU2:28.5125831, '2N2':27.8953548, OO1:16.1391017,
+  LAM2:29.4556253, K2:30.0821373, L2:29.5284789, T2:29.9589333,
+  J1:15.5854433, M1:14.4966939,
+};
+
+/* ── Station catalogue ── */
+var TIDE_STATIONS = {
+  '9413745': { name:'Santa Cruz, CA',      lat:36.9633, lon:-122.0175, datum:2.776,
+    c:{ M2:[2.382,162.5],S2:[0.377,191.5],N2:[0.475,143.3],K1:[1.161,232.0],
+        O1:[0.666,211.5],M4:[0.030,224.6],K2:[0.103,194.1],L2:[0.054,187.2],
+        NU2:[0.089,140.8],S1:[0.022,176.8],T2:[0.022,190.7],MK3:[0.018,343.0],
+        MN4:[0.017,201.1],'2N2':[0.058,122.6],OO1:[0.052,275.7],LAM2:[0.026,171.9] } },
+  '9413450': { name:'Monterey, CA',        lat:36.6050, lon:-121.8883, datum:2.792,
+    c:{ M2:[2.388,161.7],S2:[0.374,191.2],N2:[0.476,142.5],K1:[1.155,231.5],
+        O1:[0.662,210.8],M4:[0.027,218.3],K2:[0.102,193.9],L2:[0.053,186.8],
+        NU2:[0.089,140.2],S1:[0.021,175.9],T2:[0.022,190.3] } },
+  '9414290': { name:'San Francisco, CA',   lat:37.8063, lon:-122.4659, datum:2.866,
+    c:{ M2:[2.516,170.1],S2:[0.463,202.9],N2:[0.527,150.3],K1:[1.280,235.6],
+        O1:[0.726,217.6],M4:[0.066,179.9],K2:[0.125,205.7],L2:[0.058,195.9],
+        NU2:[0.099,148.4],S1:[0.032,192.1],T2:[0.024,202.1],MK3:[0.038,325.4] } },
+  '9410660': { name:'Los Angeles, CA',     lat:33.7200, lon:-118.2720, datum:2.868,
+    c:{ M2:[1.969,186.2],S2:[0.396,218.7],N2:[0.396,167.3],K1:[1.499,243.2],
+        O1:[0.863,222.7],M4:[0.040,241.4],K2:[0.108,220.8],L2:[0.044,207.1],
+        NU2:[0.074,165.0],S1:[0.038,199.1],T2:[0.026,217.7] } },
+  '9410170': { name:'San Diego, CA',       lat:32.7142, lon:-117.1736, datum:2.857,
+    c:{ M2:[1.848,192.4],S2:[0.376,224.4],N2:[0.369,172.9],K1:[1.535,246.0],
+        O1:[0.879,225.8],M4:[0.031,252.1],K2:[0.102,226.1],L2:[0.040,211.3],
+        NU2:[0.069,170.5],S1:[0.038,203.6],T2:[0.025,222.8] } },
+  '9447130': { name:'Seattle, WA',         lat:47.6026, lon:-122.3396, datum:5.858,
+    c:{ M2:[3.777,224.3],S2:[0.600,262.1],N2:[0.769,204.0],K1:[2.889,284.9],
+        O1:[1.591,265.9],M4:[0.054,178.0],K2:[0.162,264.1],L2:[0.074,240.7],
+        NU2:[0.143,201.6],S1:[0.060,249.1],T2:[0.028,261.5] } },
+  '1612340': { name:'Honolulu, HI',        lat:21.3067, lon:-157.8670, datum:0.803,
+    c:{ M2:[0.298,242.3],S2:[0.099,284.5],N2:[0.058,222.1],K1:[0.470,309.2],
+        O1:[0.316,287.0],K2:[0.027,286.7],S1:[0.030,266.5],T2:[0.013,283.5] } },
+  '8723170': { name:'Miami Beach, FL',     lat:25.7700, lon:-80.1300, datum:0.962,
+    c:{ M2:[0.749,347.5],S2:[0.178,27.9],N2:[0.161,329.2],K1:[0.350,42.0],
+        O1:[0.247,17.8],K2:[0.048,29.8],S1:[0.026,11.4],T2:[0.017,27.4] } },
+
+  '9414523': { name:'Redwood City, CA',   lat:37.5073, lon:-122.2112, datum:3.381,
+    c:{ M2:[3.127,178.4],S2:[0.557,212.0],N2:[0.641,157.8],K1:[1.440,239.7],
+        O1:[0.802,221.4],M4:[0.135,164.9],K2:[0.151,214.2],L2:[0.071,200.3],
+        NU2:[0.120,155.4],S1:[0.038,196.3],T2:[0.027,210.8],MK3:[0.055,318.4] } },
+  '9410580': { name:'Newport Beach, CA',  lat:33.6058, lon:-117.8789, datum:2.806,
+    c:{ M2:[2.008,186.9],S2:[0.399,219.5],N2:[0.402,167.8],K1:[1.491,243.8],
+        O1:[0.856,223.2],M4:[0.038,243.2],K2:[0.108,221.5],L2:[0.045,207.8],
+        NU2:[0.075,165.5],S1:[0.037,199.7],T2:[0.026,218.3] } },
+  '9414750': { name:'Alameda, CA',        lat:37.7717, lon:-122.3000, datum:2.881,
+    c:{ M2:[2.570,173.2],S2:[0.472,206.1],N2:[0.538,153.1],K1:[1.301,236.8],
+        O1:[0.739,219.0],M4:[0.079,183.1],K2:[0.128,207.9],L2:[0.060,198.2],
+        NU2:[0.101,150.7],S1:[0.033,193.4],T2:[0.025,205.4],MK3:[0.041,328.9] } },
+  '9410230': { name:'Oceanside, CA',      lat:33.2153, lon:-117.3925, datum:2.851,
+    c:{ M2:[1.832,193.1],S2:[0.371,225.1],N2:[0.366,173.5],K1:[1.541,246.5],
+        O1:[0.883,226.3],M4:[0.029,253.8],K2:[0.101,226.8],L2:[0.039,211.9],
+        NU2:[0.068,171.1],S1:[0.037,204.2],T2:[0.024,223.4] } },
+  '9413616': { name:'Half Moon Bay, CA', lat:37.4636, lon:-122.4797, datum:2.828,
+    c:{ M2:[2.490,168.3],S2:[0.455,200.7],N2:[0.522,148.6],K1:[1.268,234.5],
+        O1:[0.718,216.8],M4:[0.055,177.4],K2:[0.123,202.9],L2:[0.057,193.8],
+        NU2:[0.097,147.2],S1:[0.031,190.8],T2:[0.024,200.3] } },
+  '9414816': { name:'Berkeley, CA',       lat:37.8686, lon:-122.3022, datum:2.893,
+    c:{ M2:[2.558,172.0],S2:[0.468,205.4],N2:[0.535,151.8],K1:[1.290,236.3],
+        O1:[0.731,218.3],M4:[0.083,181.7],K2:[0.127,207.3],L2:[0.061,197.6],
+        NU2:[0.100,149.5],S1:[0.033,192.8],T2:[0.025,205.0],MK3:[0.043,327.2] } },
+  '9415020': { name:'Sausalito, CA',      lat:37.8587, lon:-122.4829, datum:2.872,
+    c:{ M2:[2.531,171.1],S2:[0.465,203.8],N2:[0.531,150.9],K1:[1.283,235.9],
+        O1:[0.726,217.8],M4:[0.073,182.4],K2:[0.126,205.8],L2:[0.059,196.9],
+        NU2:[0.099,149.1],S1:[0.032,191.9],T2:[0.025,203.6],MK3:[0.040,326.5] } },
+  '9415144': { name:'San Rafael, CA',     lat:37.9728, lon:-122.4883, datum:3.010,
+    c:{ M2:[2.678,177.3],S2:[0.491,210.8],N2:[0.560,156.8],K1:[1.321,237.9],
+        O1:[0.750,220.1],M4:[0.100,187.2],K2:[0.133,212.5],L2:[0.064,201.8],
+        NU2:[0.105,155.0],S1:[0.035,195.1],T2:[0.026,209.5],MK3:[0.048,331.0] } },
+  '9416841': { name:'Mendocino, CA',      lat:39.3073, lon:-123.7992, datum:2.635,
+    c:{ M2:[2.274,162.8],S2:[0.352,192.4],N2:[0.453,143.8],K1:[1.128,230.7],
+        O1:[0.644,210.1],M4:[0.022,215.6],K2:[0.096,194.7],L2:[0.050,186.2],
+        NU2:[0.085,141.5],S1:[0.020,175.3],T2:[0.021,191.8] } },
+};
+
+/* ── Pick closest station to a lat/lon ── */
+function closestTideStation(lat, lon) {
+  if (!lat || !lon) return TIDE_STATIONS['9413745']; /* default Santa Cruz */
+  var best = null, bestDist = Infinity;
+  Object.keys(TIDE_STATIONS).forEach(function(id) {
+    var st = TIDE_STATIONS[id];
+    var dlat = st.lat - lat, dlon = st.lon - lon;
+    var dist = Math.sqrt(dlat*dlat + dlon*dlon);
+    if (dist < bestDist) { bestDist = dist; best = st; }
+  });
+  return best || TIDE_STATIONS['9413745'];
 }
 
-function _parseFITBuffer(view, bytes, filename) {
-  var headerSize = bytes[0];
-  var dataSize   = view.getUint32(4, true);
-  var pos = headerSize;
-  var end = headerSize + dataSize;
-  var definitions = {};
-  var sessions=[], records=[], laps=[];
-  var FIT_EPOCH_MS = 631065600000;
-
-  function readVal(pos, size, base, be) {
-    if (pos < 0 || pos + size > bytes.length) return null;
-    var b = base & 0x9F;
-    try {
-      if (size===1) { if(b===0x01) return view.getInt8(pos); var v=bytes[pos]; return v===0xFF?null:v; }
-      if (size===2) {
-        if(b===0x83||b===0x8C||b===0x03){var v=view.getInt16(pos,!be);return v===0x7FFF?null:v;}
-        var v=view.getUint16(pos,!be);return v===0xFFFF?null:v;
-      }
-      if (size===4) {
-        if(b===0x83){var v=view.getInt32(pos,!be);return v===0x7FFFFFFF?null:v;}
-        /* Treat all other 4-byte as uint32 (Suunto marks timestamps/elapsed as float32 but stores uint32) */
-        var v=view.getUint32(pos,!be);return v===0xFFFFFFFF?null:v;
-      }
-      if (size===8) return null;
-      if (b===0x07){var s='';for(var i=0;i<size;i++){var c=bytes[pos+i];if(c===0)break;s+=String.fromCharCode(c);}return s;}
-      if (size>=4){var v=view.getUint32(pos,!be);return v===0xFFFFFFFF?null:v;}
-      return bytes[pos];
-    } catch(e) { return null; }
+/* ── Compute height from harmonic constituents for a given station ── */
+function tideHeightAt(utcMs, station) {
+  var st = station || TIDE_STATIONS['9413745'];
+  var hrs = (utcMs - TIDE_EPOCH_MS) / 3600000;
+  var h = st.datum;
+  var c = st.c;
+  for (var name in c) {
+    var amp = c[name][0], phase = c[name][1];
+    var speed = TIDE_SPEED[name];
+    if (speed && amp) h += amp * Math.cos((speed * hrs - phase) * DEG);
   }
-
-  while (pos < end) {
-    if (pos >= bytes.length) break;
-    var hdr = bytes[pos];
-    if (hdr & 0x80) { pos++; continue; }
-    var isDef = !!(hdr & 0x40), hasDevFi = !!(hdr & 0x20), localNum = hdr & 0x0F;
-    pos++;
-    if (isDef) {
-      pos++;
-      var be = bytes[pos]===1; pos++;
-      var gn = be ? view.getUint16(pos,false) : view.getUint16(pos,true); pos+=2;
-      var fc = bytes[pos++];
-      var fields=[];
-      for(var fi=0;fi<fc;fi++){fields.push({num:bytes[pos],size:bytes[pos+1],base:bytes[pos+2]});pos+=3;}
-      if(hasDevFi){var dc=bytes[pos++];pos+=dc*3;}
-      definitions[localNum]={gn:gn,be:be,fields:fields};
-    } else {
-      var def=definitions[localNum];
-      if(!def){pos++;continue;}
-      var rowSize=0;for(var fi=0;fi<def.fields.length;fi++)rowSize+=def.fields[fi].size;
-      if(pos+rowSize>bytes.length){pos+=rowSize;continue;}
-      var row={};
-      for(var fi=0;fi<def.fields.length;fi++){
-        var f=def.fields[fi];row[f.num]=readVal(pos,f.size,f.base,def.be);pos+=f.size;
-      }
-      if(def.gn===20)records.push(row);
-      else if(def.gn===18)sessions.push(row);
-      else if(def.gn===19)laps.push(row);
-    }
-  }
-  return fitDataToSession({sessions:sessions,records:records,laps:laps,_raw:true},filename);
+  return h;
 }
 
-function fitDataToSession(data, filename) {
-  /* ── Normalize raw field-number records ── */
-  if (data._raw) {
-    if (data.records) {
-      data.records = data.records.map(function(r) {
-        var lat=r[0],lon=r[1];
-        if(lat!=null&&lat>0x7FFFFFFF)lat-=0x100000000;
-        if(lon!=null&&lon>0x7FFFFFFF)lon-=0x100000000;
-        var spd=r[6];if(spd!=null&&spd>0)spd=spd/1000;
-        var ts=r[253];
-        return {
-          position_lat:lat,position_long:lon,altitude:r[2],
-          heart_rate:r[3],
-          cadence:(r[4]!=null&&r[4]>0&&r[4]<120)?r[4]:null,
-          stroke_rate:(r[4]!=null&&r[4]>0&&r[4]<120)?r[4]:null,
-          distance:r[5],
-          speed:(spd!=null&&spd>0&&spd<50)?spd:null,
-          timestamp:ts!=null?new Date(631065600000+ts*1000):null,
-        };
+/* ── Compute tide data for a single session ── */
+function computeTidesForSession(session) {
+  var y  = +session.date.slice(0,4);
+  var mo = +session.date.slice(4,6) - 1;
+  var d  = +session.date.slice(6,8);
+
+  /* Pick station based on session GPS */
+  var lat = session.midLat || session.startLat || null;
+  var lon = session.midLon || session.startLon || null;
+  var station = closestTideStation(lat, lon);
+
+  var m = session.startTime ? session.startTime.match(/(\d{2}):(\d{2}):\d{2}$/) : null;
+  var sh = m ? +m[1] : 12, sm = m ? +m[2] : 0;
+
+  /* Session start in UTC (assume local time is UTC-7 PDT, adjust if needed) */
+  var utcOffset = session.utcOffset !== undefined ? session.utcOffset : 7;
+  var startUtc = Date.UTC(y, mo, d, sh + utcOffset, sm);
+
+  /* Scan full local day every 6 min */
+  var t0 = Date.UTC(y, mo, d, utcOffset, 0);
+  var samples = [];
+  for (var i = 0; i <= 240; i++) {
+    var t = t0 + i * 6 * 60000;
+    samples.push({ t: t, h: tideHeightAt(t, station) });
+  }
+
+  /* Find high/low events */
+  var events = [];
+  for (var j = 1; j < samples.length - 1; j++) {
+    var prev = samples[j-1].h, cur = samples[j].h, next = samples[j+1].h;
+    if ((cur >= prev && cur >= next && cur - Math.min(prev,next) > 0.15) ||
+        (cur <= prev && cur <= next && Math.max(prev,next) - cur > 0.15)) {
+      var isHigh = cur >= prev && cur >= next;
+      var evtDate = new Date(samples[j].t);
+      events.push({
+        type:   isHigh ? 'H' : 'L',
+        height: Math.round(cur * 100) / 100,
+        time:   String(evtDate.getUTCHours()).padStart(2,'0') + ':'
+               + String(evtDate.getUTCMinutes()).padStart(2,'0'),
       });
     }
-    if(data.sessions&&data.sessions[0]){
-      var s0=data.sessions[0];
-      var startTs=s0[2]||null,endTs=s0[253]||null;
-      var elapsedSecs=(startTs&&endTs&&endTs>startTs)?(endTs-startTs):(s0[9]!=null?Math.round(s0[9]/1000):null);
-      var avgSpd=s0[14]!=null?s0[14]/1000:null;
-      data.sessions[0]={
-        start_time:startTs?new Date(631065600000+startTs*1000):null,
-        total_elapsed_time:elapsedSecs,total_distance:null,
-        avg_speed:avgSpd,avg_heart_rate:s0[16],avg_cadence:s0[20],
-        sport:null,sub_sport:null,
-      };
-    }
   }
 
-  /* ── Helpers ── */
-  function semicirclesToDeg(sc){if(sc==null)return null;if(sc>0x7FFFFFFF)sc-=0x100000000;return sc*(180/Math.pow(2,31));}
-  function msToMph(ms){return(ms||0)*2.23694;}
-  function mToMi(m){return(m||0)/1609.344;}
-  function secsToElapsed(s){s=Math.round(s||0);var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return h+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0')+'.0';}
-  function fitDateToKey(d){if(!d)return String(Date.now());var dt=(d instanceof Date)?d:new Date(631065600000+d*1000);return String(dt.getFullYear())+String(dt.getMonth()+1).padStart(2,'0')+String(dt.getDate()).padStart(2,'0');}
-  function fitDateToString(d){if(!d)return '';var dt=(d instanceof Date)?d:new Date(631065600000+d*1000);return String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getDate()).padStart(2,'0')+'/'+dt.getFullYear()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')+':'+String(dt.getSeconds()).padStart(2,'0');}
-
-  var sum=(data.sessions&&data.sessions[0])||{};
-  var startTime=sum.start_time||null;
-  var dateKey=fitDateToKey(startTime);
-
-  /* Elapsed */
-  var totalSecs=0;
-  if(sum.total_elapsed_time!=null&&sum.total_elapsed_time>0){
-    totalSecs=data._raw?sum.total_elapsed_time:sum.total_elapsed_time/1000;
+  /* Interpolate height at session start */
+  var interpHeight = null;
+  if (startUtc >= t0 && startUtc <= t0 + 240 * 6 * 60000) {
+    var idx2 = Math.round((startUtc - t0) / (6 * 60000));
+    idx2 = Math.max(0, Math.min(239, idx2));
+    var frac = ((startUtc - t0) / (6 * 60000)) - Math.floor((startUtc - t0) / (6 * 60000));
+    interpHeight = samples[idx2].h * (1 - frac) + (samples[idx2+1] ? samples[idx2+1].h * frac : samples[idx2].h * frac);
+    interpHeight = Math.round(interpHeight * 100) / 100;
   }
 
-  /* Records */
-  var rawRecords=data.records||[];
-  var recSpeeds=[],recHRs=[],recTimestamps=[],recCadences=[];
-  rawRecords.forEach(function(r){
-    var spd=r.speed;if(spd!=null&&spd>0&&spd<50)recSpeeds.push(spd);
-    var hr=r.heart_rate;if(hr!=null&&hr>0&&hr<250)recHRs.push(hr);
-    var cad=r.cadence||r.stroke_rate;if(cad!=null&&cad>0&&cad<120)recCadences.push(cad);
-    var ts=r.timestamp;
-    if(ts instanceof Date)recTimestamps.push(ts.getTime());
-    else if(typeof ts==='number'&&ts>0)recTimestamps.push(ts*1000);
-  });
-
-  if(recTimestamps.length>=2){
-    var recElapsed=(Math.max.apply(null,recTimestamps)-Math.min.apply(null,recTimestamps))/1000;
-    if(recElapsed>totalSecs)totalSecs=recElapsed;
-    if(!startTime&&recTimestamps.length){startTime=new Date(Math.min.apply(null,recTimestamps));dateKey=fitDateToKey(startTime);}
-  }
-
-  var avgSpeedMs=recSpeeds.length?recSpeeds.reduce(function(a,b){return a+b;},0)/recSpeeds.length:(sum.avg_speed||0);
-  var avgSpeedMph=msToMph(avgSpeedMs);
-  var totalDistMi=0;
-  if(sum.total_distance!=null&&sum.total_distance>100)totalDistMi=mToMi(sum.total_distance);
-  else totalDistMi=avgSpeedMs*totalSecs/1609.344;
-
-  var avgHR=recHRs.length?Math.round(recHRs.reduce(function(a,b){return a+b;},0)/recHRs.length):(sum.avg_heart_rate||null);
-  var hasHR=recHRs.length>0||!!(sum.avg_heart_rate);
-  var avgSR=recCadences.length?Math.round(recCadences.reduce(function(a,b){return a+b;},0)/recCadences.length):(sum.avg_cadence||0);
-
-  /* GPS */
-  var startLat=0,startLon=0;
-  var firstGPS=rawRecords.find(function(r){return r.position_lat!=null&&r.position_long!=null;});
-  if(firstGPS){startLat=semicirclesToDeg(firstGPS.position_lat)||0;startLon=semicirclesToDeg(firstGPS.position_long)||0;}
-
-  /* Strokes */
-  var SAMPLE=Math.max(1,Math.round(rawRecords.length/300));
-  var strokes=[];
-  var recStart=recTimestamps.length?Math.min.apply(null,recTimestamps):0;
-  rawRecords.forEach(function(r,i){
-    if(i%SAMPLE!==0)return;
-    var lt=semicirclesToDeg(r.position_lat),ln=semicirclesToDeg(r.position_long);
-    var spd=(r.speed!=null&&r.speed<50)?msToMph(r.speed):null;
-    var hr=(r.heart_rate&&r.heart_rate<250)?r.heart_rate:null;
-    var sr=r.cadence||r.stroke_rate||null;
-    var tsMs=0;
-    if(r.timestamp instanceof Date)tsMs=r.timestamp.getTime();
-    else if(typeof r.timestamp==='number')tsMs=r.timestamp*1000;
-    var elapsedS=recStart>0&&tsMs>0?(tsMs-recStart)/1000:i*SAMPLE;
-    strokes.push({e:secsToElapsed(elapsedS),s:spd,r:sr,h:hr,lt:lt,ln:ln,i:1});
-  });
-
-  var validStrokes=strokes.filter(function(s){return s.lt&&s.ln;});
-  var mid=validStrokes.length?validStrokes[Math.floor(validStrokes.length/2)]:null;
-
-  /* Sport type */
-  var sessionType='Paddling';
-  if(filename){
-    var fn=filename.toLowerCase();
-    if(fn.indexOf('canoe')>=0)sessionType='Canoeing';
-    else if(fn.indexOf('kayak')>=0)sessionType='Kayaking';
-    else if(fn.indexOf('sup')>=0)sessionType='SUP';
-    else if(fn.indexOf('row')>=0)sessionType='Rowing';
+  /* Rising or falling at session start */
+  var trend = null;
+  if (startUtc >= t0 + 6 * 60000) {
+    var idxA = Math.round((startUtc - t0) / (6 * 60000));
+    idxA = Math.max(1, Math.min(239, idxA));
+    trend = samples[idxA].h > samples[idxA - 1].h ? 'rising' : 'falling';
   }
 
   return {
-    date:dateKey,startTime:fitDateToString(startTime),sessionType:sessionType,
-    programName:filename||'',avgSpeed:avgSpeedMph,totalDist:totalDistMi,
-    elapsed:secsToElapsed(totalSecs),avgStrokeRate:avgSR,avgHR:avgHR,
-    startLat:startLat,startLon:startLon,
-    midLat:mid?mid.lt:null,midLon:mid?mid.ln:null,
-    hasHR:hasHR,intervals:[],strokes:strokes,_source:'fit',
+    station:     station.name,
+    interpHeight: interpHeight,
+    trend:        trend,
+    events:       events,
+    samples:      samples,
   };
 }
-
-
-
-function isoWeek(dateStr) {
-  var y = +dateStr.slice(0,4), m = +dateStr.slice(4,6)-1, d = +dateStr.slice(6,8);
-  var date  = new Date(y,m,d);
-  var jan4  = new Date(date.getFullYear(), 0, 4);
-  var start = new Date(jan4);
-  start.setDate(jan4.getDate() - ((jan4.getDay()+6)%7));
-  var wn = Math.floor(((date - start)/86400000 + 1)/7) + 1;
-  return date.getFullYear() + 'W' + String(wn).padStart(2,'0');
-}
-
-function weekMonday(isoKey) {
-  /* Return the Monday date string for display */
-  var y = +isoKey.slice(0,4), wn = +isoKey.slice(5);
-  var jan4 = new Date(y, 0, 4);
-  var mon  = new Date(jan4);
-  mon.setDate(jan4.getDate() - ((jan4.getDay()+6)%7) + (wn-1)*7);
-  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return mo[mon.getMonth()] + ' ' + mon.getDate() + ', ' + mon.getFullYear();
-}
-
-function sessionDetailKey(date) {
-  return SESSION_KEY_PREFIX + date;
-}
-
-function getCraft(session) {
-  return SESSION_CRAFTS[session.date] || USER_PREFS.defaultCraft || 'OC1';
-}
-
-function setDefaultCraft(craft) {
-  USER_PREFS.defaultCraft = craft;
-  savePrefs();
-  showToast('🛶 Default craft set to ' + craft, 'success');
-}
-
-function setSessionCraft(date, craft) {
-  if (!craft || craft === (USER_PREFS.defaultCraft || 'OC1')) {
-    delete SESSION_CRAFTS[date];
-  } else {
-    SESSION_CRAFTS[date] = craft;
-  }
-  saveSessionCrafts();
-  refresh();
-}
-
-function loadSessionCrafts() {
-  try {
-    var raw = _store[CRAFTS_KEY];
-    if (raw) SESSION_CRAFTS = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch(e) {}
-}
-
-function saveSessionCrafts() {
-  _store[CRAFTS_KEY] = SESSION_CRAFTS;
-  sbScheduleWrite(CRAFTS_KEY, SESSION_CRAFTS);
-}
-
-function renderCraftSelector(session) {
-  var current = getCraft(session);
-  var isOv = !!SESSION_CRAFTS[session.date];
-  var date = session.date;
-  var opts = CRAFT_OPTIONS.map(function(c){
-    return '<option value="'+c+'"'+(c===current?' selected':'')+'>'+c+'</option>';
-  }).join('');
-  var ovPart = isOv
-    ? '<span style="font-size:10px;font-weight:700;color:#f5a623">⚡ overridden</span>'
-      +'<button id="craft-rst-'+date+'" style="font-family:var(--font);font-size:10px;font-weight:700;'
-      +'padding:3px 8px;border-radius:999px;border:1.5px solid var(--lav);background:var(--white);'
-      +'color:var(--gm);cursor:pointer">Reset to default</button>'
-    : '<span style="font-size:10px;font-weight:600;color:var(--gm)">default</span>';
-  setTimeout(function(){
-    var sel=document.getElementById('craft-sel-'+date);
-    if(sel) sel.onchange=function(){ setSessionCraft(date,this.value); };
-    var rst=document.getElementById('craft-rst-'+date);
-    if(rst) rst.onclick=function(){ setSessionCraft(date,''); };
-  },0);
-  return '<div style="display:flex;align-items:center;gap:10px;background:var(--lilac2);'
-    +'border:1.5px solid var(--lav-lt);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<span style="font-size:11px;font-weight:800;color:var(--plum)">🛶 Craft:</span>'
-    +'<select id="craft-sel-'+date+'" style="font-family:var(--font);font-size:12px;font-weight:700;'
-    +'padding:5px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
-    +opts+'</select>'+ovPart+'</div>';
-}
-
-function saveSessionDetail(session) {
-  /* Save strokes + intervals only (scalar fields are in the main index) */
-  var detail = {
-    strokes:   session.strokes   || [],
-    intervals: session.intervals || [],
-  };
-  sbScheduleWrite(sessionDetailKey(session.date), detail);
-}
-
-function deleteSessionDetail(date) {
-  sbDel(sessionDetailKey(date), sbToken());
-}
-
-function loadAllSessionDetails(sessions, cb) {
-  if (!sessions || !sessions.length) { cb(); return; }
-  var pending = sessions.length;
-  sessions.forEach(function(s) {
-    sbGet(sessionDetailKey(s.date), sbToken(), function(err, val) {
-      if (!err && val && val.strokes) {
-        s.strokes   = val.strokes;
-        s.intervals = val.intervals || s.intervals || [];
-      }
-      if (!--pending) cb();
-    });
-  });
-}
-
-function loadWeeklyPlans() {
-  try {
-    var raw = _store[PLAN_KEY];
-    if (raw) WEEKLY_PLANS = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    else WEEKLY_PLANS = {};
-  } catch(e) { WEEKLY_PLANS = {}; }
-}
-
-
-
-function loadPrefs() {
-  try {
-    var raw = _store[PREFS_KEY];
-    if (raw) USER_PREFS = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch(e) {}
-}
-
-function savePrefs() {
-  _store[PREFS_KEY] = USER_PREFS;
-  sbScheduleWrite(PREFS_KEY, USER_PREFS);
-}
-
-function renderPlansPage(el) {
-  var weeks  = Object.keys(WEEKLY_PLANS).sort().reverse();
-  var html = '<div class="view"><div class="pt">📋 Weekly Plans</div>'
-    + '<div class="ps">Set the workout schedule for each week. Sessions are automatically tagged by day — no manual tagging needed.</div>';
-
-  /* Add new week button */
-  html += renderUserPrefs();
-  html += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">';
-  html += '<button onclick="openNewPlan()" style="font-family:var(--font);font-size:12px;font-weight:800;'
-        + 'padding:10px 20px;border-radius:var(--r-pill);border:none;background:var(--lav);color:var(--plum);cursor:pointer">'
-        + '＋ Add week plan</button>';
-  if (weeks.length) {
-    html += '<span style="font-size:11px;font-weight:600;color:var(--gm)">'
-          + weeks.length + ' week' + (weeks.length>1?'s':'') + ' saved</span>';
-  }
-  html += '</div>';
-
-  /* Editor slot (shown when adding/editing) */
-  html += '<div id="plan-editor-slot"></div>';
-
-  /* Saved plans list */
-  if (weeks.length) {
-    weeks.forEach(function(wk) {
-      html += renderPlanCard(wk, WEEKLY_PLANS[wk]);
-    });
-  } else {
-    html += '<div class="notice n-purple">No weekly plans saved yet. Click <b>Add week plan</b> to set up your first week.</div>';
-  }
-
-  html += '<div id="seg-manager-slot"></div>';
-  html += '</div>';
-  el.innerHTML = html;
-
-  /* Render segment manager */
-  var segSlot = el.querySelector('#seg-manager-slot');
-  if (segSlot) renderSegmentManager(segSlot);
-
-  /* If a plan was being edited, re-open it */
-  if (ACTIVE_PLAN_WEEK) openPlanEditor(ACTIVE_PLAN_WEEK);
-}
-
-function renderPlanCard(wk, plan) {
-  var days = plan.days || {};
-  var dayOrder = [1,2,3,4,5,6,0];
-  var html = '<div class="card" id="plan-card-'+wk+'">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
-  html += '<div>';
-  html += '<div style="font-size:14px;font-weight:900;color:var(--plum)">Week of ' + weekMonday(wk) + '</div>';
-  html += '<div style="font-size:10px;font-weight:600;color:var(--gm)">' + wk + '</div>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:8px">';
-  html += '<button onclick="openPlanEditor(\''+wk+'\')" style="font-family:var(--font);font-size:11px;font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--lav-md);background:var(--lav-lt);color:var(--plum);cursor:pointer">✏️ Edit</button>';
-  html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:11px;font-weight:800;padding:5px 14px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">Remove</button>';
-  html += '</div></div>';
-
-  /* Day tiles */
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">';
-  dayOrder.forEach(function(dow) {
-    var day = days[dow];
-    var dayName = DOW_NAMES[dow];
-    if (!day || !day.id) {
-      html += '<div style="background:var(--cloud);border:1.5px dashed var(--lav-lt);border-radius:8px;padding:10px 12px;opacity:.5">';
-      html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm)">' + dayName + '</div>';
-      html += '<div style="font-size:11px;font-weight:600;color:var(--gm);margin-top:2px">Rest</div>';
-      html += '</div>';
-      return;
-    }
-    var base = PROGRAM[dow] || {};
-    var opt  = FOCUS_OPTIONS.filter(function(o){ return o.id===day.id; })[0] || {};
-    var col  = base.color   || '#9b8bb8';
-    var colLt = base.colorLt || '#f0eaf9';
-    html += '<div style="background:'+colLt+';border:1.5px solid '+col+'44;border-radius:8px;padding:10px 12px">';
-    html += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:'+col+'">' + dayName + '</div>';
-    html += '<div style="font-size:12px;font-weight:800;color:var(--ink);margin-top:2px">' + (opt.icon||'') + ' ' + escHtml(opt.label||day.id) + '</div>';
-    if (day.desc) html += '<div style="font-size:10px;font-weight:600;color:var(--gt);margin-top:3px;line-height:1.4">' + escHtml(day.desc.slice(0,80)) + (day.desc.length>80?'…':'') + '</div>';
-    if (opt.bungee) html += '<div style="font-size:9px;font-weight:800;color:#f5a623;margin-top:2px">🔴 bungee</div>';
-    if (day.srTargets) html += '<div style="font-size:9px;font-weight:700;color:var(--gm);margin-top:2px">SR: ' + day.srTargets.easy + '/' + day.srTargets.hard + ' spm</div>';
-    html += '</div>';
-  });
-  html += '</div></div>';
-  return html;
-}
-
-function renderUserPrefs() {
-  var craft = USER_PREFS.defaultCraft || 'OC1';
-  var craftOpts = CRAFT_OPTIONS.map(function(c){
-    return '<option value="'+c+'"'+(c===craft?' selected':'')+'>'+c+'</option>';
-  }).join('');
-  setTimeout(function(){
-    var sel=document.getElementById('default-craft-sel');
-    if(sel) sel.onchange=function(){ setDefaultCraft(this.value); };
-  },0);
-  return '<div class="card">'
-    +'<div class="ct-title">⚙️ Your Preferences</div>'
-    +'<div class="ct-sub">Defaults applied to all sessions unless overridden per-session.</div>'
-    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<span style="font-size:12px;font-weight:800;color:var(--plum)">🛶 Default craft:</span>'
-    +'<select id="default-craft-sel" style="font-family:var(--font);font-size:12px;font-weight:700;'
-    +'padding:7px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
-    +craftOpts+'</select>'
-    +'<span style="font-size:11px;font-weight:600;color:var(--gm)">Applied to all sessions without a per-session override.</span>'
-    +'</div></div>';
-}
-
-function openNewPlan() {
-  /* Default to current week */
-  var now = new Date();
-  var ds  = now.getFullYear()
-          + String(now.getMonth()+1).padStart(2,'0')
-          + String(now.getDate()).padStart(2,'0');
-  ACTIVE_PLAN_WEEK = isoWeek(ds);
-  openPlanEditor(ACTIVE_PLAN_WEEK);
-}
-
-function openPlanEditor(wk) {
-  ACTIVE_PLAN_WEEK = wk;
-  var slot = document.getElementById('plan-editor-slot');
-  if (!slot) return;
-  var plan = WEEKLY_PLANS[wk] || { days: {} };
-
-  /* Week selector */
-  /* Build a list of week options: current week ±8 weeks */
-  var now = new Date();
-  var weekOptions = '';
-  for (var delta = -4; delta <= 8; delta++) {
-    var d = new Date(now);
-    d.setDate(d.getDate() - d.getDay() + 1 + delta*7);  /* Monday */
-    var ds2 = d.getFullYear()
-            + String(d.getMonth()+1).padStart(2,'0')
-            + String(d.getDate()).padStart(2,'0');
-    var wk2 = isoWeek(ds2);
-    var lbl = 'Week of ' + weekMonday(wk2) + (delta===0?' (this week)':delta<0?' (past)':' (upcoming)');
-    weekOptions += '<option value="'+wk2+'"'+(wk2===wk?' selected':'')+'>'+lbl+'</option>';
-  }
-
-  var html = '<div class="card" style="border-color:var(--lav-md);margin-bottom:16px">';
-  html += '<div class="ct-title" style="margin-bottom:2px">✏️ ' + (WEEKLY_PLANS[wk] ? 'Edit' : 'New') + ' week plan</div>';
-
-  /* Week picker */
-  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
-  html += '<label style="font-size:11px;font-weight:800;color:var(--plum)">Week:</label>';
-  html += '<select id="plan-week-select" onchange="switchPlanWeek(this.value)" style="font-family:var(--font);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">';
-  html += weekOptions + '</select>';
-  html += '</div>';
-
-  /* Day rows */
-  html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">';
-  PLAN_DAYS.forEach(function(d) {
-    var day = (plan.days||{})[d.dow] || {};
-    var focusOpts = '<option value=""'+((!day.id||day.id==='')?" selected":"")+'> — Rest / None —</option>';
-    focusOpts += FOCUS_OPTIONS.map(function(o) {
-      return '<option value="'+o.id+'"'+(o.id===day.id?' selected':'')+'>'+o.icon+' '+o.label+'</option>';
-    }).join('');
-
-    html += '<div style="display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:start;padding:10px 12px;background:var(--lilac2);border-radius:10px;border:1.5px solid var(--lav-lt)">';
-    html += '<div style="font-size:12px;font-weight:800;color:var(--ink);padding-top:6px">' + d.name + '</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:6px">';
-
-    /* Focus type dropdown */
-    html += '<select data-dow="'+d.dow+'" data-field="id" onchange="updatePlanDay(this)" '
-          + 'style="font-family:var(--font);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink)">'
-          + focusOpts + '</select>';
-
-    /* Description textarea — only shown if not rest */
-    var isRest = !day.id;
-    html += '<textarea data-dow="'+d.dow+'" data-field="desc" onchange="updatePlanDay(this)" '
-          + 'placeholder="Session description, e.g. 70 min · 3×10 min bungee sets · Z2–Z3" rows="2" '
-          + (isRest ? 'style="display:none;' : 'style="')
-          + 'font-family:var(--font);font-size:11px;font-weight:600;padding:7px 10px;border-radius:8px;'
-          + 'border:1.5px solid var(--lav);background:var(--white);color:var(--ink);resize:vertical;width:100%;box-sizing:border-box">'
-          + escHtml(day.desc||'') + '</textarea>';
-
-    /* SR targets (optional) — only for interval-type sessions */
-    var showSR = (day.id==='intervals');
-    html += '<div data-dow="'+d.dow+'" data-srrow="1" style="display:'+(showSR?'flex':'none')+';align-items:center;gap:6px;flex-wrap:wrap">';
-    html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">SR targets:</span>';
-    html += '<input type="text" data-dow="'+d.dow+'" data-field="sr_easy" onchange="updatePlanDay(this)" '
-          + 'placeholder="easy (e.g. 36)" value="'+escHtml(day.srTargets?String(day.srTargets.easy):'')+'" '
-          + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
-    html += '<span style="font-size:10px;font-weight:700;color:var(--gm)">/</span>';
-    html += '<input type="text" data-dow="'+d.dow+'" data-field="sr_hard" onchange="updatePlanDay(this)" '
-          + 'placeholder="hard (e.g. 40-42)" value="'+escHtml(day.srTargets?String(day.srTargets.hard):'')+'" '
-          + 'style="font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--lav);width:90px">';
-    html += '</div>';
-
-    html += '</div></div>';
-  });
-  html += '</div>';
-
-  /* Save / Cancel buttons */
-  html += '<div style="display:flex;gap:10px">';
-  html += '<button onclick="savePlanFromEditor()" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save plan</button>';
-  html += '<button onclick="closePlanEditor()" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">Cancel</button>';
-  if (WEEKLY_PLANS[wk]) {
-    html += '<button onclick="deletePlan(\''+wk+'\')" style="font-family:var(--font);font-size:12px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer;margin-left:auto">Remove this week</button>';
-  }
-  html += '</div>';
-  html += '</div>';
-  slot.innerHTML = html;
-
-  /* Scroll editor into view */
-  slot.scrollIntoView({ behavior:'smooth', block:'start' });
-}
-
-function closePlanEditor() {
-  ACTIVE_PLAN_WEEK = null;
-  var slot = document.getElementById('plan-editor-slot');
-  if (slot) slot.innerHTML = '';
-}
-
-function deletePlan(wk) {
-  if (!confirm('Remove plan for week of ' + weekMonday(wk) + '?')) return;
-  delete WEEKLY_PLANS[wk];
-  saveWeeklyPlans();
-  ACTIVE_PLAN_WEEK = null;
-  refresh();
-}
-
-function savePlanFromEditor() {
-  var wk   = ACTIVE_PLAN_WEEK;
-  var plan = WEEKLY_PLANS[wk] || { days:{} };
-  /* Read all current field values from DOM */
-  document.querySelectorAll('[data-dow][data-field]').forEach(function(el) {
-    updatePlanDay(el);
-  });
-  plan = WEEKLY_PLANS[wk] || { days:{} };
-  /* Remove days with empty id */
-  Object.keys(plan.days||{}).forEach(function(dow) {
-    if (!plan.days[dow] || !plan.days[dow].id) delete plan.days[dow];
-  });
-  WEEKLY_PLANS[wk] = plan;
-  saveWeeklyPlans();
-  closePlanEditor();
-  refresh();
-  showToast('📋 Plan saved for week of ' + weekMonday(wk), 'success');
-}
-
-function switchPlanWeek(newWk) {
-  ACTIVE_PLAN_WEEK = newWk;
-  openPlanEditor(newWk);
-}
-
-function updatePlanDay(el) {
-  var dow   = +el.dataset.dow;
-  var field = el.dataset.field;
-  var val   = el.value;
-  var plan  = WEEKLY_PLANS[ACTIVE_PLAN_WEEK] || { days:{} };
-  if (!plan.days) plan.days = {};
-  if (!plan.days[dow]) plan.days[dow] = {};
-
-  if (field === 'id') {
-    plan.days[dow].id = val;
-    /* Show/hide desc textarea and SR row */
-    var allDesc = document.querySelectorAll('textarea[data-dow="'+dow+'"]');
-    var allSR   = document.querySelectorAll('[data-srrow][data-dow="'+dow+'"]');
-    allDesc.forEach(function(t){ t.style.display = val ? '' : 'none'; });
-    allSR.forEach(function(r){ r.style.display = (val==='intervals') ? 'flex' : 'none'; });
-  } else if (field === 'desc') {
-    plan.days[dow].desc = val;
-  } else if (field === 'sr_easy') {
-    if (!plan.days[dow].srTargets) plan.days[dow].srTargets = {};
-    plan.days[dow].srTargets.easy = isNaN(+val) ? val : +val;
-  } else if (field === 'sr_hard') {
-    if (!plan.days[dow].srTargets) plan.days[dow].srTargets = {};
-    plan.days[dow].srTargets.hard = val;
-  }
-
-  /* Remove day entirely if set back to rest */
-  if (field === 'id' && !val) {
-    delete plan.days[dow];
-  }
-
-  WEEKLY_PLANS[ACTIVE_PLAN_WEEK] = plan;
-}
-
-function buildFocusFromDay(day, dow) {
-  /* Build a focus object compatible with what the rest of the app expects */
-  var base = PROGRAM[dow] || {};
-  var opt  = FOCUS_OPTIONS.filter(function(o){ return o.id === day.id; })[0] || {};
-  return {
-    id:         day.id,
-    label:      DOW_NAMES[dow] + ' · ' + (opt.label || day.id),
-    shortLabel: opt.label || day.id,
-    icon:       opt.icon  || base.icon  || '📅',
-    color:      (FOCUS_STYLES[day.id]||{}).color   || base.color   || '#9b8bb8',
-    colorLt:    (FOCUS_STYLES[day.id]||{}).colorLt || base.colorLt || '#f0eaf9',
-    bungee:     opt.bungee   || false,
-    srTargets:  day.srTargets || null,
-    desc:       day.desc || '',
-    note:       null,
-  };
-}
-
-function mobSelSess(date){ selSess(date); toggleMobSessions(); }
-
-function toggleMobSessions() {
-  _mobSessOpen = !_mobSessOpen;
-  var drawer = document.getElementById('mob-sess-drawer');
-  if (drawer) drawer.style.display = _mobSessOpen ? 'block' : 'none';
-  /* Populate the mobile session list */
-  if (_mobSessOpen) {
-    var listEl = document.getElementById('mob-sess-list');
-    if (listEl) {
-      var h = '';
-      SESSIONS.slice().reverse().forEach(function(s) {
-        var f = getFocus(s); var fc = f ? f.color : '#9b8bb8';
-        var active = (SEL===s.date && PAGE==='session') ? 'active' : '';
-        h += '<div class="si '+active+'" data-date="'+s.date+'" onclick="mobSelSess(this.dataset.date)">'
-           + '<span class="si-spd" style="color:'+fc+'">'+s.avgSpeed.toFixed(2)+'</span>'
-           + '<div class="si-date">'+dateLabel(s.date)+'</div>'
-           + '<div class="si-meta">'+(f?f.icon+' '+f.shortLabel:s.sessionType)+'</div>'
-           + '</div>';
-      });
-      listEl.innerHTML = h;
-    }
-  }
-}
-
-function updateMobNav() {
-  document.querySelectorAll('.mob-nb').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.page === PAGE);
-  });
-  /* __sessions button active when drawer open */
-  var sessBtn = document.querySelector('.mob-nb[data-page="__sessions"]');
-  if (sessBtn) sessBtn.classList.toggle('active', _mobSessOpen);
-}
-
-function showCheckEmailScreen(email) {
-  var form = document.getElementById('auth-form');
-  if (!form) return;
-  var tabs = document.querySelector('.tabs');
-  if (tabs) tabs.style.display = 'none';
-
-  var div = document.createElement('div');
-  div.style.cssText = 'text-align:center;padding:10px 0 4px';
-
-  var icon = document.createElement('div');
-  icon.style.cssText = 'font-size:44px;margin-bottom:12px';
-  icon.textContent = '📬';
-
-  var title = document.createElement('div');
-  title.style.cssText = 'font-size:16px;font-weight:900;color:var(--plum);margin-bottom:8px';
-  title.textContent = 'Check your email';
-
-  var msg = document.createElement('div');
-  msg.style.cssText = 'font-size:13px;font-weight:600;color:var(--gt);line-height:1.6;margin-bottom:20px';
-  msg.innerHTML = 'We sent a verification link to<br><b style="color:var(--ink)">'
-    + escHtml(email) + '</b><br><br>'
-    + 'Click the link in that email to activate your account,<br>then come back here to sign in.';
-
-  var goBtn = document.createElement('button');
-  goBtn.style.cssText = 'font-family:var(--font);font-size:13px;font-weight:800;'
-    + 'padding:12px 32px;border-radius:var(--r-pill);border:none;background:var(--plum);'
-    + 'color:var(--white);cursor:pointer;width:100%';
-  goBtn.textContent = 'Go to sign in';
-  goBtn.onclick = function() { authTab('signin'); };
-
-  var resendWrap = document.createElement('div');
-  resendWrap.style.marginTop = '12px';
-  var resendBtn = document.createElement('button');
-  resendBtn.style.cssText = 'background:none;border:none;font-family:var(--font);'
-    + 'font-size:11px;font-weight:700;color:var(--gm);cursor:pointer;text-decoration:underline';
-  resendBtn.textContent = 'Resend verification email';
-  resendBtn.onclick = function() { resendVerification(email, resendBtn); };
-  resendWrap.appendChild(resendBtn);
-
-  div.appendChild(icon);
-  div.appendChild(title);
-  div.appendChild(msg);
-  div.appendChild(goBtn);
-  div.appendChild(resendWrap);
-  form.innerHTML = '';
-  form.appendChild(div);
-}
-
-function showUpdatePasswordScreen(sess) {
-  document.body.innerHTML = [
-    '<div style="min-height:100vh;background:var(--cloud);display:flex;align-items:center;',
-    'justify-content:center;font-family:var(--font);padding:20px">',
-    '<div style="background:var(--white);border-radius:24px;border:2px solid var(--lav-lt);',
-    'padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(140,110,180,.15)">',
-    '<div style="text-align:center;margin-bottom:24px">',
-    '<div style="font-size:40px">🦭</div>',
-    '<div style="font-size:20px;font-weight:900;color:var(--plum);margin-top:6px">Set new password</div>',
-    '</div>',
-    '<div id="auth-err" style="display:none;background:var(--blush);color:#8a3055;border-radius:8px;',
-    'padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:16px"></div>',
-    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">New password</label>',
-    '<input id="new-pw" type="password" placeholder="••••••••" autocomplete="new-password"',
-    ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-    'font-family:var(--font);font-size:13px;font-weight:600;margin-bottom:12px;box-sizing:border-box">',
-    '<label style="display:block;font-size:11px;font-weight:800;color:var(--plum);margin-bottom:5px">Confirm password</label>',
-    '<input id="new-pw2" type="password" placeholder="••••••••" autocomplete="new-password"',
-    ' style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--lav);',
-    'font-family:var(--font);font-size:13px;font-weight:600;margin-bottom:20px;box-sizing:border-box">',
-    '<button onclick="submitNewPassword()" style="width:100%;padding:13px;border-radius:var(--r-pill);',
-    'border:none;background:var(--plum);color:var(--white);font-family:var(--font);',
-    'font-size:14px;font-weight:900;cursor:pointer" id="new-pw-btn">Update password</button>',
-    '</div></div>',
-  ].join('');
-}
-
-function submitNewPassword() {
-  var pw  = (document.getElementById('new-pw') ||{}).value  || '';
-  var pw2 = (document.getElementById('new-pw2')||{}).value || '';
-  var btn = document.getElementById('new-pw-btn');
-  var err = document.getElementById('auth-err');
-  if (pw !== pw2) { if(err){err.textContent='Passwords do not match.';err.style.display='block';} return; }
-  if (pw.length < 6) { if(err){err.textContent='Password must be at least 6 characters.';err.style.display='block';} return; }
-  if (btn) { btn.textContent='…'; btn.disabled=true; }
-  fetch(SUPABASE_URL + '/auth/v1/user', {
-    method: 'PUT',
-    headers: sbHeaders(sbToken()),
-    body: JSON.stringify({ password: pw })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.error) { if(err){err.textContent=d.error.message;err.style.display='block';} if(btn){btn.textContent='Update password';btn.disabled=false;} return; }
-    bootApp();
-  })
-  .catch(function(e) { if(err){err.textContent=e.message;err.style.display='block';} if(btn){btn.textContent='Update password';btn.disabled=false;} });
-}
-
-function resendVerification(email, btn) {
-
-  fetch(SUPABASE_URL + '/auth/v1/resend', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_AUTH, 'Authorization': 'Bearer ' + SUPABASE_AUTH },
-    body: JSON.stringify({ type: 'signup', email: email })
-  }).then(function() {
-    var btn = event.target;
-    if (btn) { btn.textContent = '✓ Sent!'; btn.disabled = true; }
-  }).catch(function() {});
-}
-
-function handleAuthRedirect(cb) {
-  /* Supabase email confirmation lands with hash params:
-     #access_token=...&refresh_token=...&type=signup  (or recovery) */
-  var hash = window.location.hash;
-  if (!hash) { cb(false); return; }
-
-  var params = {};
-  hash.slice(1).split('&').forEach(function(p) {
-    var kv = p.split('=');
-    params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
-  });
-
-  if (params.access_token && (params.type === 'signup' || params.type === 'recovery' || params.type === 'magiclink')) {
-    /* Build a session object from the hash params */
-    var sess = {
-      access_token:  params.access_token,
-      refresh_token: params.refresh_token || '',
-      token_type:    params.token_type || 'bearer',
-    };
-    /* Decode user from JWT */
-    try {
-      var payload = JSON.parse(atob(params.access_token.split('.')[1]));
-      sess.user = { id: payload.sub, email: payload.email };
-    } catch(e) {}
-
-    SB_SESSION = sess;
-    try { localStorage.setItem('sb_session', JSON.stringify(sess)); } catch(e) {}
-
-    /* Clean the hash from the URL so it doesn't re-trigger on reload */
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-
-    if (params.type === 'recovery') {
-      /* Password reset flow — show update password form */
-      showUpdatePasswordScreen(sess);
-      cb(true);
-    } else {
-      /* Email verified — go straight into the app */
-      cb(true);
-    }
-    return;
-  }
-  cb(false);
-}
-
-function _loadUserData(cb) {
-  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY, LAYOUT_KEY, OV_WIDGET_KEY, STRIP_KEY, FOCUS_ORDER_KEY];
-  var loaded = 0;
-  _store = {};
-  keys.forEach(function(k) {
-    sbGet(k, sbToken(), function(err2, val) {
-      if (!err2 && val !== null) _store[k] = val;
-      if (++loaded === keys.length) {
-        /* Now load full stroke data for each session */
-        var sessions = _store[STORAGE_KEY] || [];
-        loadAllSessionDetails(sessions, function() {
-          /* Merge strokes back into _store */
-          _store[STORAGE_KEY] = sessions;
-          cb();
-        });
-      }
-    });
-  });
-}
-
-function drawDownwindTrend(g,c){
-  if(!c)c=document.getElementById('ft-'+g.focus.id.replace(/[^a-z0-9]/gi,'-')+'-'+(g.craft||''));
-  if(!c)return;
-  var ctx=c.getContext('2d'),W=c.offsetWidth,H=140;c.width=W;c.height=H;
-  var f=g.focus;
-  var sess=g.sessions; // oldest first
-  var n=sess.length;
-  var pad={t:22,r:18,b:28,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
-
-  /* Collect efficiency + avg speed per session */
-  var data=sess.map(function(s){
-    var dw=detectDownwindRuns(s);
-    return {date:s.date,eff:dw?dw.eff:null,spd:dw?dw.avgSpd:null,sr:dw?dw.avgSR:null};
-  }).filter(function(d){return d.eff!==null;});
-  if(data.length<1) return;
-
-  var effs=data.map(function(d){return d.eff;});
-  var spds=data.map(function(d){return d.spd;});
-  var minE=Math.min.apply(null,effs)*0.95, maxE=Math.max.apply(null,effs)*1.05;
-  /* Extend range to show target line at 12 */
-  maxE=Math.max(maxE,12.5); minE=Math.min(minE,9.5);
-
-  var nd=data.length;
-  var xOf=function(i){return pad.l+(nd<2?cW/2:i/(nd-1)*cW);};
-  var yOf=function(v){return pad.t+cH-((v-minE)/(maxE-minE))*cH;};
-
-  drawGrid(ctx,W,H,pad,minE,maxE,3);
-
-  /* Target line at efficiency=12 */
-  if(12>=minE&&12<=maxE){
-    var ty=yOf(12);
-    ctx.beginPath();ctx.strokeStyle='rgba(92,184,122,0.5)';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
-    ctx.moveTo(pad.l,ty);ctx.lineTo(W-pad.r,ty);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='rgba(92,184,122,0.8)';ctx.font='bold 9px Nunito';ctx.textAlign='left';
-    ctx.fillText('target 12',pad.l+4,ty-3);
-  }
-
-  /* Avg speed (secondary, dashed, right axis implied by colour) */
-  if(spds.length>=2){
-    var minS=Math.min.apply(null,spds)*0.97,maxS=Math.max.apply(null,spds)*1.02;
-    var yS=function(v){return pad.t+cH-((v-minS)/(maxS-minS))*cH;};
-    ctx.beginPath();ctx.strokeStyle=f.color+'55';ctx.lineWidth=1.5;ctx.setLineDash([4,5]);ctx.lineJoin='round';
-    data.forEach(function(d,i){if(i===0)ctx.moveTo(xOf(i),yS(d.spd));else ctx.lineTo(xOf(i),yS(d.spd));});
-    ctx.stroke();ctx.setLineDash([]);
-  }
-
-  /* Efficiency line + fill */
-  if(nd>1){
-    var gr=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
-    gr.addColorStop(0,f.color+'33');gr.addColorStop(1,f.color+'00');
-    ctx.beginPath();
-    data.forEach(function(d,i){if(i===0)ctx.moveTo(xOf(i),yOf(d.eff));else ctx.lineTo(xOf(i),yOf(d.eff));});
-    ctx.lineTo(xOf(nd-1),pad.t+cH);ctx.lineTo(xOf(0),pad.t+cH);ctx.closePath();
-    ctx.fillStyle=gr;ctx.fill();
-    ctx.beginPath();ctx.strokeStyle=f.color;ctx.lineWidth=2.5;ctx.lineJoin='round';
-    data.forEach(function(d,i){if(i===0)ctx.moveTo(xOf(i),yOf(d.eff));else ctx.lineTo(xOf(i),yOf(d.eff));});
-    ctx.stroke();
-  }
-
-  /* Data points */
-  data.forEach(function(d,i){
-    var x=xOf(i),y=yOf(d.eff);
-    var effCol=d.eff>12?'var(--mint-dk)':d.eff>10.5?f.color:'#a03060';
-    ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);
-    ctx.fillStyle=effCol;ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.fill();ctx.stroke();
-    ctx.fillStyle='#3d2f5a';ctx.font='bold 10px Nunito';ctx.textAlign='center';
-    ctx.fillText(d.eff.toFixed(2),x,y-12);
-    xLbl(ctx,H,x,dateLabel(d.date));
-  });
-
-  /* Legend */
-  ctx.fillStyle=f.color;ctx.font='bold 9px Nunito';ctx.textAlign='right';
-  ctx.fillText('— efficiency (speed÷SR×100)',W-pad.r,pad.t-6);
-  ctx.fillStyle=f.color+'88';
-  ctx.fillText('- - avg run speed',W-pad.r,pad.t+5);
-}
-
-
-
-function loadOvLayout(){
-  try{var r=_store[OV_WIDGET_KEY];if(!r)return;var o=typeof r==='string'?JSON.parse(r):r;
-  if(Array.isArray(o)&&o.length)OV_WIDGET_ORDER=o;}catch(e){}
-}
-function loadStripConfig(){
-  try{var r=_store[STRIP_KEY];if(!r)return;var o=typeof r==='string'?JSON.parse(r):r;
-  if(o&&o.order)STRIP_CONFIG=o;}catch(e){}
-}
-function loadFocusOrder(){
-  try{var r=_store[FOCUS_ORDER_KEY];if(!r)return;var o=typeof r==='string'?JSON.parse(r):r;
-  if(Array.isArray(o)&&o.length)FOCUS_ORDER=o;}catch(e){}
-}
-function saveFocusOrder(){
-  var val=FOCUS_ORDER||[];_store[FOCUS_ORDER_KEY]=val;sbScheduleWrite(FOCUS_ORDER_KEY,val);
-}
-
-
-
-function renderGPSMap(s) {
-  var strokes = (s.strokes||[]).filter(function(st){
-    return st.lt!=null&&st.ln!=null&&st.lt>-90&&st.lt<90&&st.ln>-180&&st.ln<180;
-  });
-  var mapId = 'sess-map-'+s.date;
-  if (!strokes.length) {
-    return '<div class="card dnd-card" data-card-id="map">'
-      +'<div class="ct-title">🗺️ GPS Track</div>'
-      +'<div class="ct-sub" style="padding:20px 0;text-align:center;color:var(--gm)">No GPS data for this session</div>'
-      +'</div>';
-  }
-  s._mapId = mapId; s._mapStrokes = strokes;
-  return '<div class="card dnd-card" data-card-id="map">'
-    +'<div class="ct-title">🗺️ GPS Track</div>'
-    +'<div class="ct-sub">Route traced from stroke GPS coordinates</div>'
-    +'<canvas id="'+mapId+'" height="260" style="border-radius:10px;margin-top:8px;width:100%;display:block"></canvas>'
-    +'</div>';
-}
-
-function drawGPSMap(s, strokes, canvasEl) {
-  var c = canvasEl||document.getElementById(s._mapId||('sess-map-'+s.date));
-  if (!c) return;
-  var W=0,wEl=c; while(wEl&&W===0){W=wEl.offsetWidth;wEl=wEl.parentElement;} if(!W)W=600;
-  var H=260; c.width=W; c.height=H;
-  var ctx=c.getContext('2d');
-  ctx.fillStyle='#e8f0f8'; ctx.fillRect(0,0,W,H);
-  var lats=strokes.map(function(st){return st.lt;}),lons=strokes.map(function(st){return st.ln;});
-  var minLat=Math.min.apply(null,lats),maxLat=Math.max.apply(null,lats);
-  var minLon=Math.min.apply(null,lons),maxLon=Math.max.apply(null,lons);
-  var latSpan=maxLat-minLat||0.001,lonSpan=maxLon-minLon||0.001;
-  var latRad=(minLat+maxLat)/2*Math.PI/180,lonScale=Math.cos(latRad);
-  var aspectRatio=W/H,geographicAspect=(lonSpan*lonScale)/latSpan;
-  if(geographicAspect>aspectRatio){var ns=(lonSpan*lonScale)/aspectRatio,lm=(minLat+maxLat)/2;minLat=lm-ns/2;maxLat=lm+ns/2;latSpan=ns;}
-  else{var nl=(latSpan*aspectRatio)/lonScale,lonMid=(minLon+maxLon)/2;minLon=lonMid-nl/2;maxLon=lonMid+nl/2;lonSpan=nl;}
-  var pad=28,dW=W-pad*2,dH=H-pad*2;
-  var toX=function(ln){return pad+(ln-minLon)/lonSpan*dW;};
-  var toY=function(lt){return pad+(1-(lt-minLat)/latSpan)*dH;};
-  ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;
-  for(var gi=0;gi<=4;gi++){var gx=pad+gi*dW/4,gy=pad+gi*dH/4;
-    ctx.beginPath();ctx.moveTo(gx,pad);ctx.lineTo(gx,pad+dH);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(pad,gy);ctx.lineTo(pad+dW,gy);ctx.stroke();}
-  var speeds=strokes.map(function(st){return st.s||0;}),maxSpd=Math.max.apply(null,speeds)||5;
-  var f=getFocus(s),baseCol=f?f.color:'#7c6fa0';
-  ctx.beginPath();strokes.forEach(function(st,i){var x=toX(st.ln),y=toY(st.lt);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
-  ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=5;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
-  for(var i=1;i<strokes.length;i++){
-    var st0=strokes[i-1],st1=strokes[i],t=Math.min(1,(st0.s||0)/maxSpd);
-    var r0=180,g0=180,b0=190,r1=parseInt(baseCol.slice(1,3)||'7c',16),g1=parseInt(baseCol.slice(3,5)||'6f',16),b1=parseInt(baseCol.slice(5,7)||'a0',16);
-    ctx.beginPath();ctx.moveTo(toX(st0.ln),toY(st0.lt));ctx.lineTo(toX(st1.ln),toY(st1.lt));
-    ctx.strokeStyle='rgb('+(Math.round(r0+(r1-r0)*t))+','+(Math.round(g0+(g1-g0)*t))+','+(Math.round(b0+(b1-b0)*t))+')';
-    ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();}
-  var sx=toX(strokes[0].ln),sy=toY(strokes[0].lt);
-  ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.fillStyle='#4caf74';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
-  var ex=toX(strokes[strokes.length-1].ln),ey=toY(strokes[strokes.length-1].lt);
-  ctx.beginPath();ctx.arc(ex,ey,6,0,Math.PI*2);ctx.fillStyle='#c0406a';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
-  var mid=strokes[Math.floor(strokes.length/2)],mid2=strokes[Math.min(Math.floor(strokes.length/2)+3,strokes.length-1)];
-  if(mid&&mid2){var mx=toX(mid.ln),my=toY(mid.lt),angle=Math.atan2(toY(mid2.lt)-my,toX(mid2.ln)-mx);
-    ctx.save();ctx.translate(mx,my);ctx.rotate(angle);ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-4,-5);ctx.lineTo(-4,5);ctx.closePath();
-    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();ctx.restore();}
-}
-
-
-
-var FOCUS_ORDER = null;
-function attachFocusDrag(container) {
-  Array.from(container.querySelectorAll('.focus-group-wrap')).forEach(function(wrap) {
-    var handle = wrap.querySelector(':scope > .drag-handle');
-    if (!handle) return;
-    handle.addEventListener('mousedown', function(e){e.preventDefault();startFocusDrag(wrap,container,e.clientY);});
-    handle.addEventListener('touchstart', function(e){e.preventDefault();startFocusDrag(wrap,container,e.touches[0].clientY);},{passive:false});
-  });
-}
-function startFocusDrag(srcWrap, container, startY) {
-  var srcRect=srcWrap.getBoundingClientRect(),offsetY=startY-srcRect.top;
-  srcWrap.classList.add('dnd-dragging');
-  var ghost=srcWrap.cloneNode(true);ghost.id='dnd-ghost';
-  ghost.style.cssText='position:fixed;z-index:9999;width:'+srcRect.width+'px;opacity:.85;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.2);border-radius:14px;top:'+(startY-offsetY)+'px;left:'+srcRect.left+'px;';
-  document.body.appendChild(ghost);
-  function onMove(y){
-    ghost.style.top=(y-offsetY)+'px';
-    var target=null;
-    Array.from(container.querySelectorAll('.focus-group-wrap:not(.dnd-dragging)')).forEach(function(w){
-      var r=w.getBoundingClientRect();if(y>=r.top&&y<=r.bottom)target=w;
-    });
-    if(target){var ti=Array.from(container.children).indexOf(target),si=Array.from(container.children).indexOf(srcWrap);
-      if(ti>si)container.insertBefore(srcWrap,target.nextSibling);else container.insertBefore(srcWrap,target);}
-  }
-  function onEnd(){
-    srcWrap.classList.remove('dnd-dragging');var g=document.getElementById('dnd-ghost');if(g)g.remove();
-    FOCUS_ORDER=Array.from(container.querySelectorAll('.focus-group-wrap')).map(function(w){return w.dataset.focusId;}).filter(Boolean);
-    saveFocusOrder();
-    document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
-    document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',tu);
-  }
-  function mm(e){onMove(e.clientY);}function mu(){onEnd();}
-  function tm(e){e.preventDefault();onMove(e.touches[0].clientY);}function tu(){onEnd();}
-  document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
-  document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',tu);
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   SESSION TRIM
-   Adds a "Trim session" card to session detail.
-   Shows the speed profile with draggable start/end handles.
-   Trimming slices s.strokes and recomputes avgSpeed,
-   totalDist, elapsed, avgHR, avgStrokeRate.
-═══════════════════════════════════════════════════════ */
-
-
-
-/* Trim state per session date */
-var _trimState = {};  /* { date: { startIdx, endIdx } } */
-
-
-/* ── App bootstrap ── */
-document.addEventListener('DOMContentLoaded', function() {
-  sbRestoreSession(function(err, sess) {
-    if (sess && sess.access_token) {
-      console.log('[auth] sbRestoreSession result: OK user=' + (sess.user && sess.user.email));
-      bootApp();
-    } else {
-      showAuthScreen();
-    }
-  });
-});
-
-
-
-
-
-
-
-
-function saveStripConfig() {
-  var val = STRIP_CONFIG || defaultStripConfig();
-  _store[STRIP_KEY] = val;
-  sbScheduleWrite(STRIP_KEY, val);
-}
-
-function saveOvLayout() {
-  var val = OV_WIDGET_ORDER || defaultOvOrder();
-  _store[OV_WIDGET_KEY] = val;
-  sbScheduleWrite(OV_WIDGET_KEY, val);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function fetchAllTides(cb) {
-  /* Compute harmonic tides for all sessions, then call cb */
-  computeAllTides();
-  if (cb) cb();
-}
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -5507,7 +3036,6 @@ function renderSegmentManager(el) {
   el.innerHTML = html;
 
   /* Wire cluster data for createZoneFromCluster */
-  _pendingClusters = suggested;
   el._clusters = suggested;
 }
 
@@ -5627,6 +3155,325 @@ function deleteZone(idx) {
 }
 
 
+function renderPlansPage(el) {
+  var weeks  = Object.keys(WEEKLY_PLANS).sort().reverse();
+  var html = '<div class="view"><div class="pt">📋 Weekly Plans</div>'
+    + '<div class="ps">Set the workout schedule for each week. Sessions are automatically tagged by day — no manual tagging needed.</div>';
+
+  /* Add new week button */
+  html += renderUserPrefs();
+  html += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">';
+  html += '<button onclick="openNewPlan()" style="font-family:var(--font);font-size:12px;font-weight:800;'
+        + 'padding:10px 20px;border-radius:var(--r-pill);border:none;background:var(--lav);color:var(--plum);cursor:pointer">'
+        + '＋ Add week plan</button>';
+  if (weeks.length) {
+    html += '<span style="font-size:11px;font-weight:600;color:var(--gm)">'
+          + weeks.length + ' week' + (weeks.length>1?'s':'') + ' saved</span>';
+  }
+  html += '</div>';
+
+  /* Editor slot (shown when adding/editing) */
+  html += '<div id="plan-editor-slot"></div>';
+
+  /* Saved plans list */
+  if (weeks.length) {
+    weeks.forEach(function(wk) {
+      html += renderPlanCard(wk, WEEKLY_PLANS[wk]);
+    });
+  } else {
+    html += '<div class="notice n-purple">No weekly plans saved yet. Click <b>Add week plan</b> to set up your first week.</div>';
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+
+  /* If a plan was being edited, re-open it */
+  if (ACTIVE_PLAN_WEEK) openPlanEditor(ACTIVE_PLAN_WEEK);
+}
+
+function drawDownwindTrend(g){
+  var c=document.getElementById('ft-'+g.focus.id);if(!c)return;
+  var ctx=c.getContext('2d'),W=c.offsetWidth,H=140;c.width=W;c.height=H;
+  var f=g.focus;
+  var sess=g.sessions; // oldest first
+  var n=sess.length;
+  var pad={t:22,r:18,b:28,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+
+  /* Collect efficiency + avg speed per session */
+  var data=sess.map(function(s){
+    var dw=detectDownwindRuns(s);
+    return {date:s.date,eff:dw?dw.eff:null,spd:dw?dw.avgSpd:null,sr:dw?dw.avgSR:null};
+  }).filter(function(d){return d.eff!==null;});
+  if(data.length<1) return;
+
+  var effs=data.map(function(d){return d.eff;});
+  var spds=data.map(function(d){return d.spd;});
+  var minE=Math.min.apply(null,effs)*0.95, maxE=Math.max.apply(null,effs)*1.05;
+  /* Extend range to show target line at 12 */
+  maxE=Math.max(maxE,12.5); minE=Math.min(minE,9.5);
+
+  var nd=data.length;
+  var xOf=function(i){return pad.l+(nd<2?cW/2:i/(nd-1)*cW);};
+  var yOf=function(v){return pad.t+cH-((v-minE)/(maxE-minE))*cH;};
+
+  drawGrid(ctx,W,H,pad,minE,maxE,3);
+
+  /* Target line at efficiency=12 */
+  if(12>=minE&&12<=maxE){
+    var ty=yOf(12);
+    ctx.beginPath();ctx.strokeStyle='rgba(92,184,122,0.5)';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+    ctx.moveTo(pad.l,ty);ctx.lineTo(W-pad.r,ty);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(92,184,122,0.8)';ctx.font='bold 9px Nunito';ctx.textAlign='left';
+    ctx.fillText('target 12',pad.l+4,ty-3);
+  }
+
+  /* Avg speed (secondary, dashed, right axis implied by colour) */
+  if(spds.length>=2){
+    var minS=Math.min.apply(null,spds)*0.97,maxS=Math.max.apply(null,spds)*1.02;
+    var yS=function(v){return pad.t+cH-((v-minS)/(maxS-minS))*cH;};
+    ctx.beginPath();ctx.strokeStyle=f.color+'55';ctx.lineWidth=1.5;ctx.setLineDash([4,5]);ctx.lineJoin='round';
+    data.forEach(function(d,i){if(i===0)ctx.moveTo(xOf(i),yS(d.spd));else ctx.lineTo(xOf(i),yS(d.spd));});
+    ctx.stroke();ctx.setLineDash([]);
+  }
+
+  /* Efficiency line + fill */
+  if(nd>1){
+    var gr=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
+    gr.addColorStop(0,f.color+'33');gr.addColorStop(1,f.color+'00');
+    ctx.beginPath();
+    data.forEach(function(d,i){if(i===0)ctx.moveTo(xOf(i),yOf(d.eff));else ctx.lineTo(xOf(i),yOf(d.eff));});
+    ctx.lineTo(xOf(nd-1),pad.t+cH);ctx.lineTo(xOf(0),pad.t+cH);ctx.closePath();
+    ctx.fillStyle=gr;ctx.fill();
+    ctx.beginPath();ctx.strokeStyle=f.color;ctx.lineWidth=2.5;ctx.lineJoin='round';
+    data.forEach(function(d,i){if(i===0)ctx.moveTo(xOf(i),yOf(d.eff));else ctx.lineTo(xOf(i),yOf(d.eff));});
+    ctx.stroke();
+  }
+
+  /* Data points */
+  data.forEach(function(d,i){
+    var x=xOf(i),y=yOf(d.eff);
+    var effCol=d.eff>12?'var(--mint-dk)':d.eff>10.5?f.color:'#a03060';
+    ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);
+    ctx.fillStyle=effCol;ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.fill();ctx.stroke();
+    ctx.fillStyle='#3d2f5a';ctx.font='bold 10px Nunito';ctx.textAlign='center';
+    ctx.fillText(d.eff.toFixed(2),x,y-12);
+    xLbl(ctx,H,x,dateLabel(d.date));
+  });
+
+  /* Legend */
+  ctx.fillStyle=f.color;ctx.font='bold 9px Nunito';ctx.textAlign='right';
+  ctx.fillText('— efficiency (speed÷SR×100)',W-pad.r,pad.t-6);
+  ctx.fillStyle=f.color+'88';
+  ctx.fillText('- - avg run speed',W-pad.r,pad.t+5);
+}
+
+function _loadUserData(cb) {
+  var keys = [STORAGE_KEY, TAGS_KEY, NOTES_KEY, PLAN_KEY, PREFS_KEY, CRAFTS_KEY];
+  var loaded = 0;
+  _store = {};
+  keys.forEach(function(k) {
+    sbGet(k, sbToken(), function(err2, val) {
+      if (!err2 && val !== null) _store[k] = val;
+      if (++loaded === keys.length) {
+        /* Now load full stroke data for each session */
+        var sessions = _store[STORAGE_KEY] || [];
+        loadAllSessionDetails(sessions, function() {
+          /* Merge strokes back into _store */
+          _store[STORAGE_KEY] = sessions;
+          cb();
+        });
+      }
+    });
+  });
+}
+
+function getCraft(session) {
+  return SESSION_CRAFTS[session.date] || USER_PREFS.defaultCraft || 'OC1';
+}
+
+function filteredSessions() {
+  return SESSIONS.filter(function(s) {
+    if (FILTER_FROM && s.date < FILTER_FROM) return false;
+    if (FILTER_TO   && s.date > FILTER_TO)   return false;
+    return true;
+  });
+}
+
+function renderOverviewWidgets(viewDiv, ss, rows, nonB, bOnly, bestNB, bestB, totalDist) {
+  var order     = getOvOrder();
+  var container = document.createElement('div');
+  container.id  = 'ov-widgets';
+  function widgetHTML(id) {
+    switch(id) {
+      case 'week-plan': return renderWeekPlanWidget(ss);
+      case 'stats':
+        return '<div class="sg g4">'
+          +'<div class="sc"><div class="sl">Total Distance</div>'
+          +'<div class="sv">'+totalDist.toFixed(1)+'<span class="su2"> mi</span></div>'
+          +'<div class="sn">'+ss.length+' sessions</div></div>'
+          +'<div class="sc"><div class="sl">Best Non-Bungee</div>'
+          +'<div class="sv">'+(bestNB?bestNB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
+          +'<div class="sn">'+(bestNB?dateLabel(bestNB.date):'—')+'</div></div>'
+          +'<div class="sc"><div class="sl">Best Bungee</div>'
+          +'<div class="sv">'+(bestB?bestB.avgSpeed.toFixed(2):'—')+'<span class="su2"> mph</span></div>'
+          +'<div class="sn">Thu only</div></div>'
+          +'<div class="sc"><div class="sl">HRM Sessions</div>'
+          +'<div class="sv">'+ss.filter(function(s){return s.hasHR;}).length
+          +'<span class="su2"> / '+ss.length+'</span></div></div>'
+          +'</div>';
+      case 'speed-chart':
+        return '<div class="card">'
+          +'<div class="ct-title">Session speed \u2014 coloured by focus type</div>'
+          +'<div class="ct-sub">\uD83D\uDD34 diamonds = bungee Thursdays</div>'
+          +'<canvas id="ov-c" height="175"></canvas></div>';
+      case 'sessions-table':
+        return '<div class="tw"><table>'
+          +'<tr><th>Date</th><th>Focus</th><th>Craft</th><th>Dist</th><th>Elapsed</th>'
+          +'<th>Avg Speed</th><th>SR</th><th>HR</th><th>Tide</th><th>Conditions</th>'
+          +'<th>Notes</th><th>Compare to</th><th style="width:32px"></th></tr>'
+          +rows+'</table></div>';
+    }
+    return '';
+  }
+  order.forEach(function(id){
+    var h = widgetHTML(id);
+    if (!h) return;
+    var wrap = document.createElement('div');
+    wrap.className        = 'ov-widget-wrap';
+    wrap.dataset.widgetId = id;
+    wrap.innerHTML = '<div class="drag-handle" title="Drag to reorder">\u2807</div>' + h;
+    container.appendChild(wrap);
+  });
+  viewDiv.appendChild(container);
+  setTimeout(function(){ drawOvSpeed(ss); }, 30);
+  attachOvDrag(container);
+}
+
+function renderWeekPlanWidget(ss) {
+  var today    = new Date();
+  var todayDow = today.getDay();
+  var ds = today.getFullYear()
+         + String(today.getMonth()+1).padStart(2,'0')
+         + String(today.getDate()).padStart(2,'0');
+  var weekKey  = isoWeek(ds);
+  var plan     = WEEKLY_PLANS[weekKey];
+  var dayOrder = [1,2,3,4,5,6,0];
+  var DOW_SHORT= ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var sessThisWeek = {};
+  ss.forEach(function(s){
+    if (isoWeek(s.date) === weekKey) sessThisWeek[getDOW(s.date)] = s;
+  });
+  var html = '<div class="week-plan-strip">'
+    + '<div class="wps-title">\uD83D\uDCC5 This Week\'s Program'
+    + '<span style="font-size:var(--fs-caption);font-weight:600;color:var(--gm);font-style:normal;'
+    + 'text-transform:none;letter-spacing:0;margin-left:6px">'
+    + weekMonday(weekKey) + '</span></div>';
+  if (!plan || !plan.days || !Object.keys(plan.days).length) {
+    html += '<div style="font-size:var(--fs-body);font-weight:600;color:var(--gm);text-align:center;padding:8px 0">'
+      + 'No program set for this week. '
+      + '<button onclick="nav(\'plans\')" style="font-family:var(--font);font-size:var(--fs-small);font-weight:800;'
+      + 'padding:4px 12px;border-radius:999px;border:1.5px solid var(--lav);'
+      + 'background:var(--lilac);color:var(--plum);cursor:pointer">Set up weekly plan \u2192</button>'
+      + '</div></div>';
+    return html;
+  }
+  html += '<div class="week-plan-days">';
+  dayOrder.forEach(function(dow){
+    var dayPlan = (plan.days||{})[dow];
+    var sess    = sessThisWeek[dow];
+    var isToday = (dow === todayDow);
+    var base    = PROGRAM[dow] || {};
+    var opt     = (typeof FOCUS_OPTIONS!=='undefined' && dayPlan)
+                  ? FOCUS_OPTIONS.filter(function(o){ return o.id===dayPlan.id; })[0]||{} : {};
+    var sty     = (typeof FOCUS_STYLES!=='undefined' && dayPlan && FOCUS_STYLES[dayPlan.id])
+                  ? FOCUS_STYLES[dayPlan.id] : {};
+    var col     = sty.color   || base.color   || '#b09dd4';
+    var colLt   = sty.colorLt || base.colorLt || '#f0eaf9';
+    var icon    = opt.icon  || sty.icon  || base.icon  || '';
+    var label   = opt.label || base.shortLabel || '';
+    if (!dayPlan || !dayPlan.id) {
+      html += '<div class="wpd" style="background:var(--cloud);color:var(--gm)">'
+        + '<div class="wpd-dow">'+DOW_SHORT[dow]+(isToday?' \u25CF':'')+'</div>'
+        + '<div class="wpd-icon" style="opacity:.25">\u2014</div>'
+        + '<div class="wpd-label" style="opacity:.4">Rest</div>'
+        + '</div>';
+      return;
+    }
+    var dateAttr = sess ? ' onclick="selSess(\''+sess.date+'\')"' : '';
+    html += '<div class="wpd'+(sess?' has-session':'')+(isToday?' today':'')+'"'
+      + dateAttr + ' style="background:'+colLt+';color:'+col+'">'
+      + '<div class="wpd-dow" style="color:'+col+'">'+DOW_SHORT[dow]+(isToday?' \u25CF':'')+'</div>'
+      + '<div class="wpd-icon">'+icon+'</div>'
+      + '<div class="wpd-label">'+escHtml(label)+'</div>'
+      + (sess ? '<div class="wpd-speed">'+sess.avgSpeed.toFixed(2)+'</div>' : '')
+      + (sess ? '<div style="font-size:var(--fs-label);font-weight:700;margin-top:1px;opacity:.7">\u2713 done</div>' : '')
+      + '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+
+function renderGPSMap(s) {
+  var strokes = (s.strokes||[]).filter(function(st){
+    return st.lt!=null&&st.ln!=null&&st.lt>-90&&st.lt<90&&st.ln>-180&&st.ln<180;
+  });
+  var mapId = 'sess-map-'+s.date;
+  if (!strokes.length) {
+    return '<div class="card dnd-card" data-card-id="map">'
+      +'<div class="ct-title">🗺️ GPS Track</div>'
+      +'<div class="ct-sub" style="padding:20px 0;text-align:center;color:var(--gm)">No GPS data for this session</div>'
+      +'</div>';
+  }
+  s._mapId = mapId; s._mapStrokes = strokes;
+  return '<div class="card dnd-card" data-card-id="map">'
+    +'<div class="ct-title">🗺️ GPS Track</div>'
+    +'<div class="ct-sub">Route traced from stroke GPS coordinates</div>'
+    +'<canvas id="'+mapId+'" height="260" style="border-radius:10px;margin-top:8px;width:100%;display:block"></canvas>'
+    +'</div>';
+}
+
+function drawGPSMap(s, strokes, canvasEl) {
+  var c = canvasEl||document.getElementById(s._mapId||('sess-map-'+s.date));
+  if (!c) return;
+  var W=0,wEl=c; while(wEl&&W===0){W=wEl.offsetWidth;wEl=wEl.parentElement;} if(!W)W=600;
+  var H=260; c.width=W; c.height=H;
+  var ctx=c.getContext('2d');
+  ctx.fillStyle='#e8f0f8'; ctx.fillRect(0,0,W,H);
+  var lats=strokes.map(function(st){return st.lt;}),lons=strokes.map(function(st){return st.ln;});
+  var minLat=Math.min.apply(null,lats),maxLat=Math.max.apply(null,lats);
+  var minLon=Math.min.apply(null,lons),maxLon=Math.max.apply(null,lons);
+  var latSpan=maxLat-minLat||0.001,lonSpan=maxLon-minLon||0.001;
+  var latRad=(minLat+maxLat)/2*Math.PI/180,lonScale=Math.cos(latRad);
+  var aspectRatio=W/H,geographicAspect=(lonSpan*lonScale)/latSpan;
+  if(geographicAspect>aspectRatio){var ns=(lonSpan*lonScale)/aspectRatio,lm=(minLat+maxLat)/2;minLat=lm-ns/2;maxLat=lm+ns/2;latSpan=ns;}
+  else{var nl=(latSpan*aspectRatio)/lonScale,lonMid=(minLon+maxLon)/2;minLon=lonMid-nl/2;maxLon=lonMid+nl/2;lonSpan=nl;}
+  var pad=28,dW=W-pad*2,dH=H-pad*2;
+  var toX=function(ln){return pad+(ln-minLon)/lonSpan*dW;};
+  var toY=function(lt){return pad+(1-(lt-minLat)/latSpan)*dH;};
+  ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;
+  for(var gi=0;gi<=4;gi++){var gx=pad+gi*dW/4,gy=pad+gi*dH/4;
+    ctx.beginPath();ctx.moveTo(gx,pad);ctx.lineTo(gx,pad+dH);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(pad,gy);ctx.lineTo(pad+dW,gy);ctx.stroke();}
+  var speeds=strokes.map(function(st){return st.s||0;}),maxSpd=Math.max.apply(null,speeds)||5;
+  var f=getFocus(s),baseCol=(f&&f.color)?f.color:'#7c6fa0';
+  ctx.beginPath();strokes.forEach(function(st,i){var x=toX(st.ln),y=toY(st.lt);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=5;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
+  for(var i=1;i<strokes.length;i++){
+    var st0=strokes[i-1],st1=strokes[i],t=Math.min(1,(st0.s||0)/maxSpd);
+    var r0=180,g0=180,b0=190,r1=parseInt(baseCol.slice(1,3)||'7c',16),g1=parseInt(baseCol.slice(3,5)||'6f',16),b1=parseInt(baseCol.slice(5,7)||'a0',16);
+    ctx.beginPath();ctx.moveTo(toX(st0.ln),toY(st0.lt));ctx.lineTo(toX(st1.ln),toY(st1.lt));
+    ctx.strokeStyle='rgb('+(Math.round(r0+(r1-r0)*t))+','+(Math.round(g0+(g1-g0)*t))+','+(Math.round(b0+(b1-b0)*t))+')';
+    ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();}
+  var sx=toX(strokes[0].ln),sy=toY(strokes[0].lt);
+  ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.fillStyle='#4caf74';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  var ex=toX(strokes[strokes.length-1].ln),ey=toY(strokes[strokes.length-1].lt);
+  ctx.beginPath();ctx.arc(ex,ey,6,0,Math.PI*2);ctx.fillStyle='#c0406a';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  var mid=strokes[Math.floor(strokes.length/2)],mid2=strokes[Math.min(Math.floor(strokes.length/2)+3,strokes.length-1)];
+  if(mid&&mid2){var mx=toX(mid.ln),my=toY(mid.lt),angle=Math.atan2(toY(mid2.lt)-my,toX(mid2.ln)-mx);
+    ctx.save();ctx.translate(mx,my);ctx.rotate(angle);ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-4,-5);ctx.lineTo(-4,5);ctx.closePath();
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();ctx.restore();}
+}
 
 
 
