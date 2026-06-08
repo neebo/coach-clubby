@@ -64,6 +64,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -459,6 +460,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -483,6 +485,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -3714,6 +3717,41 @@ function renderPlanCard(wk, plan) {
   return html;
 }
 
+
+
+
+
+function authClearError() {
+  var el = document.getElementById('auth-err');
+  if (el) el.textContent = '';
+}
+
+function showCheckEmailScreen(email) {
+  document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--lilac2);padding:24px;font-family:var(--font)">'
+    + '<div style="font-size:48px;margin-bottom:16px">📬</div>'
+    + '<div style="font-size:22px;font-weight:900;color:var(--plum);margin-bottom:8px">Check your email</div>'
+    + '<div style="font-size:14px;color:var(--gt);text-align:center;max-width:320px;margin-bottom:24px">'
+    + 'We sent a confirmation link to <b>' + escHtml(email||'') + '</b>. Click the link to activate your account.</div>'
+    + '<button onclick="showAuthScreen()" style="font-family:var(--font);font-size:13px;font-weight:800;padding:10px 24px;border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);color:var(--plum);cursor:pointer">← Back to sign in</button>'
+    + '</div>';
+}
+
+function resendVerification(email) {
+  sbSignUp(email, '', function(err) {
+    showToast(err ? 'Could not resend: ' + err : 'Verification email resent!', err ? 'error' : 'success');
+  });
+}
+
+/* ── App bootstrap ── */
+document.addEventListener('DOMContentLoaded', function() {
+  sbRestoreSession(function(err, sess) {
+    if (sess && sess.access_token) {
+      bootApp();
+    } else {
+      showAuthScreen();
+    }
+  });
+});
 
 </script>
 </body>
