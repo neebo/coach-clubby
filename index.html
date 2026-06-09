@@ -95,6 +95,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -521,6 +523,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -545,6 +549,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1322,6 +1328,7 @@ var WW_VIS={seg_S:true,seg_C:true,seg_N:true,seg_NE:true};
 function recompute(){
   console.log('[recompute] SESSIONS='+SESSIONS.length);
   if(!SESSIONS.length){COMPUTED=null;return;}
+  try{
   SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
   var dates=SESSIONS.map(function(s){return s.date;});
   var cellCount=new Map();
@@ -1354,13 +1361,13 @@ function recompute(){
   var corridor={};
   SESSIONS.forEach(function(s){
     var match=(s.strokes||[]).filter(function(st){
-      return st.lt&&st.ln&&st.lt>=CORR_LAT_LO&&st.lt<=CORR_LAT_HI&&(cellCount.get(cellKey(st.lt,st.ln))||0)>=corrThresh;
+      return st.lt&&st.ln&&(cellCount.get(cellKey(st.lt,st.ln))||0)>=corrThresh;
     });
     var st=statsFor(match);
     if(st&&st.n>=5)corridor[s.date]=st;
   });
 
-  var segments=ZONE_DEFS.map(function(zone){
+  var segments=(USER_ZONES||[]).map(function(zone){
     var sessions={};
     SESSIONS.forEach(function(s){
       var match=(s.strokes||[]).filter(function(st){
@@ -1385,6 +1392,7 @@ function recompute(){
 
   COMPUTED={dates:dates,cellCount:cellCount,corridor:corridor,segments:segments,byFocus:byFocus};
   console.log('[recompute] COMPUTED set, byFocus keys:', Object.keys(byFocus));
+  } catch(e) { console.error('[recompute] CRASHED:', e.message, e.stack); }
 }
 
 /* ═══════════════════════════════════════════
@@ -4821,6 +4829,8 @@ function loadWeatherCacheFromSupabase(cb) {
     });
   });
 }
+
+
 
 
 
