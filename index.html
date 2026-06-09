@@ -102,6 +102,9 @@
 
 
 
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -535,6 +538,9 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
 </style>
 </head>
 <body>
@@ -559,6 +565,9 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
 
 
 
@@ -3976,15 +3985,7 @@ function resendVerification(email) {
 }
 
 /* ── App bootstrap ── */
-document.addEventListener('DOMContentLoaded', function() {
-  sbRestoreSession(function(err, sess) {
-    if (sess && sess.access_token) {
-      bootApp();
-    } else {
-      showAuthScreen();
-    }
-  });
-});
+
 
 
 
@@ -4717,7 +4718,7 @@ function renderDownwindCard(s) {
   return '<div class="card dnd-card" data-card-id="legs">'
     + '<div class="ct-title">🌊 Downwind Runs</div>'
     + '<div class="ct-sub">' + runs.length + ' runs detected · best avg ' + best.avgSpeed.toFixed(2) + ' mph</div>'
-    + '<canvas id="ww-chart-' + s.date + '" height="120" style="width:100%;display:block;margin-bottom:10px"></canvas>'
+    + '<canvas id="ww-chart-' + s.date + '" height="100" style="width:100%;display:block;margin-bottom:8px"></canvas>'
     + rows + '</div>';
 }
 
@@ -4987,6 +4988,19 @@ function drawDownwindRunsChart(s, canvas) {
   ctx.fillStyle = 'var(--gm)'; ctx.font = '9px Nunito,sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('mph', 0, 0); ctx.restore();
 }
+
+/* ── App bootstrap ── */
+document.addEventListener('DOMContentLoaded', function() {
+  sbRestoreSession(function(err, sess) {
+    if (sess && sess.access_token) {
+      bootApp();
+    } else {
+      showAuthScreen();
+    }
+  });
+});
+
+
 
 </script>
 </body>
