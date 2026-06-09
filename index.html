@@ -101,6 +101,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -533,6 +534,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -557,6 +559,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -4234,6 +4237,9 @@ function renderSessionCards(s, containerEl) {
       }
     }
     drawTrimChart(s); attachTrimHandlers(s);
+    /* Per-session downwind runs chart */
+    var wwc = document.getElementById('ww-chart-'+s.date);
+    if (wwc) drawDownwindRunsChart(s, wwc);
   };
   setTimeout(_drawCards, 150);
   if(window.IntersectionObserver){
@@ -4908,6 +4914,79 @@ function computeAllTides() {
 
 
 
+
+
+
+
+function drawDownwindRunsChart(s, canvas) {
+  var runs = detectDownwindRuns(s);
+  if (!runs || !runs.length) return;
+  var f = getFocus(s), col = (f && f.color) ? f.color : '#9bbdd4';
+
+  var W = canvas.offsetWidth || canvas.parentElement && canvas.parentElement.offsetWidth || 300;
+  var H = 120;
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+
+  var pad = {t:14, r:12, b:28, l:42};
+  var cW = W - pad.l - pad.r;
+  var cH = H - pad.t - pad.b;
+
+  var speeds = runs.map(function(r){ return r.avgSpeed; });
+  var maxSpd = Math.max.apply(null, runs.map(function(r){ return r.maxSpeed; })) * 1.05;
+  var minSpd = Math.min.apply(null, speeds) * 0.93;
+  var n = runs.length;
+  var barW = Math.max(8, Math.floor(cW / n * 0.6));
+  var gap  = cW / n;
+
+  function yOf(v) { return pad.t + cH - (v - minSpd) / (maxSpd - minSpd) * cH; }
+
+  /* Grid */
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
+  for (var gi = 0; gi <= 3; gi++) {
+    var gy = pad.t + cH * gi / 3;
+    ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(pad.l + cW, gy); ctx.stroke();
+    var gv = maxSpd - (maxSpd - minSpd) * gi / 3;
+    ctx.fillStyle = 'var(--gm)'; ctx.font = '9px Nunito,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(gv.toFixed(1), pad.l - 3, gy + 3);
+  }
+
+  runs.forEach(function(r, i) {
+    var cx  = pad.l + gap * i + gap / 2;
+    var yAvg  = yOf(r.avgSpeed);
+    var yPeak = yOf(r.maxSpeed);
+    var isBest = r.run === runs.reduce(function(m,x){ return x.avgSpeed>m.avgSpeed?x:m; }).run;
+
+    /* Peak indicator line */
+    ctx.strokeStyle = col + '55'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, yPeak); ctx.lineTo(cx, yAvg); ctx.stroke();
+    ctx.fillStyle = col + '33';
+    ctx.fillRect(cx - barW/2, yAvg, barW, pad.t + cH - yAvg);
+
+    /* Avg speed bar */
+    ctx.fillStyle = isBest ? col : col + 'aa';
+    ctx.fillRect(cx - barW/2, yAvg, barW, pad.t + cH - yAvg);
+
+    /* Dot at avg */
+    ctx.beginPath(); ctx.arc(cx, yAvg, 4, 0, Math.PI*2);
+    ctx.fillStyle = isBest ? col : col + 'cc';
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
+
+    /* Speed label */
+    ctx.fillStyle = '#3d2f5a'; ctx.font = 'bold 9px Nunito,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(r.avgSpeed.toFixed(1), cx, yAvg - 6);
+
+    /* X label */
+    ctx.fillStyle = 'var(--gm)'; ctx.font = '9px Nunito,sans-serif';
+    ctx.fillText('R' + r.run, cx, H - 6);
+  });
+
+  /* Y-axis label */
+  ctx.save(); ctx.translate(10, pad.t + cH/2); ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = 'var(--gm)'; ctx.font = '9px Nunito,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mph', 0, 0); ctx.restore();
+}
 
 </script>
 </body>
