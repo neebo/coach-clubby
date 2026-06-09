@@ -91,6 +91,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -513,6 +515,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -537,6 +541,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -2177,14 +2183,32 @@ function fetchWeather(session, callback){
 
   // Determine if open water (lon < -122.01 roughly = more exposed)
   // We'll fetch both surface wind and wave height (GFS Wave model)
-  var url='https://archive-api.open-meteo.com/v1/archive'
-    +'?latitude='+lat.toFixed(4)
-    +'&longitude='+lon.toFixed(4)
-    +'&start_date='+dateStr
-    +'&end_date='+dateStr
-    +'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,wave_height,wave_direction,wave_period'
-    +'&wind_speed_unit=mph'
-    +'&timezone=America%2FLos_Angeles';
+    /* Use free forecast API — works for recent + historical dates */
+  var sessionDateObj = new Date(parseInt(y), parseInt(mo)-1, parseInt(d));
+  var daysAgo = Math.floor((Date.now() - sessionDateObj.getTime()) / 86400000);
+  var url;
+  if (daysAgo <= 92) {
+    /* Recent session: use forecast API with past_days */
+    url = 'https://api.open-meteo.com/v1/forecast'
+      +'?latitude='+lat.toFixed(4)
+      +'&longitude='+lon.toFixed(4)
+      +'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,wave_height,wave_direction,wave_period'
+      +'&wind_speed_unit=mph'
+      +'&timezone=America%2FLos_Angeles'
+      +'&past_days='+Math.min(daysAgo+1, 92)
+      +'&forecast_days=1';
+  } else {
+    /* Older session: use ERA5 reanalysis (no waves for older data) */
+    url = 'https://archive-api.open-meteo.com/v1/era5'
+      +'?latitude='+lat.toFixed(4)
+      +'&longitude='+lon.toFixed(4)
+      +'&start_date='+dateStr
+      +'&end_date='+dateStr
+      +'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m'
+      +'&wind_speed_unit=mph'
+      +'&timezone=America%2FLos_Angeles';
+  }
+
 
   fetch(url)
     .then(function(r){return r.json();})
@@ -2195,10 +2219,16 @@ function fetchWeather(session, callback){
       // Also grab the next 2 hours for session duration
       var hours=data.hourly;
       var times=hours.time||[];
+      /* Match session date AND hour in the time array */
       var idx=times.findIndex(function(t){
-        return parseInt(t.slice(11,13))===startHour;
+        return t.slice(0,10)===dateStr && parseInt(t.slice(11,13))===startHour;
       });
-      if(idx<0)idx=startHour; // fallback
+      if(idx<0){
+        /* Fallback: find any entry for the session date */
+        idx=times.findIndex(function(t){ return t.slice(0,10)===dateStr; });
+        if(idx>=0) idx+=startHour; /* offset to approximate hour */
+      }
+      if(idx<0)idx=0;
 
       function avg2(arr,i){
         if(!arr||!arr.length)return null;
@@ -4777,6 +4807,8 @@ function loadWeatherCacheFromSupabase(cb) {
     });
   });
 }
+
+
 
 
 </script>
