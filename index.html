@@ -77,6 +77,10 @@
 
 
 
+
+
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -485,6 +489,10 @@ canvas{display:block;width:100%;}
 
 
 
+
+
+
+
 </style>
 </head>
 <body>
@@ -509,6 +517,10 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
+
+
 
 
 
@@ -1191,14 +1203,17 @@ function loadFromStorage(){
   /* Read from _store which was populated by _loadUserData from Supabase */
   try{
     var stored = _store[STORAGE_KEY];
+    console.log('[load] STORAGE_KEY raw type:', typeof stored, Array.isArray(stored)?stored.length:'N/A');
     if(stored && stored.length){
       SESSIONS = stored.slice();
       SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
+      console.log('[load] Loaded', SESSIONS.length, 'sessions from Supabase');
       return true;
     }
   }catch(e){
     console.warn('loadFromStorage failed:',e);
   }
+  console.warn('[load] No sessions found in _store[STORAGE_KEY]');
   return false;
 }
 
@@ -1906,8 +1921,9 @@ function buildWWLeg(){
   el.innerHTML=html;
 }
 function toggleWW(id){WW_VIS[id]=!WW_VIS[id];var el=document.querySelector('.wleg[data-seg="'+id+'"]');if(el)el.classList.toggle('dim');drawWWChart();}
-function drawWWChart(){
-  var c=document.getElementById('ww-c');if(!c)return;
+function drawWWChart(s, c){
+  if(!c) c=document.getElementById('ww-c');
+  if(!c)return;
   var ctx=c.getContext('2d');var W=c.offsetWidth,H=220;c.width=W;c.height=H;
   var pad={t:20,r:18,b:34,l:50},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
   var allDates=COMPUTED.dates;var n=allDates.length;
@@ -3611,10 +3627,11 @@ function saveSessionCrafts() {
 function loadWeeklyPlans() {
   try {
     var raw = _store[PLAN_KEY];
+    console.log('[load] PLAN_KEY raw:', typeof raw, raw ? Object.keys(raw||{}).length : 'null');
     if (!raw) return;
     var o = typeof raw==='string' ? JSON.parse(raw) : raw;
-    if (o) WEEKLY_PLANS = o;
-  } catch(e) {}
+    if (o) { WEEKLY_PLANS = o; console.log('[load] Loaded', Object.keys(WEEKLY_PLANS).length, 'weekly plans'); }
+  } catch(e) { console.warn('[load] loadWeeklyPlans error:', e); }
 }
 
 function loadPrefs() {
@@ -4048,11 +4065,31 @@ function renderSessionCards(s, containerEl) {
     containerEl.appendChild(wrap);
   });
   attachDragHandlers(containerEl, s);
-  setTimeout(function(){
+  var _drawCards = function(){
     var sc=document.getElementById('sc-'+s.date); if(sc) drawSessChart(s);
-    if(s._mapId&&s._mapStrokes) { var mc=document.getElementById(s._mapId); if(mc) drawGPSMap(s,s._mapStrokes,mc); }
+    /* Draw GPS map — _mapId set by renderGPSMap during card build */
+    if(s._mapId&&s._mapStrokes&&s._mapStrokes.length){
+      var mc=document.getElementById(s._mapId);
+      if(mc) drawGPSMap(s,s._mapStrokes,mc);
+    } else {
+      /* Fallback: find map canvas and draw from strokes */
+      var mapC=document.getElementById('sess-map-'+s.date);
+      if(mapC&&s.strokes&&s.strokes.length){
+        var gps=(s.strokes||[]).filter(function(st){return st.lt&&st.ln&&Math.abs(st.lt)>1;});
+        if(gps.length){s._mapStrokes=gps;s._mapId='sess-map-'+s.date;drawGPSMap(s,gps,mapC);}
+      }
+    }
     drawTrimChart(s); attachTrimHandlers(s);
-  }, 80);
+  };
+  setTimeout(_drawCards, 150);
+  if(window.IntersectionObserver){
+    var firstCard = containerEl.querySelector('.card');
+    if(firstCard){
+      new IntersectionObserver(function(entries,o){
+        if(entries[0].isIntersecting){o.disconnect();_drawCards();}
+      },{threshold:0.1}).observe(firstCard);
+    }
+  }
 }
 
 /* ── renderStrip (highlights strip) ── */
@@ -4274,7 +4311,7 @@ function getStripCellData(id) {
   var ss=SESSIONS, n=ss.length;
   if (!n) return null;
   var last=ss[ss.length-1];
-  var COMPUTED = window._COMPUTED||{};
+  /* Use global COMPUTED set by recompute() */
   switch(id) {
     case 'dist': {
       var tot=ss.reduce(function(a,s){return a+s.totalDist;},0);
@@ -4519,6 +4556,7 @@ function renderDownwindCard(s) {
   return '<div class="card dnd-card" data-card-id="legs">'
     + '<div class="ct-title">🌊 Downwind Runs</div>'
     + '<div class="ct-sub">' + runs.length + ' runs detected · best avg ' + best.avgSpeed.toFixed(2) + ' mph</div>'
+    + '<canvas id="ww-chart-' + s.date + '" height="120" style="width:100%;display:block;margin-bottom:10px"></canvas>'
     + rows + '</div>';
 }
 
@@ -4596,6 +4634,10 @@ function startDrag(srcWrap, containerEl, s, startY) {
   document.addEventListener('touchmove', tm, {passive: false});
   document.addEventListener('touchend',  tu);
 }
+
+
+
+
 
 
 
