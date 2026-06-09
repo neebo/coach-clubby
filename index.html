@@ -97,6 +97,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -525,6 +527,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -549,6 +553,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1729,7 +1735,7 @@ function renderByFocus(el){
           var c=document.getElementById(canvasIdLocal);
           if(!c)return;
           if(c.offsetWidth>0){
-            if(gLocal.focus.id==='long-z2')drawDownwindTrend(gLocal);
+            if(gLocal.focus.id==='long-z2')drawDownwindTrend(gLocal,c);
             else drawFocusTrend(gLocal,c);
           } else if(window.IntersectionObserver){
             var obs=new IntersectionObserver(function(entries,o){
@@ -3393,8 +3399,9 @@ function renderPlansPage(el) {
   if (ACTIVE_PLAN_WEEK) openPlanEditor(ACTIVE_PLAN_WEEK);
 }
 
-function drawDownwindTrend(g){
-  var c=document.getElementById('ft-'+g.focus.id);if(!c)return;
+function drawDownwindTrend(g,c){
+  if(!c){var cid='ft-'+g.focus.id.replace(/[^a-z0-9]/gi,'-')+'-'+(g.craft||'');c=document.getElementById(cid);}
+  if(!c)return;
   var ctx=c.getContext('2d'),W=c.offsetWidth,H=140;c.width=W;c.height=H;
   var f=g.focus;
   var sess=g.sessions; // oldest first
@@ -4835,6 +4842,21 @@ function loadWeatherCacheFromSupabase(cb) {
 
 
 
+
+
+
+
+
+function computeAllTides() {
+  SESSIONS.forEach(function(s) {
+    if (s._tide) return; /* already computed */
+    try {
+      s._tide = computeTidesForSession(s);
+    } catch(e) {
+      console.warn('[tides] failed for', s.date, e.message);
+    }
+  });
+}
 
 
 </script>
