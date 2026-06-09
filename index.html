@@ -93,6 +93,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -517,6 +518,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -541,6 +543,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1630,7 +1633,10 @@ function renderByFocus(el){
     });
   }
 
-  console.log('[byFocus] ss='+ss.length+' groupList='+groupList.length);
+  console.log('[byFocus] ss='+ss.length+' groupList='+groupList.length
+    +' SESSION_TAGS='+Object.keys(SESSION_TAGS).length
+    +' sample DOW='+(ss.length?getDOW(ss[0].date):'-')
+    +' sample focus='+(ss.length?JSON.stringify(getFocus(ss[0])):'-'));
   if(!groupList.length){
     el.innerHTML='<div class="view"><div class="pt">🎯 By Focus Type</div>'
       +'<div class="ps">No sessions could be matched to a focus type. '
@@ -2418,8 +2424,11 @@ function loadTags(){
     var raw=_store[TAGS_KEY];
     if(!raw)return;
     var stored=typeof raw==='string'?JSON.parse(raw):raw;
-    if(stored){SESSION_TAGS=stored;}
-  }catch(e){}
+    if(stored){
+      SESSION_TAGS=stored;
+      console.log('[loadTags] loaded',Object.keys(SESSION_TAGS).length,'tags:',JSON.stringify(SESSION_TAGS).slice(0,120));
+    }
+  }catch(e){console.warn('[loadTags] error',e);}
 }
 function setSessionTag(date, focusId){
   // focusId = null removes override (back to auto), '' = untagged, or a PROGRAM id
@@ -4807,6 +4816,7 @@ function loadWeatherCacheFromSupabase(cb) {
     });
   });
 }
+
 
 
 
