@@ -89,6 +89,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -509,6 +511,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -533,6 +537,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -1095,13 +1101,18 @@ function bootApp() {
   }
   loadPersistedData(function() {
     loadFromStorage();
+    /* Load cached weather from Supabase into sessions before other loaders */
+    loadWeatherCache();
     loadTags(); loadNotes(); loadWeeklyPlans();
     loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
     loadStripConfig(); loadFocusOrder(); loadZones();
     SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
     recompute();
     addSignOutButton();
-    fetchAllWeather(function() { renderStrip(); refresh(); });
+    /* Load cached wx from Supabase first, then only fetch missing ones */
+    loadWeatherCacheFromSupabase(function() {
+      fetchAllWeather(function() { renderStrip(); refresh(); });
+    });
     setTimeout(computeAllTides, 200);
     /* Load stroke details in background — batched to avoid rate limits */
     loadAllSessionDetailsBatched(SESSIONS, function() {
@@ -2208,6 +2219,9 @@ function fetchWeather(session, callback){
       };
       // Cache
       try{localStorage.setItem(cacheKey,JSON.stringify(wx));}catch(e){}
+      /* Persist to Supabase so other devices/sessions don't need to re-fetch */
+      session._wx = wx;
+      sbScheduleWrite(WX_CACHE_PREFIX + session.date, wx);
       callback(null,wx);
     })
     .catch(function(err){callback(err,null);});
@@ -4717,6 +4731,51 @@ function loadAllSessionDetailsBatched(sessions, cb) {
     });
   }
   runBatch(0);
+}
+
+
+
+
+
+function loadWeatherCache() {
+  /* Load previously-fetched weather data from _store into session objects */
+  SESSIONS.forEach(function(s) {
+    if (s._wx) return; /* already loaded (e.g. from this session's fetch) */
+    var key = WX_CACHE_PREFIX + s.date;
+    var cached = _store[key];
+    if (cached) {
+      try {
+        s._wx = typeof cached === 'string' ? JSON.parse(cached) : cached;
+      } catch(e) {}
+    }
+    /* Also check localStorage as fallback */
+    if (!s._wx) {
+      try {
+        var lc = localStorage.getItem(key);
+        if (lc) s._wx = JSON.parse(lc);
+      } catch(e) {}
+    }
+  });
+}
+
+
+
+function loadWeatherCacheFromSupabase(cb) {
+  /* Fetch wx data for all sessions from Supabase in one batch */
+  var sessions = SESSIONS.filter(function(s) { return !s._wx; });
+  if (!sessions.length) { if(cb) cb(); return; }
+  var pending = sessions.length;
+  sessions.forEach(function(s) {
+    var key = WX_CACHE_PREFIX + s.date;
+    sbGet(key, sbToken(), function(err, val) {
+      if (!err && val) {
+        s._wx = val;
+        /* Also update localStorage */
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+      }
+      if (--pending === 0) { if(cb) cb(); }
+    });
+  });
 }
 
 
