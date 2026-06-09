@@ -87,6 +87,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -505,6 +506,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -529,6 +531,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -808,20 +811,8 @@ function saveSessionDetail(session) {
 }
 
 function loadAllSessionDetails(sessions, cb) {
-  if (!sessions || !sessions.length) { cb(); return; }
-  var pending = sessions.length;
-  sessions.forEach(function(s) {
-    sbGet(sessionDetailKey(s.date), sbToken(), function(err, detail) {
-      if (!err && detail) {
-        s.strokes   = detail.strokes   || [];
-        s.intervals = detail.intervals || [];
-      } else {
-        s.strokes   = s.strokes   || [];
-        s.intervals = s.intervals || [];
-      }
-      if (--pending === 0) { console.log('[loadAllSessionDetails] done, calling cb'); cb(); }
-    });
-  });
+  /* Delegate to batched version to avoid rate limiting */
+  loadAllSessionDetailsBatched(sessions, cb);
 }
 
 function loadPersistedData(cb) {
@@ -1101,16 +1092,19 @@ function bootApp() {
   }
   loadPersistedData(function() {
     loadFromStorage();
-    /* Load stroke details for all sessions */
-    loadAllSessionDetails(SESSIONS, function() {
-      loadTags(); loadNotes(); loadWeeklyPlans();
-      loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
-      loadStripConfig(); loadFocusOrder(); loadZones();
-      SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
+    loadTags(); loadNotes(); loadWeeklyPlans();
+    loadPrefs(); loadSessionCrafts(); loadLayout(); loadOvLayout();
+    loadStripConfig(); loadFocusOrder(); loadZones();
+    SEL = SESSIONS.length ? SESSIONS[SESSIONS.length-1].date : null;
+    recompute();
+    addSignOutButton();
+    fetchAllWeather(function() { renderStrip(); refresh(); });
+    setTimeout(computeAllTides, 200);
+    /* Load stroke details in background — batched to avoid rate limits */
+    loadAllSessionDetailsBatched(SESSIONS, function() {
       recompute();
-      addSignOutButton();
-      fetchAllWeather(function() { renderStrip(); refresh(); });
-      setTimeout(computeAllTides, 200);
+      /* Re-render current page if it needs strokes */
+      if (PAGE === 'session' || PAGE === 'by-focus' || PAGE === 'segments') refresh();
     });
   });
 }
@@ -4685,6 +4679,42 @@ function startDrag(srcWrap, containerEl, s, startY) {
 
 
 
+
+
+
+
+function loadAllSessionDetailsBatched(sessions, cb) {
+  if (!sessions || !sessions.length) { if(cb)cb(); return; }
+  /* Filter to sessions that don't have strokes yet */
+  var needed = sessions.filter(function(s){ return !s.strokes || !s.strokes.length; });
+  console.log('[details] Loading strokes for', needed.length, 'of', sessions.length, 'sessions');
+  if (!needed.length) { if(cb)cb(); return; }
+
+  var BATCH = 5, DELAY = 300, done = 0, total = needed.length;
+
+  function runBatch(start) {
+    var batch = needed.slice(start, start + BATCH);
+    if (!batch.length) { console.log('[details] All done'); if(cb)cb(); return; }
+    var batchDone = 0;
+    batch.forEach(function(s) {
+      sbGet(sessionDetailKey(s.date), sbToken(), function(err, detail) {
+        if (!err && detail && detail.strokes) {
+          s.strokes   = detail.strokes;
+          s.intervals = detail.intervals || [];
+        } else {
+          s.strokes   = s.strokes   || [];
+          s.intervals = s.intervals || [];
+        }
+        done++; batchDone++;
+        if (batchDone === batch.length) {
+          if (done >= total) { console.log('[details] All done'); if(cb)cb(); }
+          else setTimeout(function(){ runBatch(start + BATCH); }, DELAY);
+        }
+      });
+    });
+  }
+  runBatch(0);
+}
 
 </script>
 </body>
