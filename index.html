@@ -94,6 +94,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -519,6 +520,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -543,6 +545,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1283,13 +1286,15 @@ function getFocus(s){
   /* Session-level override takes priority */
   if(SESSION_TAGS.hasOwnProperty(s.date)){
     var ov=SESSION_TAGS[s.date];
-    if(ov===null||ov==='') return null; /* explicitly untagged */
-    /* Find in FOCUS_OPTIONS first, then PROGRAM */
-    var fo=FOCUS_OPTIONS.find(function(f){return f.id===ov;});
-    if(fo) return fo;
-    /* Fallback: search PROGRAM values */
-    var pv=Object.values(PROGRAM).find(function(p){return p.id===ov;});
-    if(pv) return pv;
+    if(ov===null) return null; /* null = explicitly hide from all views */
+    if(ov!==''){
+      /* Non-empty override — look up in FOCUS_OPTIONS then PROGRAM */
+      var fo=FOCUS_OPTIONS.find(function(f){return f.id===ov;});
+      if(fo) return fo;
+      var pv=Object.values(PROGRAM).find(function(p){return p.id===ov;});
+      if(pv) return pv;
+    }
+    /* Empty string = "no override", fall through to day-of-week */
   }
   /* Default: day-of-week from PROGRAM */
   return PROGRAM[getDOW(s.date)]||null;
@@ -2455,7 +2460,7 @@ function renderTagEditor(session){
   }
 
   var options = opt('auto', autoFocus ? 'Auto: '+autoFocus.shortLabel : 'Auto: untagged');
-  options += opt('', '— No focus tag —');
+  options += opt('', '— Use auto-detect —');
   FOCUS_OPTIONS.forEach(function(p) {
     if (!p.id) return;
     options += opt(p.id, (p.icon ? p.icon+' ' : '')+p.label);
@@ -4816,6 +4821,7 @@ function loadWeatherCacheFromSupabase(cb) {
     });
   });
 }
+
 
 
 
