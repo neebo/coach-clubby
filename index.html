@@ -76,6 +76,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -483,6 +484,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -507,6 +509,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -3682,15 +3685,15 @@ function openPlanEditor(wk) {
     focusOpts += FOCUS_OPTIONS.map(function(o) {
       return '<option value="' + o.id + '"' + (o.id===day.id?' selected':'') + '>' + o.icon + ' ' + o.label + '</option>';
     }).join('');
-    var onch = 'updatePlanDay(' + JSON.stringify(wk) + ',' + d.dow + ',this.value)';
+    var onch = "updatePlanDay('" + wk + "'," + d.dow + ",this.value)";
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--lilac2);border-radius:10px;margin-bottom:6px;flex-wrap:wrap">'
       + '<span style="font-size:12px;font-weight:800;color:var(--plum);width:90px">' + d.name + '</span>'
       + '<select onchange="' + onch + '" style="font-family:var(--font);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--lav);background:var(--white);color:var(--ink);cursor:pointer;flex:1">'
       + focusOpts + '</select></div>';
   });
 
-  var saveOnch = 'savePlanFromEditor(' + JSON.stringify(wk) + ')';
-  var delOnch  = 'deletePlan(' + JSON.stringify(wk) + ')';
+  var saveOnch = "savePlanFromEditor('" + wk + "')";
+  var delOnch  = "deletePlan('" + wk + "')";
   html += '<div style="display:flex;gap:8px;margin-top:12px">'
     + '<button onclick="' + saveOnch + '" style="font-family:var(--font);font-size:11px;font-weight:800;padding:8px 18px;border-radius:var(--r-pill);border:none;background:var(--plum);color:var(--white);cursor:pointer">💾 Save plan</button>'
     + '<button onclick="' + delOnch + '" style="font-family:var(--font);font-size:11px;font-weight:800;padding:8px 18px;border-radius:var(--r-pill);border:1.5px solid var(--blush-dk);background:var(--blush);color:#8a3055;cursor:pointer">🗑 Delete</button>'
@@ -3750,7 +3753,7 @@ function renderPlanCard(wk, plan) {
   html += '<div class="ct-title" style="margin:0">📅 Week of ' + weekStr;
   if (isThisWeek) html += ' <span style="font-size:10px;background:var(--plum);color:var(--white);padding:2px 7px;border-radius:99px">this week</span>';
   html += '</div>';
-  html += '<button onclick="openPlanEditor(' + JSON.stringify(wk) + ')" '
+  html += '<button onclick="openPlanEditor(\'' + wk + '\')" '
         + 'style="font-family:var(--font);font-size:10px;font-weight:800;padding:4px 12px;'
         + 'border-radius:var(--r-pill);border:1.5px solid var(--lav);background:var(--white);'
         + 'color:var(--plum);cursor:pointer">Edit</button>';
@@ -4593,6 +4596,7 @@ function startDrag(srcWrap, containerEl, s, startY) {
   document.addEventListener('touchmove', tm, {passive: false});
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
