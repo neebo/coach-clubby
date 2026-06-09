@@ -81,6 +81,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -493,6 +494,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -517,6 +519,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -1208,6 +1211,10 @@ function loadFromStorage(){
       SESSIONS = stored.slice();
       SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
       console.log('[load] Loaded', SESSIONS.length, 'sessions from Supabase');
+    if(SESSIONS.length){
+      var s0=SESSIONS[0];
+      console.log('[load] Sample session: date='+s0.date+' DOW='+getDOW(s0.date)+' focus=',getFocus(s0));
+    }
       return true;
     }
   }catch(e){
@@ -1591,6 +1598,14 @@ function renderByFocus(el){
     });
   }
 
+  console.log('[byFocus] ss='+ss.length+' groupList='+groupList.length);
+  if(!groupList.length){
+    el.innerHTML='<div class="view"><div class="pt">🎯 By Focus Type</div>'
+      +'<div class="ps">No sessions could be matched to a focus type. '
+      +'Sessions are auto-tagged by day of week (Tue→Intervals, Thu→Bungee, Sat→Long Z2, Sun→Easy). '
+      +'Sessions on Mon/Fri need a manual tag.</div></div>';
+    return;
+  }
   /* Build view shell */
   el.innerHTML='<div class="view"><div class="pt">🎯 Sessions by Focus Type</div>'
     +'<div class="ps">Only compare sessions of the same type and craft.</div></div>';
@@ -2077,7 +2092,11 @@ function handleFileUpload(evtOrFiles) {
       file.text().then(function(text){
         try{
           var s=parseCSV(text);
-          if(s&&!SESSIONS.some(function(x){return x.date===s.date;})){SESSIONS.push(s);added++;}
+          if(s&&!SESSIONS.some(function(x){return x.date===s.date;})){
+            SESSIONS.push(s);
+            saveSessionDetail(s); /* persist strokes */
+            added++;
+          }
           else if(s){showToast('Session '+dateLabel(s.date)+' already saved','warn');}
         }catch(err){console.error('CSV parse error',err);showToast('⚠️ Could not parse '+file.name,'error');}
         next(i+1);
@@ -4634,6 +4653,7 @@ function startDrag(srcWrap, containerEl, s, startY) {
   document.addEventListener('touchmove', tm, {passive: false});
   document.addEventListener('touchend',  tu);
 }
+
 
 
 
