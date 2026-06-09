@@ -99,6 +99,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -529,6 +531,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -553,6 +557,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -2586,6 +2592,39 @@ function renderWeatherCard(session){
     }
   }
 
+  /* ── Tide section ── */
+  var tide = session._tide;
+  html += '<div style="border-top:1px solid var(--lav-lt);margin-top:10px;padding-top:10px">';
+  html += '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gm);margin-bottom:6px">'
+        + '🌊 Tides — '+(tide&&tide.station?tide.station:'—')+'</div>';
+  if (!tide) {
+    html += '<div style="font-size:11px;font-weight:600;color:var(--gm)">Computing tides…</div>';
+  } else {
+    var th = tide.interpHeight;
+    var trendIcon  = tide.trend==='rising' ? '↑' : '↓';
+    var trendColor = tide.trend==='rising' ? '#3a7abf' : '#c9973d';
+    var tideEvents = tide.events || [];
+    html += '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px">';
+    html += '<span style="font-size:18px;font-weight:900;color:var(--plum)">'+(th!=null?th.toFixed(1):'—')+'<span style="font-size:11px;font-weight:700"> ft</span></span>';
+    html += '<span style="font-size:11px;font-weight:800;color:'+trendColor+'">'+trendIcon+' '+(tide.trend||'')+'</span>';
+    html += '<span style="font-size:10px;font-weight:600;color:var(--gm)">at session start · MLLW</span>';
+    html += '</div>';
+    if (tideEvents.length) {
+      var evCols = Math.min(tideEvents.length, 4);
+      html += '<div style="display:grid;grid-template-columns:repeat('+evCols+',1fr);gap:6px">';
+      tideEvents.forEach(function(ev) {
+        var isHigh = ev.type==='H';
+        html += '<div style="background:'+(isHigh?'#daeef8':'#fff8ec')+';border-radius:8px;padding:5px 8px;text-align:center">';
+        html += '<div style="font-size:9px;font-weight:800;color:var(--gm)">'+(isHigh?'HIGH':'LOW')+'</div>';
+        html += '<div style="font-size:14px;font-weight:900;color:'+(isHigh?'#3a7abf':'#c9973d')+'">'+(ev.height!=null?ev.height.toFixed(1):'—')+'<span style="font-size:9px"> ft</span></div>';
+        html += '<div style="font-size:9px;font-weight:700;color:var(--gm)">'+ev.time+'</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+  }
+  html += '</div>'; /* close tide section */
+
   /* ── Exposure note ── */
   var note = wxExposureNote(session);
   if (note) {
@@ -3410,9 +3449,17 @@ function drawDownwindTrend(g,c){
 
   /* Collect efficiency + avg speed per session */
   var data=sess.map(function(s){
-    var dw=detectDownwindRuns(s);
-    return {date:s.date,eff:dw?dw.eff:null,spd:dw?dw.avgSpd:null,sr:dw?dw.avgSR:null};
-  }).filter(function(d){return d.eff!==null;});
+    var runs=detectDownwindRuns(s);
+    if(!runs||!runs.length)return null;
+    /* Use best run avg speed as the session's performance metric */
+    var best=runs.reduce(function(m,r){return r.avgSpeed>m.avgSpeed?r:m;});
+    var allSpeeds=runs.map(function(r){return r.avgSpeed;});
+    var avgSpd=allSpeeds.reduce(function(a,b){return a+b;})/allSpeeds.length;
+    var avgSR=runs[0].avgSR||0;
+    /* Efficiency = avg speed / SR * 100 (only if SR > 0) */
+    var eff = avgSR>0 ? (avgSpd/avgSR*100) : avgSpd;
+    return {date:s.date, eff:eff, spd:avgSpd, best:best.avgSpeed, sr:avgSR};
+  }).filter(Boolean);
   if(data.length<1) return;
 
   var effs=data.map(function(d){return d.eff;});
@@ -4135,7 +4182,7 @@ function startOvDrag(srcWrap, container, startY) {
 }
 
 /* ── Minimal renderSessionCards (DnD card layout) ── */
-function defaultCardOrder() { return ['legs','tide','weather','map','trim','speed','intervals','notes']; }
+function defaultCardOrder() { return ['legs','weather','map','trim','speed','intervals','notes']; }
 function getCardOrder() {
   try {
     var r=_store[LAYOUT_KEY]; if(!r)return defaultCardOrder();
@@ -4325,7 +4372,8 @@ function buildIntervalsTable(s) {
 /* ── Legs card ── */
 
 /* ── Tide card ── */
-function renderTideCard(s) {
+function renderTideCard(s) { return ''; /* merged into weather card */ }
+function _renderTideCard_unused(s) {
   var tide = s._tide;
   var html = '<div class="card dnd-card" data-card-id="tide">';
   html += '<div class="ct-title">🌊 Tides — '+(tide&&tide.station?tide.station:'—')+'</div>';
@@ -4857,6 +4905,8 @@ function computeAllTides() {
     }
   });
 }
+
+
 
 
 </script>
