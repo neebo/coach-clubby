@@ -85,6 +85,8 @@
 
 
 
+
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -501,6 +503,8 @@ canvas{display:block;width:100%;}
 
 
 
+
+
 </style>
 </head>
 <body>
@@ -525,6 +529,8 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
+
 
 
 
@@ -813,7 +819,7 @@ function loadAllSessionDetails(sessions, cb) {
         s.strokes   = s.strokes   || [];
         s.intervals = s.intervals || [];
       }
-      if (--pending === 0) cb();
+      if (--pending === 0) { console.log('[loadAllSessionDetails] done, calling cb'); cb(); }
     });
   });
 }
@@ -1292,6 +1298,7 @@ var WW_VIS={seg_S:true,seg_C:true,seg_N:true,seg_NE:true};
    COMPUTE ENGINE
 ═══════════════════════════════════════════ */
 function recompute(){
+  console.log('[recompute] SESSIONS='+SESSIONS.length);
   if(!SESSIONS.length){COMPUTED=null;return;}
   SESSIONS.sort(function(a,b){return a.date.localeCompare(b.date);});
   var dates=SESSIONS.map(function(s){return s.date;});
@@ -1355,6 +1362,7 @@ function recompute(){
   });
 
   COMPUTED={dates:dates,cellCount:cellCount,corridor:corridor,segments:segments,byFocus:byFocus};
+  console.log('[recompute] COMPUTED set, byFocus keys:', Object.keys(byFocus));
 }
 
 /* ═══════════════════════════════════════════
@@ -1577,6 +1585,7 @@ function drawOvSpeed(ss){
    BY FOCUS TYPE
 ═══════════════════════════════════════════ */
 function renderByFocus(el){
+  console.log('[renderByFocus] COMPUTED='+!!COMPUTED+' SESSIONS='+SESSIONS.length);
   if(!COMPUTED||!SESSIONS.length){
     el.innerHTML='<div class="view"><div class="pt">🎯 By Focus Type</div>'
       +'<div class="ps">Upload sessions to see focus type comparisons.</div></div>';
@@ -4662,6 +4671,8 @@ function startDrag(srcWrap, containerEl, s, startY) {
   document.addEventListener('touchmove', tm, {passive: false});
   document.addEventListener('touchend',  tu);
 }
+
+
 
 
 
