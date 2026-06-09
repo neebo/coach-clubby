@@ -88,6 +88,7 @@
 
 
 
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--font);background:var(--cloud);color:var(--ink);}
@@ -507,6 +508,7 @@ canvas{display:block;width:100%;}
 
 
 
+
 </style>
 </head>
 <body>
@@ -531,6 +533,7 @@ canvas{display:block;width:100%;}
 </div>
 <label class="mob-fab" for="fi" title="Upload session">＋</label>
 <script>
+
 
 
 
@@ -654,7 +657,7 @@ function sbGet(key, token, cb) {
   if (uid) url += '&user_id=eq.' + encodeURIComponent(uid);
   fetch(url, { headers: sbHeaders(token) })
   .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-  .then(function(rows) { cb(null, rows.length ? rows[0].value : null); })
+  .then(function(rows) { cb(null, Array.isArray(rows) && rows.length ? rows[0].value : null); })
   .catch(function(e) { cb(e, null); });
 }
 
@@ -4715,6 +4718,7 @@ function loadAllSessionDetailsBatched(sessions, cb) {
   }
   runBatch(0);
 }
+
 
 </script>
 </body>
